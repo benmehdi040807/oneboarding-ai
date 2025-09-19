@@ -38,7 +38,7 @@ model History {
   userId      String
   plan        String
   templateId  String
-  inputJson   Json
+  inputJson   String   // JSON stringifié
   outputText  String
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -49,7 +49,7 @@ model Template {
   slug      String   @unique
   title     String
   locale    String   @default("fr")
-  config    Json
+  config    String   // JSON stringifié
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -61,12 +61,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
