@@ -48,6 +48,14 @@ const PLANS = [
   { id: "team", label: "Entreprise", price: "200–330€/mois", desc: "Mémoire partagée", color: "bg-indigo-700" },
 ];
 
+// --- Nouveau composant Spinner (loader) ---
+const Spinner = () => (
+  <div
+    className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin"
+    aria-label="Chargement"
+  />
+);
+
 function useLocalStorage<T>(key: string, initial: T) {
   const [val, setVal] = useState<T>(initial);
   useEffect(() => {
@@ -95,9 +103,6 @@ export default function AppMvp() {
     locale,
   });
 
-  // Nouvel état : écran d’accueil hero
-  const [showHero, setShowHero] = useState(true);
-
   const [step, setStep] = useState(1);
   const [templateId, setTemplateId] = useState("");
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -121,75 +126,6 @@ export default function AppMvp() {
     };
     run();
   }, [step, templateId]);
-
-  // --------- Exemples préremplis (tap → remplit et passe étape 3) ----------
-  const presets = [
-    {
-      id: "preset-avocat",
-      label: "⚖️ Présentation d’un avocat",
-      apply: () => {
-        setTemplateId("post");
-        setFormValues({
-          sujet: "Présentation cabinet & expertise",
-          idee:
-            "Je suis avocat spécialisé en droit des affaires et procédures collectives. J’accompagne PME et commerçants dans la prévention des difficultés et la restructuration. J’annonce l’ouverture de créneaux de consultation.",
-        });
-        setStep(3);
-        setShowHero(false);
-      },
-    },
-    {
-      id: "preset-startup",
-      label: "📈 Pitch d’une startup",
-      apply: () => {
-        setTemplateId("post");
-        setFormValues({
-          sujet: "Lancement produit SaaS",
-          idee:
-            "Notre outil automatise la conformité RGPD pour les TPE/PME : questionnaire guidé, rapport instantané, suivi mensuel. Nous recherchons 50 bêta-testeurs.",
-        });
-        setStep(3);
-        setShowHero(false);
-      },
-    },
-    {
-      id: "preset-etudiant",
-      label: "📚 Résumé pour étudiant",
-      apply: () => {
-        setTemplateId("mail");
-        setFormValues({
-          destinataire: "Professeur Martin",
-          objet: "Demande de clarification – chapitre 3",
-          message:
-            "Je n’ai pas compris la différence entre analyse descriptive et inférence statistique. Pourriez-vous me donner un exemple simple ?",
-        });
-        setStep(3);
-        setShowHero(false);
-      },
-    },
-  ];
-
-  // --------- Actions résultat ----------
-  async function copyResult() {
-    try {
-      await navigator.clipboard.writeText(result);
-      alert("Copié !");
-    } catch {
-      alert("Impossible de copier");
-    }
-  }
-
-  async function shareResult() {
-    if ((navigator as any).share) {
-      try {
-        await (navigator as any).share({ title: "OneBoarding AI — Démo", text: result });
-      } catch {
-        // utilisateur annule
-      }
-    } else {
-      await copyResult();
-    }
-  }
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -230,69 +166,11 @@ export default function AppMvp() {
         </div>
       </header>
 
-      {/* Hero (Accueil) */}
-      {showHero && (
-        <section className="relative overflow-hidden border-b border-white/10">
-          <div className="max-w-5xl mx-auto px-4 py-12 md:py-16">
-            <div className="max-w-3xl">
-              <div className="text-sm uppercase tracking-widest text-white/50 mb-2">Démo</div>
-              <h1 className="text-3xl md:text-4xl font-semibold leading-tight">
-                Votre <span className="text-white/80">ticket d’embarquement</span> vers l’IA personnalisée
-              </h1>
-              <p className="text-white/70 mt-3">
-                Remplissez 3 champs ou choisissez un exemple. Le résultat s’affiche immédiatement en mode{" "}
-                <span className="font-medium">démo</span>.
-              </p>
-              <div className="flex flex-wrap gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowHero(false);
-                    setStep(1);
-                  }}
-                  className="px-5 py-3 rounded-xl bg-white text-black font-medium"
-                >
-                  Commencer la démo
-                </button>
-                {presets.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={p.apply}
-                    className="px-4 py-3 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10"
-                    title="Remplir automatiquement et afficher un résultat"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs text-white/50 mt-3">* Mode démo : texte de démonstration (MOCK_OPENAI activé)</div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Corps principal */}
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        {/* Fil d’étapes */}
-        {!showHero && (
-          <div className="flex items-center gap-2 text-xs text-white/60">
-            <div className={`px-2 py-1 rounded-full border ${"border-white/40 text-white"}`}>1. {t.step[0]}</div>
-            <div className="opacity-50">→</div>
-            <div className={`px-2 py-1 rounded-full border ${step >= 2 ? "border-white/40 text-white" : "border-white/10"}`}>2. {t.step[1]}</div>
-            <div className="opacity-50">→</div>
-            <div className={`px-2 py-1 rounded-full border ${step >= 3 ? "border-white/40 text-white" : "border-white/10"}`}>3. {t.step[2]}</div>
-          </div>
-        )}
-
-        {/* Étape 1 */}
-        {!showHero && step === 1 && (
+      {/* Étape 1 */}
+      {step === 1 && (
+        <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
-            <div className="mb-4">
-              <div className="text-xs uppercase tracking-widest text-white/50">Étape 1 / 3</div>
-              <h2 className="text-xl md:text-2xl font-semibold text-white mt-1">{t.whatToGenerate}</h2>
-              <p className="text-white/60 text-sm mt-1">Simplicité garantie en 3 étapes.</p>
-            </div>
-
-            {/* Choix templates */}
+            <h2 className="text-xl font-semibold mb-3">{t.whatToGenerate}</h2>
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
               {TEMPLATES.map((tpl) => (
                 <button
@@ -306,32 +184,18 @@ export default function AppMvp() {
                 >
                   <div className="text-2xl">{tpl.icon}</div>
                   <div className="mt-2 font-medium">{tpl.label}</div>
-                  <div className="text-xs text-white/60 mt-1">3 champs max · 3 étapes</div>
                 </button>
               ))}
             </div>
-
-            {/* Forfaits visuels */}
-            <div className="mt-6 grid md:grid-cols-3 gap-3">
-              {PLANS.map((p) => (
-                <div key={p.id} className={`rounded-2xl p-4 border border-white/10 ${p.color}`}>
-                  <div className="text-sm opacity-90">{p.label}</div>
-                  <div className="text-lg font-semibold">{p.price}</div>
-                  <div className="text-xs opacity-80">{p.desc}</div>
-                </div>
-              ))}
-            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Étape 2 */}
-        {!showHero && step === 2 && template && (
+      {/* Étape 2 */}
+      {step === 2 && template && (
+        <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
-            <div className="mb-4">
-              <div className="text-xs uppercase tracking-widest text-white/50">Étape 2 / 3</div>
-              <h2 className="text-xl md:text-2xl font-semibold text-white mt-1">{template.label}</h2>
-              <p className="text-white/60 text-sm mt-1">{t.fillMinimal}</p>
-            </div>
+            <h2 className="text-xl font-semibold mb-4">{template.label}</h2>
             <div className="grid gap-4">
               {template.fields.map((f) => (
                 <label key={f.id} className="block">
@@ -364,37 +228,36 @@ export default function AppMvp() {
               >
                 ← Retour
               </button>
-              <button onClick={() => setStep(3)} className="px-4 py-2 rounded-xl bg-white text-black font-medium">
-                Générer
+              <button
+                onClick={() => setStep(3)}
+                disabled={loading}
+                className={`px-4 py-2 rounded-xl font-medium ${
+                  loading ? "bg-white/60 text-black/70 cursor-not-allowed" : "bg-white text-black"
+                }`}
+              >
+                {loading ? "…" : "Générer"}
               </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Étape 3 */}
-        {!showHero && step === 3 && (
+      {/* Étape 3 */}
+      {step === 3 && (
+        <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
-            <div className="mb-4">
-              <div className="text-xs uppercase tracking-widest text-white/50">Étape 3 / 3</div>
-              <h2 className="text-xl md:text-2xl font-semibold text-white mt-1">{t.resultReady}</h2>
-              <p className="text-white/60 text-sm mt-1">
-                {plan === "free"
-                  ? "Freemium — résultat générique."
-                  : plan === "pro"
-                  ? "Pro — personnalisé via votre biographie."
-                  : "Entreprise — mémoire partagée."}
-              </p>
-            </div>
+            <h2 className="text-xl font-semibold mb-4">{t.resultReady}</h2>
             <div className="rounded-xl bg-black border border-white/10 p-4 whitespace-pre-wrap text-sm min-h-[140px]">
-              {loading ? "Génération en cours..." : result || "(Aucun contenu)"}
+              {loading ? (
+                <div className="flex items-center gap-2 text-white/80">
+                  <Spinner />
+                  <span>Génération en cours…</span>
+                </div>
+              ) : (
+                result || "(Aucun contenu)"
+              )}
             </div>
-            <div className="flex flex-wrap gap-3 mt-4">
-              <button onClick={copyResult} className="px-4 py-2 rounded-xl bg-white text-black font-medium">
-                Copier
-              </button>
-              <button onClick={shareResult} className="px-4 py-2 rounded-xl border border-white/15">
-                Partager
-              </button>
+            <div className="flex gap-3 mt-5">
               <button
                 onClick={() => {
                   setStep(1);
@@ -404,23 +267,10 @@ export default function AppMvp() {
               >
                 Nouveau
               </button>
-              {plan === "free" && (
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert("Prochainement : abonnement Pro (Stripe).");
-                  }}
-                  className="px-4 py-2 rounded-xl bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold text-center"
-                >
-                  Débloquer la vraie puissance IA
-                </a>
-              )}
             </div>
-            <div className="text-xs text-white/50 mt-3">* Mode démo : texte de démonstration (MOCK_OPENAI activé)</div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
-                }
+}
