@@ -1,13 +1,6 @@
 // components/AppMvp.tsx
 "use client";
 
-/**
- * AppMvp v2 (debug visuel)
- * - Affiche la dernière réponse brute de l'API (panneau Debug)
- * - Ajoute systématiquement la réponse IA dans l'historique si ok === true
- * - Gestion claire des erreurs (elles apparaissent aussi dans l'historique)
- */
-
 import { useEffect, useState } from "react";
 import RgpdBanner from "./RgpdBanner";
 
@@ -22,18 +15,22 @@ export default function AppMvp() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 👀 Panneau de debug à l’écran (utile sans console)
+  // 🔎 Panneau de debug (utile sans console)
   const [debug, setDebug] = useState<string>("(prêt)");
+  const [openDebug, setOpenDebug] = useState(false);
 
+  // Charger l'historique
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
       if (saved) setHistory(JSON.parse(saved));
+      setDebug("Historique chargé.");
     } catch (e) {
       setDebug(`Erreur lecture localStorage: ${(e as Error).message}`);
     }
   }, []);
 
+  // Sauvegarder l'historique
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
@@ -42,6 +39,32 @@ export default function AppMvp() {
     }
   }, [history]);
 
+  // Test rapide de l’API (GET /api/generate)
+  async function checkApi() {
+    try {
+      setDebug("Test API…");
+      const r = await fetch("/api/generate");
+      const j = await r.json();
+      setDebug(
+        j?.ready
+          ? "API OK ✅ (clé détectée)"
+          : "API NOK ❌ (clé manquante ou invalide)"
+      );
+    } catch (e: any) {
+      setDebug(`API erreur: ${e?.message || "réseau"}`);
+    }
+  }
+
+  // Vider l'historique
+  function clearHistory() {
+    setHistory([]);
+    try {
+      localStorage.removeItem("oneboarding.history");
+    } catch {}
+    setDebug("Historique vidé.");
+  }
+
+  // Soumission du besoin
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
@@ -52,7 +75,7 @@ export default function AppMvp() {
     setHistory((h) => [userItem, ...h]);
     setInput("");
     setLoading(true);
-    setDebug("Envoi au serveur…");
+    setDebug("Envoi à l’API…");
 
     try {
       const res = await fetch("/api/generate", {
@@ -61,48 +84,40 @@ export default function AppMvp() {
         body: JSON.stringify({ prompt: q }),
       });
 
-      // Si le serveur ne renvoie pas du JSON valide, on gère proprement
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch {
-        const raw = await res.text();
-        data = { ok: false, error: `Réponse non-JSON: ${raw.slice(0, 200)}` };
+      const data = await res.json();
+
+      if (!data?.ok) {
+        const msg = data?.error || "échec appel API";
+        setHistory((h) => [
+          {
+            role: "error",
+            text: `Erreur: ${msg}`,
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
+        setDebug(`Réponse API en erreur ❌ : ${msg}`);
+      } else {
+        setHistory((h) => [
+          {
+            role: "assistant",
+            text: data.text,
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
+        setDebug("Réponse IA reçue ✅");
       }
-
-      setDebug(`Réponse API: ${JSON.stringify(data)}`);
-
-      if (!data || data.ok !== true) {
-        const errItem: Item = {
-          role: "error",
-          text:
-            "Erreur: " +
-            (data?.error ||
-              `statut HTTP ${res.status} / ${res.statusText}`),
-          time: new Date().toISOString(),
-        };
-        setHistory((h) => [errItem, ...h]);
-        return;
-      }
-
-      // ✅ Ajout clair de la réponse IA
-      const aiText =
-        (typeof data.text === "string" && data.text.trim()) ||
-        "Réponse vide reçue.";
-      const aiItem: Item = {
-        role: "assistant",
-        text: aiText,
-        time: new Date().toISOString(),
-      };
-      setHistory((h) => [aiItem, ...h]);
     } catch (err: any) {
-      const errItem: Item = {
-        role: "error",
-        text: `Erreur réseau: ${err?.message || "inconnue"}`,
-        time: new Date().toISOString(),
-      };
-      setHistory((h) => [errItem, ...h]);
-      setDebug(`Catch: ${err?.message || String(err)}`);
+      setHistory((h) => [
+        {
+          role: "error",
+          text: `Erreur: ${err?.message || "réseau"}`,
+          time: new Date().toISOString(),
+        },
+        ...h,
+      ]);
+      setDebug(`Exception ❌ : ${err?.message || "réseau"}`);
     } finally {
       setLoading(false);
     }
@@ -115,7 +130,7 @@ export default function AppMvp() {
           OneBoarding AI ✨
         </h1>
 
-        <form onSubmit={handleSubmit} className="w-full flex gap-2 mb-4">
+        <form onSubmit={handleSubmit} className="w-full flex gap-2 mb-3">
           <input
             type="text"
             placeholder="Décrivez votre besoin..."
@@ -132,12 +147,37 @@ export default function AppMvp() {
           </button>
         </form>
 
-        {/* 🧪 Panneau Debug visible (tu peux le supprimer quand tout est OK) */}
-        <div className="w-full mb-6 text-xs text-white/70 bg-white/5 border border-white/10 rounded-lg p-3">
-          <div className="font-semibold mb-1">Debug</div>
-          <pre className="whitespace-pre-wrap break-words">{debug}</pre>
+        {/* Petite barre d’actions */}
+        <div className="w-full mb-5 flex items-center justify-between text-xs text-white/70">
+          <button
+            onClick={checkApi}
+            className="underline underline-offset-2 hover:text-white"
+          >
+            Tester l’API
+          </button>
+          <button
+            onClick={() => setOpenDebug((v) => !v)}
+            className="underline underline-offset-2 hover:text-white"
+          >
+            {openDebug ? "Masquer debug" : "Afficher debug"}
+          </button>
+          <button
+            onClick={clearHistory}
+            className="underline underline-offset-2 hover:text-white"
+          >
+            Vider l’historique
+          </button>
         </div>
 
+        {/* Zone debug (affichée/masquée) */}
+        {openDebug && (
+          <div className="w-full mb-5 rounded-lg border border-white/10 bg-white/5 p-2 text-xs">
+            <span className="font-medium text-white/80">Debug :</span>{" "}
+            <span className="text-white/70">{debug}</span>
+          </div>
+        )}
+
+        {/* Liste des messages */}
         <div className="w-full space-y-3">
           {history.map((item, idx) => (
             <div
@@ -152,7 +192,11 @@ export default function AppMvp() {
             >
               <p className="text-white/90 whitespace-pre-wrap">{item.text}</p>
               <p className="text-xs text-white/50 mt-1">
-                {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"}
+                {item.role === "user"
+                  ? "Vous"
+                  : item.role === "assistant"
+                  ? "IA"
+                  : "Erreur"}
                 {" • "}
                 {new Date(item.time).toLocaleString()}
               </p>
@@ -161,7 +205,8 @@ export default function AppMvp() {
         </div>
       </div>
 
+      {/* Bandeau RGPD (fixe en bas) */}
       <RgpdBanner />
     </div>
   );
-}
+    }
