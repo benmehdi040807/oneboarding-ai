@@ -9,10 +9,13 @@ export default function RgpdBanner() {
 
   useEffect(() => {
     try {
+      // Mode "force" : ?rgpd=1 dans l’URL pour ré-afficher le bandeau
+      const sp = new URLSearchParams(window.location.search);
+      const force = sp.get("rgpd") === "1";
+      if (force) localStorage.removeItem(CONSENT_KEY);
+
       const v = localStorage.getItem(CONSENT_KEY);
-      if (v !== "1") {
-        setShow(true); // Afficher si pas encore accepté
-      }
+      setShow(force || v !== "1");
     } catch {
       setShow(true);
     }
@@ -29,15 +32,16 @@ export default function RgpdBanner() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50">
-      <div className="mx-auto max-w-5xl px-4">
+      <div className="mx-auto max-w-xl px-4 pb-[env(safe-area-inset-bottom)]">
         <div className="m-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur p-3 sm:p-4">
-          <p className="text-white/90 text-sm">
+          <p className="text-sm text-white/90 leading-relaxed">
             Vos données restent privées sur cet appareil. Vous pouvez{" "}
             <a href="/legal" className="underline">
               exporter ou supprimer
             </a>{" "}
             vos informations à tout moment.
           </p>
+
           <div className="mt-3 flex gap-2">
             <a
               href="/legal"
@@ -47,7 +51,7 @@ export default function RgpdBanner() {
             </a>
             <button
               onClick={accept}
-              className="px-3 py-2 rounded-xl bg-white text-black font-medium text-sm"
+              className="px-3 py-2 rounded-xl bg-white text-black text-sm font-medium"
             >
               D’accord
             </button>
