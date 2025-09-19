@@ -1,8 +1,6 @@
-import "./globals.css";
-
 export const metadata = {
   title: "OneBoarding AI",
-  description: "MVP démo",
+  description: "3 étapes — simple, pro, équipe",
 };
 
 export default function RootLayout({
@@ -13,9 +11,13 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <head>
+        {/* Indispensable sur mobile pour éviter le zoom/débordement */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body>{children}</body>
+      <body className="bg-black text-white">
+        {/* Conteneur central responsive */}
+        <div className="mx-auto w-full max-w-xl px-4">{children}</div>
+      </body>
     </html>
   );
 }
