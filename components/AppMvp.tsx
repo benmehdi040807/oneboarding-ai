@@ -48,12 +48,9 @@ const PLANS = [
   { id: "team", label: "Entreprise", price: "200–330€/mois", desc: "Mémoire partagée", color: "bg-indigo-700" },
 ];
 
-// --- Nouveau composant Spinner (loader) ---
+// Loader (étape 1)
 const Spinner = () => (
-  <div
-    className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin"
-    aria-label="Chargement"
-  />
+  <div className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" aria-label="Chargement" />
 );
 
 function useLocalStorage<T>(key: string, initial: T) {
@@ -102,6 +99,9 @@ export default function AppMvp() {
     org: "",
     locale,
   });
+
+  // Hero (écran d’accueil facultatif — on peut l’activer plus tard si besoin)
+  const [showHero, setShowHero] = useState(false);
 
   const [step, setStep] = useState(1);
   const [templateId, setTemplateId] = useState("");
@@ -166,10 +166,40 @@ export default function AppMvp() {
         </div>
       </header>
 
+      {/* Hero (si activé) */}
+      {showHero && (
+        <section className="relative overflow-hidden border-b border-white/10 fade-in">
+          <div className="max-w-5xl mx-auto px-4 py-12 md:py-16">
+            <div className="max-w-3xl">
+              <div className="text-sm uppercase tracking-widest text-white/50 mb-2">Démo</div>
+              <h1 className="text-3xl md:text-4xl font-semibold leading-tight">
+                Votre <span className="text-white/80">ticket d’embarquement</span> vers l’IA personnalisée
+              </h1>
+              <p className="text-white/70 mt-3">
+                Remplissez 3 champs ou choisissez un exemple. Le résultat s’affiche immédiatement en mode{" "}
+                <span className="font-medium">démo</span>.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowHero(false);
+                    setStep(1);
+                  }}
+                  className="px-5 py-3 rounded-xl bg-white text-black font-medium"
+                >
+                  Commencer la démo
+                </button>
+              </div>
+              <div className="text-xs text-white/50 mt-3">* Mode démo : texte de démonstration (MOCK_OPENAI activé)</div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Étape 1 */}
-      {step === 1 && (
+      {step === 1 && !showHero && (
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
+          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5 fade-in">
             <h2 className="text-xl font-semibold mb-3">{t.whatToGenerate}</h2>
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
               {TEMPLATES.map((tpl) => (
@@ -192,9 +222,9 @@ export default function AppMvp() {
       )}
 
       {/* Étape 2 */}
-      {step === 2 && template && (
+      {step === 2 && !showHero && template && (
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
+          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5 fade-in">
             <h2 className="text-xl font-semibold mb-4">{template.label}</h2>
             <div className="grid gap-4">
               {template.fields.map((f) => (
@@ -243,9 +273,9 @@ export default function AppMvp() {
       )}
 
       {/* Étape 3 */}
-      {step === 3 && (
+      {step === 3 && !showHero && (
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
+          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5 fade-in">
             <h2 className="text-xl font-semibold mb-4">{t.resultReady}</h2>
             <div className="rounded-xl bg-black border border-white/10 p-4 whitespace-pre-wrap text-sm min-h-[140px]">
               {loading ? (
@@ -273,4 +303,4 @@ export default function AppMvp() {
       )}
     </div>
   );
-}
+      }
