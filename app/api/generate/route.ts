@@ -1,11 +1,26 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge"; // OK sur Vercel
+export const runtime = "edge";
 
+// ✅ GET = test rapide dans le navigateur : /api/generate
+export async function GET() {
+  const hasKey = Boolean(process.env.OPENAI_API_KEY);
+  return NextResponse.json({
+    ok: true,
+    route: "/api/generate",
+    ready: hasKey,
+    note: hasKey
+      ? "La clé OPENAI_API_KEY est détectée."
+      : "Aucune clé OPENAI_API_KEY détectée (à ajouter dans Vercel > Settings > Environment Variables).",
+  });
+}
+
+// ✅ POST = appel modèle
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
+
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json(
         { ok: false, error: "Missing prompt" },
@@ -35,7 +50,7 @@ export async function POST(req: NextRequest) {
           {
             role: "system",
             content:
-              "Tu es OneBoarding AI. Tu donnes des réponses courtes, utiles et polies. Si la demande est vague, propose 2-3 pistes concrètes.",
+              "Tu es OneBoarding AI. Donne des réponses courtes, utiles et polies. Si la demande est vague, propose 2-3 pistes concrètes.",
           },
           { role: "user", content: prompt },
         ],
