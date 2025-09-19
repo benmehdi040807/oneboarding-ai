@@ -1,12 +1,21 @@
 import "./globals.css";
-import { SessionProvider } from "next-auth/react";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const metadata = {
+  title: "OneBoarding AI",
+  description: "MVP démo",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="fr">
-      <body>
-        <SessionProvider>{children}</SessionProvider>
-      </body>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }
