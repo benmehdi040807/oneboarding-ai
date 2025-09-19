@@ -1,5 +1,4 @@
-import dynamic from "next/dynamic";
-const AppMvp = dynamic(() => import("@/components/AppMvp"), { ssr: false });
+import AppMvp from "@/components/AppMvp";
 
 export default function Page() {
   return <AppMvp />;
