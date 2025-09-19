@@ -48,7 +48,7 @@ const PLANS = [
   { id: "team", label: "Entreprise", price: "200–330€/mois", desc: "Mémoire partagée", color: "bg-indigo-700" },
 ];
 
-// Loader (étape 1)
+// Loader (spinner)
 const Spinner = () => (
   <div className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" aria-label="Chargement" />
 );
@@ -100,7 +100,7 @@ export default function AppMvp() {
     locale,
   });
 
-  // Hero (écran d’accueil facultatif — on peut l’activer plus tard si besoin)
+  // Hero (facultatif; off pour l’instant)
   const [showHero, setShowHero] = useState(false);
 
   const [step, setStep] = useState(1);
@@ -127,6 +127,15 @@ export default function AppMvp() {
     run();
   }, [step, templateId]);
 
+  async function copyResult() {
+    try {
+      await navigator.clipboard.writeText(result);
+      alert("Copié !");
+    } catch {
+      alert("Impossible de copier");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
@@ -135,7 +144,10 @@ export default function AppMvp() {
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-xl">🛫</div>
             <div className="leading-tight">
-              <div className="text-white font-semibold">OneBoarding AI</div>
+              <div className="text-white font-semibold flex items-center gap-2">
+                <span>OneBoarding AI</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/20 text-white/80">DEMO</span>
+              </div>
               <div className="text-xs text-white/60">3 étapes — simple, pro, équipe</div>
             </div>
           </div>
@@ -284,10 +296,16 @@ export default function AppMvp() {
                   <span>Génération en cours…</span>
                 </div>
               ) : (
-                result || "(Aucun contenu)"
+                result || "Conseil : revenez à l’étape 2, remplissez au moins 1 champ puis « Générer »."
               )}
             </div>
-            <div className="flex gap-3 mt-5">
+            <div className="flex flex-wrap gap-3 mt-5">
+              <button
+                onClick={copyResult}
+                className="px-4 py-2 rounded-xl bg-white text-black font-medium"
+              >
+                Copier
+              </button>
               <button
                 onClick={() => {
                   setStep(1);
@@ -298,9 +316,10 @@ export default function AppMvp() {
                 Nouveau
               </button>
             </div>
+            <div className="text-xs text-white/50 mt-3">* Mode démo : texte de démonstration (MOCK_OPENAI activé)</div>
           </div>
         </div>
       )}
     </div>
   );
-      }
+                }
