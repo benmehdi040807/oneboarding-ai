@@ -1,15 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import RgpdBanner from "@/components/RgpdBanner";
-
-type HistoryItem = { text: string; time: string };
+import RgpdBanner from "./RgpdBanner";
 
 export default function AppMvp() {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [history, setHistory] = useState<{ text: string; time: string }[]>([]);
 
-  // Charger l'historique
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
@@ -17,25 +14,23 @@ export default function AppMvp() {
     } catch {}
   }, []);
 
-  // Sauvegarder l'historique
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
     } catch {}
   }, [history]);
 
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const text = input.trim();
-    if (!text) return;
-    const entry: HistoryItem = { text, time: new Date().toISOString() };
-    setHistory((prev) => [entry, ...prev]);
+    if (!input.trim()) return;
+    const entry = { text: input.trim(), time: new Date().toISOString() };
+    setHistory([entry, ...history]);
     setInput("");
-  }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
-      <h1 className="text-2xl font-bold mb-6 fade-in">OneBoarding AI ✨</h1>
+      <h1 className="text-2xl font-bold mb-6 fade-in">OneBoarding AI ⚡✨</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-md flex gap-2 mb-6">
         <input
