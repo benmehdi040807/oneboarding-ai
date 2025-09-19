@@ -1,6 +1,13 @@
 // components/AppMvp.tsx
 "use client";
 
+/**
+ * AppMvp v2 (debug visuel)
+ * - Affiche la dernière réponse brute de l'API (panneau Debug)
+ * - Ajoute systématiquement la réponse IA dans l'historique si ok === true
+ * - Gestion claire des erreurs (elles apparaissent aussi dans l'historique)
+ */
+
 import { useEffect, useState } from "react";
 import RgpdBanner from "./RgpdBanner";
 
@@ -15,17 +22,24 @@ export default function AppMvp() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // 👀 Panneau de debug à l’écran (utile sans console)
+  const [debug, setDebug] = useState<string>("(prêt)");
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
       if (saved) setHistory(JSON.parse(saved));
-    } catch {}
+    } catch (e) {
+      setDebug(`Erreur lecture localStorage: ${(e as Error).message}`);
+    }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch {}
+    } catch (e) {
+      setDebug(`Erreur écriture localStorage: ${(e as Error).message}`);
+    }
   }, [history]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,6 +52,7 @@ export default function AppMvp() {
     setHistory((h) => [userItem, ...h]);
     setInput("");
     setLoading(true);
+    setDebug("Envoi au serveur…");
 
     try {
       const res = await fetch("/api/generate", {
@@ -45,30 +60,49 @@ export default function AppMvp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: q }),
       });
-      const data = await res.json();
 
-      if (!data?.ok) {
+      // Si le serveur ne renvoie pas du JSON valide, on gère proprement
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        const raw = await res.text();
+        data = { ok: false, error: `Réponse non-JSON: ${raw.slice(0, 200)}` };
+      }
+
+      setDebug(`Réponse API: ${JSON.stringify(data)}`);
+
+      if (!data || data.ok !== true) {
         const errItem: Item = {
           role: "error",
-          text: `Erreur: ${data?.error || "échec appel API"}`,
+          text:
+            "Erreur: " +
+            (data?.error ||
+              `statut HTTP ${res.status} / ${res.statusText}`),
           time: new Date().toISOString(),
         };
         setHistory((h) => [errItem, ...h]);
-      } else {
-        const aiItem: Item = {
-          role: "assistant",
-          text: data.text,
-          time: new Date().toISOString(),
-        };
-        setHistory((h) => [aiItem, ...h]);
+        return;
       }
+
+      // ✅ Ajout clair de la réponse IA
+      const aiText =
+        (typeof data.text === "string" && data.text.trim()) ||
+        "Réponse vide reçue.";
+      const aiItem: Item = {
+        role: "assistant",
+        text: aiText,
+        time: new Date().toISOString(),
+      };
+      setHistory((h) => [aiItem, ...h]);
     } catch (err: any) {
       const errItem: Item = {
         role: "error",
-        text: `Erreur: ${err?.message || "réseau"}`,
+        text: `Erreur réseau: ${err?.message || "inconnue"}`,
         time: new Date().toISOString(),
       };
       setHistory((h) => [errItem, ...h]);
+      setDebug(`Catch: ${err?.message || String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -81,7 +115,7 @@ export default function AppMvp() {
           OneBoarding AI ✨
         </h1>
 
-        <form onSubmit={handleSubmit} className="w-full flex gap-2 mb-6">
+        <form onSubmit={handleSubmit} className="w-full flex gap-2 mb-4">
           <input
             type="text"
             placeholder="Décrivez votre besoin..."
@@ -97,6 +131,12 @@ export default function AppMvp() {
             {loading ? "..." : "OK"}
           </button>
         </form>
+
+        {/* 🧪 Panneau Debug visible (tu peux le supprimer quand tout est OK) */}
+        <div className="w-full mb-6 text-xs text-white/70 bg-white/5 border border-white/10 rounded-lg p-3">
+          <div className="font-semibold mb-1">Debug</div>
+          <pre className="whitespace-pre-wrap break-words">{debug}</pre>
+        </div>
 
         <div className="w-full space-y-3">
           {history.map((item, idx) => (
