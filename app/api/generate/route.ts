@@ -1,40 +1,83 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
-
 export const runtime = "edge";
 
-// ✅ GET = test rapide dans le navigateur : /api/generate
-export async function GET() {
-  const hasKey = Boolean(process.env.OPENAI_API_KEY);
-  return NextResponse.json({
-    ok: true,
-    route: "/api/generate",
-    ready: hasKey,
-    note: hasKey
-      ? "La clé OPENAI_API_KEY est détectée."
-      : "Aucune clé OPENAI_API_KEY détectée (à ajouter dans Vercel > Settings > Environment Variables).",
-  });
+// Petit helper
+function json(data: any, status = 200) {
+  return NextResponse.json(data, { status });
 }
 
-// ✅ POST = appel modèle OpenAI
+// GET = 2 modes :
+//   - /api/generate            -> ping (clé détectée ?)
+//   - /api/generate?test=1     -> APPEL IA réel de test (pratique sur smartphone)
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const doTest = url.searchParams.get("test") === "1";
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!doTest) {
+    return json({
+      ok: true,
+      route: "/api/generate",
+      ready: Boolean(apiKey),
+      note: apiKey
+        ? "La clé OPENAI_API_KEY est détectée."
+        : "Aucune clé OPENAI_API_KEY détectée (Vercel > Settings > Environment Variables).",
+    });
+  }
+
+  // Test IA réel
+  if (!apiKey) return json({ ok: false, error: "OPENAI_API_KEY absente" }, 500);
+  try {
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.3,
+        max_tokens: 60,
+        messages: [
+          { role: "system", content: "Tu réponds en une ou deux phrases." },
+          { role: "user", content: "Dis juste bonjour et une courte phrase de test." },
+        ],
+      }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      return json(
+        {
+          ok: false,
+          status: resp.status,
+          error:
+            data?.error?.message ||
+            `OpenAI error (status ${resp.status}). Vérifie la clé / la facturation / le modèle.`,
+        },
+        500
+      );
+    }
+
+    const text =
+      data?.choices?.[0]?.message?.content?.trim() || "(réponse vide)";
+    return json({ ok: true, text, from: "GET test" });
+  } catch (e: any) {
+    return json({ ok: false, error: e?.message || "Server error" }, 500);
+  }
+}
+
+// POST = appel normal depuis l’UI
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
-
     if (!prompt || typeof prompt !== "string") {
-      return NextResponse.json(
-        { ok: false, error: "Missing prompt" },
-        { status: 400 }
-      );
+      return json({ ok: false, error: "Missing prompt" }, 400);
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { ok: false, error: "OPENAI_API_KEY is not set" },
-        { status: 500 }
-      );
-    }
+    if (!apiKey) return json({ ok: false, error: "OPENAI_API_KEY is not set" }, 500);
 
     const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -58,32 +101,24 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await resp.json();
-
-    // 🟢 Debug complet de la réponse OpenAI (visible dans logs Vercel)
-    console.log("OpenAI raw response:", JSON.stringify(data, null, 2));
-
     if (!resp.ok) {
-      const msg =
-        data?.error?.message ||
-        `OpenAI error (status ${resp.status}). Please try again.`;
-      return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+      return json(
+        {
+          ok: false,
+          status: resp.status,
+          error:
+            data?.error?.message ||
+            `OpenAI error (status ${resp.status}). Vérifie la clé / la facturation / le modèle.`,
+        },
+        500
+      );
     }
 
-    // 🟢 Extraction robuste du texte (chat ou completions classiques)
-    let text = "";
-    if (data?.choices?.[0]?.message?.content) {
-      text = data.choices[0].message.content.trim();
-    } else if (data?.choices?.[0]?.text) {
-      text = data.choices[0].text.trim();
-    } else {
-      text = "Désolé, je n’ai rien pu générer.";
-    }
-
-    return NextResponse.json({ ok: true, text });
+    const text =
+      data?.choices?.[0]?.message?.content?.trim() ||
+      "Désolé, je n’ai rien pu générer.";
+    return json({ ok: true, text });
   } catch (err: any) {
-    return NextResponse.json(
-      { ok: false, error: err?.message || "Server error" },
-      { status: 500 }
-    );
+    return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-         }
+}
