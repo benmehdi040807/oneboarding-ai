@@ -3,27 +3,27 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-// ✅ GET = test rapide dans le navigateur : /api/generate
+// Petit GET de santé : /api/generate
 export async function GET() {
-  const hasKey = Boolean(process.env.OPENAI_API_KEY);
+  const hasKey = !!process.env.OPENAI_API_KEY;
   return NextResponse.json({
     ok: true,
     route: "/api/generate",
     ready: hasKey,
     note: hasKey
       ? "La clé OPENAI_API_KEY est détectée."
-      : "Aucune clé OPENAI_API_KEY détectée (à ajouter dans Vercel > Settings > Environment Variables).",
+      : "Aucune clé OPENAI_API_KEY détectée.",
   });
 }
 
-// ✅ POST = appel modèle
+// Appel modèle
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json(
-        { ok: false, error: "Missing prompt" },
+        { ok: false, where: "validate", error: "Missing prompt" },
         { status: 400 }
       );
     }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { ok: false, error: "OPENAI_API_KEY is not set" },
+        { ok: false, where: "env", error: "OPENAI_API_KEY is not set" },
         { status: 500 }
       );
     }
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
+      cache: "no-store",
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0.6,
@@ -57,13 +58,17 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
 
     if (!resp.ok) {
       const msg =
-        data?.error?.message ||
-        `OpenAI error (status ${resp.status}). Please try again.`;
-      return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+        (data && (data.error?.message || data.message)) ||
+        `OpenAI error (status ${resp.status})`;
+      // On renvoie TOUT pour debug côté client
+      return NextResponse.json(
+        { ok: false, where: "openai", status: resp.status, error: msg, raw: data },
+        { status: 500 }
+      );
     }
 
     const text =
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, text });
   } catch (err: any) {
     return NextResponse.json(
-      { ok: false, error: err?.message || "Server error" },
+      { ok: false, where: "server", error: err?.message || "Server error" },
       { status: 500 }
     );
   }
