@@ -1,14 +1,13 @@
+// components/AppMvp.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import RgpdBanner from "./RgpdBanner";
 
 type Item = {
-  input: string;
-  output?: string;
+  role: "user" | "assistant" | "error";
+  text: string;
   time: string;
-  status: "loading" | "done" | "error";
-  error?: string;
 };
 
 export default function AppMvp() {
@@ -16,7 +15,7 @@ export default function AppMvp() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Charger l'historique
+  // Charger l'historique local
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
@@ -24,79 +23,65 @@ export default function AppMvp() {
     } catch {}
   }, []);
 
-  // Sauvegarder l'historique
+  // Sauvegarder l'historique local
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
     } catch {}
   }, [history]);
 
-  async function generate(text: string) {
-    setLoading(true);
-    // on insère une carte "en cours"
-    const entry: Item = {
-      input: text,
-      time: new Date().toISOString(),
-      status: "loading",
-    };
-    setHistory((h) => [entry, ...h]);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = input.trim();
+    if (!q || loading) return;
 
+    const now = new Date().toISOString();
+
+    // 1) On pousse la question de l’utilisateur
+    const userItem: Item = { role: "user", text: q, time: now };
+    setHistory((h) => [userItem, ...h]);
+    setInput("");
+    setLoading(true);
+
+    // 2) On appelle l’API
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, locale: "fr" }),
+        body: JSON.stringify({ prompt: q }),
       });
-
       const data = await res.json();
 
-      setHistory((h) => {
-        const [first, ...rest] = h;
-        if (!first) return h;
-        if (!data.ok) {
-          return [
-            {
-              ...first,
-              status: "error",
-              error: data.error ?? "Échec de génération.",
-            },
-            ...rest,
-          ];
-        }
-        return [
-          {
-            ...first,
-            status: "done",
-            output: String(data.output ?? "").trim(),
-          },
-          ...rest,
-        ];
-      });
-    } catch (e: any) {
-      setHistory((h) => {
-        const [first, ...rest] = h;
-        if (!first) return h;
-        return [
-          { ...first, status: "error", error: e?.message ?? "Erreur réseau." },
-          ...rest,
-        ];
-      });
+      if (!data?.ok) {
+        const errItem: Item = {
+          role: "error",
+          text: data?.error || "Une erreur est survenue.",
+          time: new Date().toISOString(),
+        };
+        setHistory((h) => [errItem, ...h]);
+      } else {
+        const aiItem: Item = {
+          role: "assistant",
+          text: data.text,
+          time: new Date().toISOString(),
+        };
+        setHistory((h) => [aiItem, ...h]);
+      }
+    } catch (err: any) {
+      const errItem: Item = {
+        role: "error",
+        text: err?.message || "Impossible d’appeler l’API.",
+        time: new Date().toISOString(),
+      };
+      setHistory((h) => [errItem, ...h]);
     } finally {
       setLoading(false);
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text) return;
-    setInput("");
-    generate(text);
-  };
-
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
-      <div className="mx-auto w-full max-w-lg px-4 py-8 flex flex-col items-center">
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-screen-sm px-4 py-6 flex flex-col items-center">
         <h1 className="text-2xl font-bold mb-6 fade-in text-center">
           OneBoarding AI ✨
         </h1>
@@ -114,45 +99,34 @@ export default function AppMvp() {
             disabled={loading}
             className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
           >
-            OK
+            {loading ? "..." : "OK"}
           </button>
         </form>
 
-        <div className="w-full space-y-4">
+        <div className="w-full space-y-3">
           {history.map((item, idx) => (
             <div
               key={idx}
-              className="fade-in rounded-xl border border-white/10 bg-white/5 p-4"
+              className={`fade-in rounded-xl border p-3 ${
+                item.role === "user"
+                  ? "border-white/10 bg-white/5"
+                  : item.role === "assistant"
+                  ? "border-emerald-300/20 bg-emerald-500/10"
+                  : "border-red-400/30 bg-red-500/10"
+              }`}
             >
-              <p className="text-xs text-white/60 mb-1">
+              <p className="text-white/90 whitespace-pre-wrap">{item.text}</p>
+              <p className="text-xs text-white/50 mt-1">
+                {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"}
+                {" • "}
                 {new Date(item.time).toLocaleString()}
               </p>
-              <p className="text-white/90 mb-2">
-                <span className="text-white/60">Vous :</span> {item.input}
-              </p>
-
-              {item.status === "loading" && (
-                <p className="text-white/80">⏳ Génération en cours…</p>
-              )}
-
-              {item.status === "error" && (
-                <p className="text-red-300">
-                  ❌ {item.error ?? "Erreur de génération."}
-                </p>
-              )}
-
-              {item.status === "done" && (
-                <div className="prose prose-invert max-w-none">
-                  {/* On affiche du markdown simple tel quel */}
-                  <pre className="whitespace-pre-wrap">{item.output}</pre>
-                </div>
-              )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Bandeau RGPD (fixe en bas) */}
+      {/* Bandeau RGPD */}
       <RgpdBanner />
     </div>
   );
