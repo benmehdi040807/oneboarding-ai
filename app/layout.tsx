@@ -11,11 +11,11 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <head>
-        {/* Indispensable sur mobile pour éviter le zoom/débordement */}
+        {/* Important pour mobiles */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="bg-black text-white">
-        {/* Conteneur central responsive */}
+        {/* Conteneur central bien centré */}
         <div className="mx-auto w-full max-w-xl px-4">{children}</div>
       </body>
     </html>
