@@ -15,7 +15,6 @@ export default function AppMvp() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Charger l'historique local
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
@@ -23,7 +22,6 @@ export default function AppMvp() {
     } catch {}
   }, []);
 
-  // Sauvegarder l'historique local
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
@@ -36,14 +34,11 @@ export default function AppMvp() {
     if (!q || loading) return;
 
     const now = new Date().toISOString();
-
-    // 1) On pousse la question de l’utilisateur
     const userItem: Item = { role: "user", text: q, time: now };
     setHistory((h) => [userItem, ...h]);
     setInput("");
     setLoading(true);
 
-    // 2) On appelle l’API
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -55,7 +50,7 @@ export default function AppMvp() {
       if (!data?.ok) {
         const errItem: Item = {
           role: "error",
-          text: data?.error || "Une erreur est survenue.",
+          text: `Erreur: ${data?.error || "échec appel API"}`,
           time: new Date().toISOString(),
         };
         setHistory((h) => [errItem, ...h]);
@@ -70,7 +65,7 @@ export default function AppMvp() {
     } catch (err: any) {
       const errItem: Item = {
         role: "error",
-        text: err?.message || "Impossible d’appeler l’API.",
+        text: `Erreur: ${err?.message || "réseau"}`,
         time: new Date().toISOString(),
       };
       setHistory((h) => [errItem, ...h]);
@@ -126,7 +121,6 @@ export default function AppMvp() {
         </div>
       </div>
 
-      {/* Bandeau RGPD */}
       <RgpdBanner />
     </div>
   );
