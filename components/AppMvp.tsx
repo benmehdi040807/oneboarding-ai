@@ -3,6 +3,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getDict, type Locale } from "@/lib/i18n";
 
+/* =========================
+   Stockage & constantes
+   ========================= */
 const STORAGE_KEYS = {
   profile: "oneboarding.profile",
   plan: "oneboarding.plan",
@@ -40,15 +43,92 @@ const TEMPLATES = [
       { id: "idee", label: "Idée clé", textarea: true, placeholder: "Votre insight en quelques lignes..." },
     ],
   },
-];
+] as const;
 
+type TemplateId = typeof TEMPLATES[number]["id"];
+
+/* =========================
+   PRESETS (exemples)
+   ========================= */
+const PRESETS: Record<
+  TemplateId,
+  Array<{ id: string; label: string; values: Record<string, string> }>
+> = {
+  plainte: [
+    {
+      id: "p1",
+      label: "Vol de téléphone",
+      values: {
+        defendeur: "Inconnu (individu cagoulé)",
+        faits:
+          "Le 14/09/2025 vers 20h15, en sortant du tram à Derb Ghallef, un individu m’a arraché mon téléphone des mains avant de prendre la fuite. Une personne a crié mais l’auteur a disparu entre les voitures. J’ai tenté d’activer ‘Localiser’ sans succès.",
+        dateLieu: "14/09/2025 – Casablanca, Derb Ghallef",
+      },
+    },
+    {
+      id: "p2",
+      label: "Arnaque en ligne",
+      values: {
+        defendeur: "Profil ‘DealExpress’ (Marketplace)",
+        faits:
+          "Le 02/08/2025, j’ai payé 2.400 MAD pour un ordinateur portable proposé sur une Marketplace. Le vendeur n’a jamais expédié le produit et a cessé de répondre. Les justificatifs de paiement sont joints.",
+        dateLieu: "02/08/2025 – Transaction en ligne",
+      },
+    },
+  ],
+  mail: [
+    {
+      id: "m1",
+      label: "Relance de facture",
+      values: {
+        destinataire: "Mme Benali – Comptabilité",
+        objet: "Relance facture #2025-117",
+        message:
+          "Je me permets de revenir vers vous concernant la facture #2025-117 arrivée à échéance le 31/08. Pourriez-vous me confirmer la date de règlement ou m’indiquer si des pièces complémentaires sont nécessaires ?",
+      },
+    },
+    {
+      id: "m2",
+      label: "Demande de RDV",
+      values: {
+        destinataire: "M. Karim – Direction",
+        objet: "Proposition de rendez-vous – cadrage projet",
+        message:
+          "Suite à nos échanges, je propose un rendez-vous de 30 minutes afin de cadrer le périmètre et l’échéancier. Je suis disponible mardi/jeudi après-midi ; dites-moi ce qui vous convient.",
+      },
+    },
+  ],
+  post: [
+    {
+      id: "s1",
+      label: "Conseil juridique",
+      values: {
+        sujet: "Procédures collectives : erreurs fréquentes",
+        idee:
+          "Beaucoup d’entreprises attendent trop avant d’anticiper la trésorerie et d’activer les mesures préventives. 3 conseils pratico-pratiques pour gagner du temps et garder la main.",
+      },
+    },
+    {
+      id: "s2",
+      label: "Retour d’expérience",
+      values: {
+        sujet: "Digitaliser la relation client d’un cabinet",
+        idee:
+          "Ce qui a vraiment changé : formulaires guidés, signature électronique, et tri automatique des pièces. Gain de 30% sur le temps administratif.",
+      },
+    },
+  ],
+};
+
+/* =========================
+   Plans & utilitaires
+   ========================= */
 const PLANS = [
   { id: "free", label: "Freemium", price: "Gratuit", desc: "Découverte (limité)", color: "bg-gray-800" },
   { id: "pro", label: "Pro", price: "33€/mois", desc: "Biographie complète", color: "bg-emerald-700" },
   { id: "team", label: "Entreprise", price: "200–330€/mois", desc: "Mémoire partagée", color: "bg-indigo-700" },
 ];
 
-// Loader (spinner)
 const Spinner = () => (
   <div className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" aria-label="Chargement" />
 );
@@ -84,6 +164,9 @@ async function apiGenerate(payload: any): Promise<string | null> {
   }
 }
 
+/* =========================
+   Composant principal
+   ========================= */
 export default function AppMvp() {
   const [locale, setLocale] = useLocalStorage<Locale>(
     STORAGE_KEYS.locale,
@@ -100,21 +183,20 @@ export default function AppMvp() {
     locale,
   });
 
-  // Hero (facultatif; off pour l’instant)
-  const [showHero, setShowHero] = useState(false);
-
   const [step, setStep] = useState(1);
-  const [templateId, setTemplateId] = useState("");
+  const [templateId, setTemplateId] = useState<TemplateId | "">("");
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setProfile((p: any) => ({ ...p, locale }));
-  }, [locale]);
+  useEffect(() => setProfile((p: any) => ({ ...p, locale })), [locale]);
 
-  const template = useMemo(() => TEMPLATES.find((t) => t.id === templateId) || null, [templateId]);
+  const template = useMemo(
+    () => (templateId ? TEMPLATES.find((t) => t.id === templateId)! : null),
+    [templateId]
+  );
 
+  // Génération automatique en entrée étape 3
   useEffect(() => {
     const run = async () => {
       if (step === 3 && templateId) {
@@ -131,9 +213,15 @@ export default function AppMvp() {
     try {
       await navigator.clipboard.writeText(result);
       alert("Copié !");
-    } catch {
-      alert("Impossible de copier");
-    }
+    } catch {}
+  }
+
+  function usePreset(tpl: TemplateId, presetId: string, goGenerate = false) {
+    const preset = PRESETS[tpl].find((p) => p.id === presetId);
+    if (!preset) return;
+    setTemplateId(tpl);
+    setFormValues(preset.values);
+    setStep(goGenerate ? 3 : 2);
   }
 
   return (
@@ -178,42 +266,14 @@ export default function AppMvp() {
         </div>
       </header>
 
-      {/* Hero (si activé) */}
-      {showHero && (
-        <section className="relative overflow-hidden border-b border-white/10 fade-in">
-          <div className="max-w-5xl mx-auto px-4 py-12 md:py-16">
-            <div className="max-w-3xl">
-              <div className="text-sm uppercase tracking-widest text-white/50 mb-2">Démo</div>
-              <h1 className="text-3xl md:text-4xl font-semibold leading-tight">
-                Votre <span className="text-white/80">ticket d’embarquement</span> vers l’IA personnalisée
-              </h1>
-              <p className="text-white/70 mt-3">
-                Remplissez 3 champs ou choisissez un exemple. Le résultat s’affiche immédiatement en mode{" "}
-                <span className="font-medium">démo</span>.
-              </p>
-              <div className="flex flex-wrap gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowHero(false);
-                    setStep(1);
-                  }}
-                  className="px-5 py-3 rounded-xl bg-white text-black font-medium"
-                >
-                  Commencer la démo
-                </button>
-              </div>
-              <div className="text-xs text-white/50 mt-3">* Mode démo : texte de démonstration (MOCK_OPENAI activé)</div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Étape 1 */}
-      {step === 1 && !showHero && (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5 fade-in">
+      {/* Étape 1 — Choix rapide + Exemples rapides */}
+      {step === 1 && (
+        <div className="max-w-5xl mx-auto px-4 py-8 fade-in">
+          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
             <h2 className="text-xl font-semibold mb-3">{t.whatToGenerate}</h2>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+
+            {/* Cartes de modèles */}
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">
               {TEMPLATES.map((tpl) => (
                 <button
                   key={tpl.id}
@@ -229,15 +289,69 @@ export default function AppMvp() {
                 </button>
               ))}
             </div>
+
+            {/* Exemples rapides */}
+            <div className="rounded-xl bg-black/40 border border-white/10 p-4">
+              <div className="text-sm font-medium mb-3">⚡ Exemples rapides</div>
+              <div className="flex flex-col gap-3">
+                {(Object.keys(PRESETS) as TemplateId[]).map((tpl) => (
+                  <div key={tpl} className="flex flex-wrap items-center gap-2">
+                    <span className="text-white/70 w-40">
+                      {TEMPLATES.find((t) => t.id === tpl)?.label}
+                    </span>
+                    <div className="flex gap-2 flex-wrap">
+                      {PRESETS[tpl].map((ex) => (
+                        <button
+                          key={ex.id}
+                          onClick={() => usePreset(tpl, ex.id /* goGenerate */ false)}
+                          className="px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-sm hover:bg-white/15"
+                          title="Remplit automatiquement les champs"
+                        >
+                          {ex.label}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => usePreset(tpl, PRESETS[tpl][0].id, true)}
+                        className="px-3 py-1.5 rounded-full bg-white text-black text-sm"
+                        title="Remplit et génère directement"
+                      >
+                        Essayer →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="text-xs text-white/50 mt-3">
+                Astuce : “Essayer →” remplit un exemple et passe directement au résultat.
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Étape 2 */}
-      {step === 2 && !showHero && template && (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5 fade-in">
+      {/* Étape 2 — Formulaire + bandeau d’exemples */}
+      {step === 2 && template && (
+        <div className="max-w-5xl mx-auto px-4 py-8 fade-in">
+          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
             <h2 className="text-xl font-semibold mb-4">{template.label}</h2>
+
+            {/* Bandeau d’exemples pour ce template */}
+            <div className="rounded-xl bg-black/40 border border-white/10 p-3 mb-4">
+              <div className="text-xs uppercase tracking-wider text-white/60 mb-2">Exemples</div>
+              <div className="flex gap-2 flex-wrap">
+                {PRESETS[template.id as TemplateId].map((ex) => (
+                  <button
+                    key={ex.id}
+                    onClick={() => setFormValues(ex.values)}
+                    className="px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-sm hover:bg-white/15"
+                  >
+                    {ex.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Champs */}
             <div className="grid gap-4">
               {template.fields.map((f) => (
                 <label key={f.id} className="block">
@@ -260,6 +374,7 @@ export default function AppMvp() {
                 </label>
               ))}
             </div>
+
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => {
@@ -284,10 +399,10 @@ export default function AppMvp() {
         </div>
       )}
 
-      {/* Étape 3 */}
-      {step === 3 && !showHero && (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5 fade-in">
+      {/* Étape 3 — Résultat */}
+      {step === 3 && (
+        <div className="max-w-5xl mx-auto px-4 py-8 fade-in">
+          <div className="rounded-2xl bg-white/5 border border-white/10 shadow-sm p-5">
             <h2 className="text-xl font-semibold mb-4">{t.resultReady}</h2>
             <div className="rounded-xl bg-black border border-white/10 p-4 whitespace-pre-wrap text-sm min-h-[140px]">
               {loading ? (
@@ -300,10 +415,7 @@ export default function AppMvp() {
               )}
             </div>
             <div className="flex flex-wrap gap-3 mt-5">
-              <button
-                onClick={copyResult}
-                className="px-4 py-2 rounded-xl bg-white text-black font-medium"
-              >
+              <button onClick={async () => copyResult()} className="px-4 py-2 rounded-xl bg-white text-black font-medium">
                 Copier
               </button>
               <button
@@ -322,4 +434,4 @@ export default function AppMvp() {
       )}
     </div>
   );
-                }
+            }
