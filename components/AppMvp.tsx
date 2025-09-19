@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import RgpdBanner from "@/components/RgpdBanner";
 
+type HistoryItem = { text: string; time: string };
+
 export default function AppMvp() {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<{ text: string; time: string }[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  // Charger l'historique
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
@@ -14,19 +17,21 @@ export default function AppMvp() {
     } catch {}
   }, []);
 
+  // Sauvegarder l'historique
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
     } catch {}
   }, [history]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
-    const entry = { text: input.trim(), time: new Date().toISOString() };
-    setHistory([entry, ...history]);
+    const text = input.trim();
+    if (!text) return;
+    const entry: HistoryItem = { text, time: new Date().toISOString() };
+    setHistory((prev) => [entry, ...prev]);
     setInput("");
-  };
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
