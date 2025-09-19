@@ -1,89 +1,64 @@
 // app/api/generate/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge"; // rapide et compatible Vercel
+export const runtime = "edge"; // OK sur Vercel
 
-type Body = { prompt?: string; locale?: string };
-
-function mockAnswer(prompt: string) {
-  return [
-    `🎯 *Interprétation rapide* : ${prompt}`,
-    ``,
-    `✅ *Proposition concrète* :`,
-    `- Étape 1 : ...`,
-    `- Étape 2 : ...`,
-    `- Étape 3 : ...`,
-    ``,
-    `✍️ Texte prêt à copier :`,
-    `> Votre brouillon personnalisé pour « ${prompt} ».`,
-  ].join("\n");
-}
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { prompt = "", locale } = (await req.json()) as Body;
-
-    if (!prompt.trim()) {
+    const { prompt } = await req.json();
+    if (!prompt || typeof prompt !== "string") {
       return NextResponse.json(
-        { ok: false, error: "Aucun texte fourni." },
+        { ok: false, error: "Missing prompt" },
         { status: 400 }
       );
     }
 
-    // Mode démo si pas de clé (ou si MOCK_OPENAI=1)
-    const noKey = !process.env.OPENAI_API_KEY;
-    const useMock = process.env.MOCK_OPENAI === "1" || noKey;
-
-    if (useMock) {
-      return NextResponse.json({
-        ok: true,
-        output: mockAnswer(prompt),
-        mock: true,
-      });
-    }
-
-    // Appel OpenAI (chat.completions pour compatibilité large)
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini", // rapide/éco, remplaçable par un autre modèle
-        temperature: 0.7,
-        max_tokens: 600,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Tu es OneBoarding AI. Donne une réponse utile, concise et actionnable, en français si la demande est en français. Formate en markdown simple.",
-          },
-          {
-            role: "user",
-            content: locale ? `[lang=${locale}] ${prompt}` : prompt,
-          },
-        ],
-      }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
-        { ok: false, error: `OpenAI error: ${txt}` },
+        { ok: false, error: "OPENAI_API_KEY is not set" },
         { status: 500 }
       );
     }
 
-    const data = await res.json();
-    const output =
-      data?.choices?.[0]?.message?.content?.trim() ??
-      "Désolé, aucun texte reçu.";
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.6,
+        max_tokens: 400,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es OneBoarding AI. Tu donnes des réponses courtes, utiles et polies. Si la demande est vague, propose 2-3 pistes concrètes.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
 
-    return NextResponse.json({ ok: true, output });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      const msg =
+        data?.error?.message ||
+        `OpenAI error (status ${resp.status}). Please try again.`;
+      return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    }
+
+    const text =
+      data?.choices?.[0]?.message?.content?.trim() ||
+      "Désolé, je n’ai rien pu générer.";
+
+    return NextResponse.json({ ok: true, text });
   } catch (err: any) {
     return NextResponse.json(
-      { ok: false, error: err?.message ?? "Erreur interne." },
+      { ok: false, error: err?.message || "Server error" },
       { status: 500 }
     );
   }
