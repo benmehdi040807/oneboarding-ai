@@ -10,16 +10,21 @@ type Props = {
 export default function OcrUploader({ onText, onPreview }: Props) {
   // ===== Réglages =====
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-  const SMALL_LANG = "eng+fra+ara"; // pass 1 (rapide & couvre la majorité)
+  const SMALL_LANG = "eng+fra+ara"; // pass 1 (rapide)
   const BIG_LANG =
-    "eng+fra+ara+spa+deu+ita+por+tur+nld+pol+rus+ukr+rom+chi_sim+chi_tra+jpn+kor"; // pass 2
+    "eng+fra+ara+spa+deu+ita+por+tur+nld+pol+rus+ukr+rom+chi_sim+chi_tra+jpn+kor"; // fallback
 
-  // CDN stables (améliore la fiabilité sur mobile)
+  // deux miroirs pour les modèles (le 1er peut échouer selon l’opérateur / région)
+  const LANG_PATHS = [
+    "https://tessdata.projectnaptha.com/4.0.0",
+    "https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0",
+  ];
+
+  // fichiers du moteur (CDN stables)
   const CORE_PATH =
     "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.2/tesseract-core.wasm.js";
   const WORKER_PATH =
     "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js";
-  const LANG_PATH = "https://tessdata.projectnaptha.com/4.0.0";
 
   // ===== UI state =====
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -29,13 +34,9 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const [extendedTried, setExtendedTried] = useState(false);
-
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const stallTimerRef = useRef<number | null>(null);
-  const lastProgressRef = useRef<number>(0);
 
-  // Propage l’aperçu & nettoie l’ancien ObjectURL
+  // propage l’aperçu & nettoie l’ancien ObjectURL
   useEffect(() => {
     onPreview?.(imageUrl ?? null);
     return () => {
@@ -50,31 +51,9 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
   }
 
-  function startStallWatch() {
-    stopStallWatch();
-    lastProgressRef.current = progress;
-    // si la progression n'a pas bougé en 25s, on bascule en mode étendu
-    stallTimerRef.current = window.setTimeout(() => {
-      if (!extendedTried) {
-        setStatusText("Un peu long… bascule en mode étendu");
-        setExtendedTried(true);
-        // relance avec le gros pack (si un fichier est présent)
-        const f = fileRef.current?.files?.[0];
-        if (f) recognizeWith(f, BIG_LANG, true);
-      }
-    }, 25_000);
-  }
-  function stopStallWatch() {
-    if (stallTimerRef.current) {
-      clearTimeout(stallTimerRef.current);
-      stallTimerRef.current = null;
-    }
-  }
-
-  function updateProgressFromStatus(m: any) {
+  function updateProgress(m: any) {
     const s: string = m?.status || "";
     const p: number = typeof m?.progress === "number" ? m.progress : 0;
-
     let pct = progress;
     let label = statusText;
 
@@ -98,71 +77,88 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       label = s;
     }
 
-    pct = Math.min(99, pct);
-    setProgress(pct);
+    setProgress(Math.min(99, pct));
     setStatusText(label);
-
-    // réarmer le watchdog si on a progressé
-    if (pct > lastProgressRef.current + 1) {
-      lastProgressRef.current = pct;
-      startStallWatch();
-    }
   }
 
-  async function recognizeWith(file: File, langs: string, isRetry = false) {
-    try {
-      const Tesseract = (await import("tesseract.js")).default as any;
-      const result = await Tesseract.recognize(
-        file,
-        langs,
-        {
-          corePath: CORE_PATH,
-          workerPath: WORKER_PATH,
-          langPath: LANG_PATH,
-          logger: (m: any) => updateProgressFromStatus(m),
-        } as any
-      );
+  async function recognizeWithCreateWorker(
+    file: File,
+    langs: string,
+    langPath: string
+  ) {
+    const T = (await import("tesseract.js")).default as any;
+    const worker = await T.createWorker({
+      corePath: CORE_PATH,
+      workerPath: WORKER_PATH,
+      langPath,
+      logger: (m: any) => updateProgress(m),
+    } as any);
 
-      const text: string = String(result?.data?.text || "")
+    try {
+      setStatusText("Chargement…");
+      await worker.load();
+      setStatusText("Téléchargement du modèle…");
+      await worker.loadLanguage(langs);
+      setStatusText("Initialisation…");
+      await worker.initialize(langs);
+
+      setStatusText("Reconnaissance…");
+      const { data } = await worker.recognize(file);
+      const text: string = String(data?.text || "")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
-      // Heuristique : si le 1er passage (SMALL_LANG) ramène très peu de texte,
-      // on tente le BIG_LANG automatiquement (une seule fois).
-      if (!isRetry && !extendedTried && langs === SMALL_LANG) {
-        const tooShort = text.length < 40;
-        if (tooShort) {
-          setStatusText("Résultat léger, relance en mode étendu…");
-          setExtendedTried(true);
-          return recognizeWith(file, BIG_LANG, true);
-        }
-      }
-
-      onText(text);
-      setProgress(100);
-      setStatusText("Terminé");
-      stopStallWatch();
-    } catch (e: any) {
-      const msg = `Échec OCR (${e?.message || "erreur"}).`;
-      setErrorMsg(msg);
-      setStatusText("Erreur");
-      onText(`⚠️ ${msg}`);
-      stopStallWatch();
+      return text;
     } finally {
-      setRunning(false);
+      // toujours terminer le worker pour éviter les blocages mémoire
+      try {
+        await worker.terminate();
+      } catch {}
     }
   }
 
+  /** Essaie SMALL_LANG puis (si texte trop court) BIG_LANG ; et alterne les langPath en cas d’échec réseau. */
   async function runOCR(file: File) {
     if (running) return;
     setRunning(true);
     setErrorMsg("");
     setProgress(1);
     setStatusText("Préparation…");
-    setExtendedTried(false);
-    startStallWatch();
-    await recognizeWith(file, SMALL_LANG, false);
+
+    const attempts: Array<{ langs: string; langPath: string }> = [];
+    for (const lp of LANG_PATHS) {
+      attempts.push({ langs: SMALL_LANG, langPath: lp });
+      attempts.push({ langs: BIG_LANG, langPath: lp });
+    }
+
+    for (let i = 0; i < attempts.length; i++) {
+      const { langs, langPath } = attempts[i];
+      try {
+        const text = await recognizeWithCreateWorker(file, langs, langPath);
+        if (text.length < 40 && langs === SMALL_LANG) {
+          // trop court : on tente la passe suivante (BIG_LANG) sans sortir
+          continue;
+        }
+        onText(text);
+        setProgress(100);
+        setStatusText("Terminé");
+        setRunning(false);
+        return;
+      } catch (e: any) {
+        // on tente l’étape suivante (autre pack / autre CDN)
+        const msg = e?.message || "erreur";
+        setErrorMsg(`Tentative ${i + 1}/${attempts.length} échouée (${msg}).`);
+      }
+    }
+
+    // si toutes les tentatives échouent :
+    setRunning(false);
+    setStatusText("Erreur");
+    const finalMsg =
+      "Échec OCR après plusieurs tentatives (réseau/CDN bloqué ?). Réessaie plus tard.";
+    setErrorMsg(finalMsg);
+    onText(`⚠️ ${finalMsg}`);
   }
 
   function clearFile() {
@@ -176,9 +172,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setProgress(0);
     setStatusText("");
     setErrorMsg("");
-    setExtendedTried(false);
     onText("");
-    stopStallWatch();
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
