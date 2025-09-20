@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';  // ✅ empêche le warning Edge
+
 "use client";
 
 import { useState, useEffect } from "react";
