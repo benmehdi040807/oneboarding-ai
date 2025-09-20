@@ -32,7 +32,15 @@ function RgpdBanner() {
 /* --- Types --- */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-/* --- Page --- */
+/* ===== Helpers anti-répétitions pour la voix ===== */
+function collapseRepeats(s: string) {
+  // 1) espaces propres
+  let t = s.replace(/\s+/g, " ").trim();
+  // 2) déduplication de mots consécutifs: "bonjour bonjour" -> "bonjour"
+  t = t.replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1");
+  return t;
+}
+
 export default function Page() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
@@ -46,6 +54,11 @@ export default function Page() {
   const [speechSupported, setSpeechSupported] = useState(false);
   const recogRef = useRef<any>(null);
 
+  // On garde séparément ce qui existait déjà dans l’input au démarrage
+  const baseInputRef = useRef<string>("");
+  // On accumule uniquement le texte FINAL (non intérimaire)
+  const finalVoiceRef = useRef<string>("");
+
   // init SpeechRecognition
   useEffect(() => {
     const SR: any =
@@ -57,20 +70,52 @@ export default function Page() {
       r.lang = "fr-FR";
       r.continuous = true;
       r.interimResults = true;
+      r.maxAlternatives = 1;
 
-      r.onresult = (e: any) => {
-        let final = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const tr = e.results[i][0].transcript;
-          if (e.results[i].isFinal) final += tr + " ";
-          else setInput(prev => (prev ? prev + " " : "") + tr);
-        }
-        if (final) setInput(prev => (prev ? prev + " " : "") + final.trim());
+      r.onstart = () => {
+        baseInputRef.current = input;   // snapshot de l’input
+        finalVoiceRef.current = "";     // on repart propre
       };
 
-      r.onend = () => setListening(false);
+      r.onresult = (e: any) => {
+        let interim = "";
+        // Parcours des résultats depuis le dernier index
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const tr = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            // Ajout au buffer final (propre + sans doublons)
+            const clean = collapseRepeats(tr);
+            finalVoiceRef.current = collapseRepeats(
+              (finalVoiceRef.current + " " + clean).trim()
+            );
+          } else {
+            // Buffer provisoire, non ajouté définitivement
+            interim = collapseRepeats(interim + " " + tr);
+          }
+        }
+        // Affichage en live = base + final + interim (sans polluer l’historique)
+        const live = [baseInputRef.current, finalVoiceRef.current, interim]
+          .filter(Boolean)
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+        setInput(live);
+      };
+
+      r.onend = () => {
+        // Quand ça s’arrête, on fixe l’input à base + final (sans l’interim)
+        const fixed = [baseInputRef.current, finalVoiceRef.current]
+          .filter(Boolean)
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+        setInput(fixed);
+        setListening(false);
+      };
+
       recogRef.current = r;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleMic = () => {
@@ -78,7 +123,6 @@ export default function Page() {
     if (!r) return;
     if (listening) {
       r.stop();
-      setListening(false);
       return;
     }
     try {
