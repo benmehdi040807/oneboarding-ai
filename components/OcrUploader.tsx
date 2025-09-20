@@ -7,21 +7,27 @@ type Props = {
   onText: (text: string) => void;
   /** Prévisualisation (utile si tu veux afficher l’image ailleurs) */
   onPreview?: (url: string | null) => void;
-  /** Langue(s) Tesseract (ex: "fra", "eng", "ara", "fra+eng+ara") */
-  defaultLang?: string;
 };
 
-export default function OcrUploader({
-  onText,
-  onPreview,
-  defaultLang = "fra+eng+ara",
-}: Props) {
-  const [ocrLang, setOcrLang] = useState<string>(defaultLang);
+export default function OcrUploader({ onText, onPreview }: Props) {
+  // === Réglages UX ===
+  const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
+  /**
+   * Langues “larges” pour auto-détection pragmatique (européennes + arabe + cyrillique + CJK).
+   * Remarque: plus on en met, plus le premier chargement est long.
+   * Ajustable ensuite selon tes pays cibles.
+   */
+  const AUTO_LANG =
+    "eng+fra+ara+spa+deu+ita+por+tur+nld+pol+rus+ukr+rom+chi_sim+chi_tra+jpn+kor";
+
+  // === State UI ===
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // propage l’aperçu & nettoie l’ancien ObjectURL
@@ -32,16 +38,6 @@ export default function OcrUploader({
     };
   }, [imageUrl, onPreview]);
 
-  // relance auto si la langue change et qu’un fichier est sélectionné
-  useEffect(() => {
-    const f = fileRef.current?.files?.[0];
-    if (f) {
-      setProgress(1);
-      runOCR(f);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ocrLang]);
-
   function humanSize(bytes: number) {
     if (bytes < 1024) return `${bytes} o`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
@@ -51,6 +47,7 @@ export default function OcrUploader({
   async function runOCR(file: File) {
     if (running) return; // anti double-clic
     setRunning(true);
+    setErrorMsg("");
     setProgress((p) => (p <= 1 ? 1 : p));
 
     try {
@@ -58,7 +55,7 @@ export default function OcrUploader({
 
       const result = await Tesseract.recognize(
         file,
-        ocrLang,
+        AUTO_LANG,
         {
           logger: (m: any) => {
             if (m?.status === "recognizing text" && typeof m?.progress === "number") {
@@ -74,23 +71,48 @@ export default function OcrUploader({
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
-      onText(text); // on envoie le texte OCR au parent
+      onText(text); // renvoi du texte OCR au parent
       setProgress(100);
     } catch (e: any) {
-      onText(`⚠️ Échec OCR (${e?.message || "erreur"}).`);
+      const msg = `Échec OCR (${e?.message || "erreur"}).`;
+      setErrorMsg(msg);
+      onText(`⚠️ ${msg}`);
     } finally {
       setRunning(false);
     }
+  }
+
+  function clearFile() {
+    // réinitialise tout
+    if (fileRef.current) fileRef.current.value = "";
+    setImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFileName("");
+    setFileSize("");
+    setProgress(0);
+    setErrorMsg("");
+    onText(""); // on vide le texte OCR côté parent
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
 
+    // validations
+    if (f.size > MAX_SIZE) {
+      setErrorMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite: 10 Mo.`);
+      // remet visuellement le champ à vide
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
     // feedback immédiat
     setFileName(f.name);
     setFileSize(humanSize(f.size));
     setProgress(1);
+    setErrorMsg("");
 
     const url = URL.createObjectURL(f);
     setImageUrl((prev) => {
@@ -127,22 +149,6 @@ export default function OcrUploader({
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      {/* En-tête + langue */}
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <label className="text-sm text-white/80">Image / document</label>
-        <select
-          value={ocrLang}
-          onChange={(e) => setOcrLang(e.target.value)}
-          className="bg-black/60 border border-white/20 rounded px-2 py-1 text-sm"
-          title="Langue(s) OCR"
-        >
-          <option value="fra+eng+ara">Auto (fr+en+ar)</option>
-          <option value="fra">Français (fra)</option>
-          <option value="eng">English (eng)</option>
-          <option value="ara">العربية (ara)</option>
-        </select>
-      </div>
-
       {/* Choix fichier (bouton custom) */}
       <div className="flex items-center gap-2">
         {/* input natif masqué */}
@@ -154,7 +160,7 @@ export default function OcrUploader({
           onChange={onPickFile}
           className="hidden"
         />
-        {/* label = bouton visible */}
+        {/* bouton visible */}
         <label
           htmlFor="ocr-file"
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
@@ -166,11 +172,30 @@ export default function OcrUploader({
           {hasFile ? "Fichier chargé ✓" : "Choisir un fichier"}
         </label>
 
-        {/* Infos fichier */}
-        <div className="text-xs text-white/70 truncate">
-          {hasFile ? `${fileName} — ${fileSize}` : "Aucun fichier choisi"}
+        {/* Infos + bouton Retirer */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="text-xs text-white/70 truncate">
+            {hasFile ? `${fileName} — ${fileSize}` : "Aucun fichier choisi"}
+          </div>
+          {hasFile && (
+            <button
+              type="button"
+              onClick={clearFile}
+              className="shrink-0 text-xs px-2 py-1 rounded-lg bg-white/15 hover:bg-white/25"
+              title="Retirer le fichier"
+            >
+              Retirer ✕
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Alerte douce */}
+      {errorMsg && (
+        <div className="mt-2 text-xs text-red-300">
+          {errorMsg}
+        </div>
+      )}
 
       {/* Aperçu visuel */}
       {imageUrl && (
