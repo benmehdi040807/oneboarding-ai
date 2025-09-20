@@ -29,10 +29,12 @@ export default function OcrUploader({
     setProgress(0);
     setOcrText("");
     try {
-      // ✅ Import namespaced pour éviter le bug de typings sur createWorker
-      const Tesseract: any = await import("tesseract.js");
+      const mod = await import("tesseract.js");
 
-      const worker = await Tesseract.createWorker({
+      // ⛳️ Fix typings: cast `createWorker` to any to allow the `logger` option
+      const createWorkerAny = (mod as any).createWorker as any;
+
+      const worker = await createWorkerAny({
         logger: (m: any) => {
           if (m?.status === "recognizing text" && m?.progress != null) {
             setProgress(Math.round(m.progress * 100));
