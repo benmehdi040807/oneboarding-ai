@@ -1,7 +1,6 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
 
 /** ====== Réglages Groq ====== */
 const GROQ_BASE = "https://api.groq.com/openai/v1";
