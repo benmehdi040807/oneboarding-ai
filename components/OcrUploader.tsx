@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
-  onText: (text: string) => void;
-  onPreview?: (url: string | null) => void;
-  defaultLang?: string;
+  onText: (text: string) => void;           // texte OCR remonté au parent
+  onPreview?: (url: string | null) => void; // URL locale de l’aperçu (image)
+  defaultLang?: string;                      // ex: "fra+eng+ara"
 };
 
 export default function OcrUploader({
@@ -20,18 +20,23 @@ export default function OcrUploader({
   const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  // notifier le parent de l’aperçu
   useEffect(() => {
     onPreview?.(imageUrl ?? null);
+    return () => {
+      // nettoyage de l'ObjectURL si on quitte/changé d’image
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+    };
   }, [imageUrl, onPreview]);
 
+  // --- OCR principal ---
   async function runOCR(file: File) {
     setRunning(true);
     setProgress(0);
     setOcrText("");
     try {
       const mod = await import("tesseract.js");
-
-      // ⛳️ Fix typings: cast `createWorker` to any to allow the `logger` option
+      // cast pour accepter l’option `logger` (types trop stricts)
       const createWorkerAny = (mod as any).createWorker as any;
 
       const worker = await createWorkerAny({
@@ -66,11 +71,15 @@ export default function OcrUploader({
     }
   }
 
+  // sélection d’un fichier
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     const url = URL.createObjectURL(f);
-    setImageUrl(url);
+    setImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
     runOCR(f);
   }
 
@@ -97,6 +106,7 @@ export default function OcrUploader({
           value={ocrLang}
           onChange={(e) => setOcrLang(e.target.value)}
           className="bg-black/60 border border-white/20 rounded px-2 py-1 text-sm"
+          title="Langue OCR"
         >
           <option value="fra+eng+ara">Auto (fr+en+ar)</option>
           <option value="fra">Français (fra)</option>
