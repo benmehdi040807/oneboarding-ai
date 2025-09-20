@@ -1,5 +1,4 @@
 "use client";
-export const runtime = 'nodejs';
 
 import { useState, useEffect } from "react";
 
@@ -7,12 +6,22 @@ import { useState, useEffect } from "react";
 function RgpdBanner() {
   const CONSENT_KEY = "oneboarding.rgpdConsent";
   const [show, setShow] = useState(false);
+
   useEffect(() => {
-    try { if (localStorage.getItem(CONSENT_KEY) !== "1") setShow(true); }
-    catch { setShow(true); }
+    try {
+      if (localStorage.getItem(CONSENT_KEY) !== "1") setShow(true);
+    } catch {
+      setShow(true);
+    }
   }, []);
-  const accept = () => { try { localStorage.setItem(CONSENT_KEY, "1"); } catch {} ; setShow(false); };
+
+  const accept = () => {
+    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    setShow(false);
+  };
+
   if (!show) return null;
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-50">
       <div className="mx-auto max-w-5xl px-4">
@@ -21,7 +30,10 @@ function RgpdBanner() {
             Vos données restent privées sur cet appareil.{" "}
             <a href="/legal" className="underline">En savoir plus</a>
           </p>
-          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
+          <button
+            onClick={accept}
+            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
+          >
             D’accord
           </button>
         </div>
@@ -39,13 +51,32 @@ export default function Page() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // ⬇️ nouvel état pour l’UI du bouton "Copier"
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
   // charger / sauvegarder historique
   useEffect(() => {
-    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
+    try {
+      const s = localStorage.getItem("oneboarding.history");
+      if (s) setHistory(JSON.parse(s));
+    } catch {}
   }, []);
   useEffect(() => {
-    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
+    try {
+      localStorage.setItem("oneboarding.history", JSON.stringify(history));
+    } catch {}
   }, [history]);
+
+  // copier dans presse-papier
+  async function handleCopy(text: string, id: number) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      alert("Impossible de copier le texte.");
+    }
+  }
 
   // ENVOI + RÉPONSE IA
   async function handleSubmit(e: React.FormEvent) {
@@ -107,28 +138,4 @@ export default function Page() {
         </button>
       </form>
 
-      <div className="w-full max-w-md space-y-3">
-        {history.map((item, idx) => (
-          <div
-            key={idx}
-            className={`fade-in rounded-xl border p-3 ${
-              item.role === "user"
-                ? "border-white/10 bg-white/5"
-                : item.role === "assistant"
-                ? "border-emerald-300/20 bg-emerald-500/10"
-                : "border-red-400/30 bg-red-500/10"
-            }`}
-          >
-            <p className="text-white/90 whitespace-pre-wrap">{item.text}</p>
-            <p className="text-xs text-white/50 mt-1">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
-              {new Date(item.time).toLocaleString()}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <RgpdBanner />
-    </div>
-  );
-}
+      <
