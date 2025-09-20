@@ -16,7 +16,9 @@ function RgpdBanner() {
     }
   }, []);
   const accept = () => {
-    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    try {
+      localStorage.setItem(CONSENT_KEY, "1");
+    } catch {}
     setShow(false);
   };
   if (!show) return null;
@@ -28,7 +30,10 @@ function RgpdBanner() {
             Vos données restent privées sur cet appareil.{" "}
             <a href="/legal" className="underline">En savoir plus</a>
           </p>
-          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
+          <button
+            onClick={accept}
+            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
+          >
             D’accord
           </button>
         </div>
@@ -45,7 +50,9 @@ const cleanText = (s: string) =>
   s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try { navigator.clipboard.writeText(text); } catch {}
+  try {
+    navigator.clipboard.writeText(text);
+  } catch {}
 }
 
 /* ===== Page ===== */
@@ -58,48 +65,79 @@ export default function Page() {
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
 
-  // 🎙️ Micro (final only)
+  // 🎙️ Micro (final only) — robuste
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
   const baseInputRef = useRef<string>("");
 
-  // init micro
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
       (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
-    if (SR) {
-      setSpeechSupported(true);
-      const r = new SR();
-      r.lang = "fr-FR";
-      r.continuous = true;
-      r.interimResults = false; // texte final uniquement
-      r.maxAlternatives = 1;
-      r.onstart = () => { baseInputRef.current = input; };
-      r.onresult = (e: any) => {
-        let final = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
-        setInput(cleanText([baseInputRef.current, final].join(" ")));
-      };
-      r.onend = () => setListening(false);
-      recogRef.current = r;
-    }
+    if (!SR) return;
+
+    setSpeechSupported(true);
+    const r = new SR();
+    r.lang = "fr-FR";
+    r.continuous = true;
+    r.interimResults = false; // texte final uniquement
+    r.maxAlternatives = 1;
+
+    r.onstart = () => {
+      baseInputRef.current = input;
+      setListening(true);
+    };
+
+    r.onresult = (e: any) => {
+      let final = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        final += " " + e.results[i][0].transcript;
+      }
+      setInput(cleanText([baseInputRef.current, final].join(" ")));
+    };
+
+    const stopUI = () => setListening(false);
+    r.onend = stopUI;
+    r.onspeechend = stopUI;
+    r.onaudioend = stopUI;
+    r.onnomatch = stopUI;
+    r.onerror = stopUI;
+
+    recogRef.current = r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const toggleMic = () => {
+
+  function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-    if (listening) { r.stop(); return; }
-    try { r.start(); setListening(true); } catch {}
-  };
+
+    if (!listening) {
+      try { r.start(); } catch {}
+      return;
+    }
+
+    // stop + fallback abort si onend ne vient pas
+    try { r.stop(); } catch {}
+    setTimeout(() => {
+      if (listening) {
+        try { r.abort?.(); } catch {}
+        setListening(false);
+      }
+    }, 800);
+  }
 
   // historique
   useEffect(() => {
-    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
+    try {
+      const s = localStorage.getItem("oneboarding.history");
+      if (s) setHistory(JSON.parse(s));
+    } catch {}
   }, []);
   useEffect(() => {
-    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
+    try {
+      localStorage.setItem("oneboarding.history", JSON.stringify(history));
+    } catch {}
   }, [history]);
 
   // envoyer
@@ -110,8 +148,10 @@ export default function Page() {
     if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown =
+      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown)
+      setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
@@ -128,12 +168,34 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "error",
+            text: `Erreur: ${data?.error || `HTTP ${res.status}`}`,
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "assistant",
+            text: String(data.text || "Réponse vide."),
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory((h) => [
+        {
+          role: "error",
+            text: `Erreur: ${err?.message || "réseau"}`,
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ],
+      );
     } finally {
       setLoading(false);
     }
@@ -143,59 +205,56 @@ export default function Page() {
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Barre unique ===== */}
+      {/* ===== Barre : input + OK ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-stretch">
           <input
             type="text"
             placeholder="Votre question…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 rounded-xl px-4 py-2 text-black"
+            className="flex-1 min-w-0 rounded-xl px-4 py-2 text-black"
           />
+          <button
+            type="submit"
+            disabled={loading}
+            className="shrink-0 bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
+          >
+            {loading ? "…" : "OK"}
+          </button>
+        </div>
 
-          {/* Bouton OCR (📎) */}
+        {/* rangée d’actions sous la barre */}
+        <div className="mt-2 flex gap-2">
           <button
             type="button"
-            onClick={() => setShowOcr(v => !v)}
+            onClick={() => setShowOcr((v) => !v)}
             className="px-3 py-2 rounded-xl font-medium border bg-white text-black hover:bg-gray-200"
             title="Joindre un document (OCR)"
           >
             📎
           </button>
 
-          {/* Micro */}
           <button
             type="button"
             disabled={!speechSupported}
             onClick={toggleMic}
             className={`px-3 py-2 rounded-xl font-medium border ${
-              listening ? "bg-red-500 text-white border-red-400" : "bg-white text-black hover:bg-gray-200 border-transparent"
+              listening
+                ? "bg-red-500 text-white border-red-400"
+                : "bg-white text-black hover:bg-gray-200 border-transparent"
             } disabled:opacity-50`}
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
           >
             {listening ? "⏹" : "🎤"}
           </button>
-
-          {/* Envoyer */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
-          >
-            {loading ? "…" : "OK"}
-          </button>
         </div>
       </form>
 
-      {/* Tiroir OCR (collapsable) */}
+      {/* Tiroir OCR */}
       {showOcr && (
         <div className="w-full max-w-md mb-6 animate-[fadeIn_.2s_ease]">
-          <OcrUploader
-            onText={setOcrText}
-            onPreview={() => {}}
-            defaultLang="fra+eng+ara"
-          />
+          <OcrUploader onText={setOcrText} onPreview={() => {}} defaultLang="fra+eng+ara" />
         </div>
       )}
 
@@ -224,8 +283,12 @@ export default function Page() {
             )}
 
             <p className="text-xs text-white/50 mt-6">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
-              {new Date(item.time).toLocaleString()}
+              {item.role === "user"
+                ? "Vous"
+                : item.role === "assistant"
+                ? "IA"
+                : "Erreur"}{" "}
+              • {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
