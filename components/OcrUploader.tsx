@@ -17,6 +17,7 @@ export default function OcrUploader({
   const [ocrText, setOcrText] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -28,11 +29,21 @@ export default function OcrUploader({
 
   async function runOCR(file: File) {
     setRunning(true);
+    setProgress(1);
     setOcrText("");
     try {
-      // Import dynamique + API simple sans worker ni logger
       const T = (await import("tesseract.js")).default as any;
-      const res = await T.recognize(file, ocrLang); // ← pas d’options
+
+      // ✅ Progress via logger (typings contournés par `as any`)
+      const res = await T.recognize(file, ocrLang, {
+        logger: (m: any) => {
+          if (m?.status === "recognizing text" && typeof m?.progress === "number") {
+            const p = Math.max(1, Math.min(100, Math.round(m.progress * 100)));
+            setProgress(p);
+          }
+        },
+      } as any);
+
       const text = (res?.data?.text || "")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
@@ -40,6 +51,7 @@ export default function OcrUploader({
 
       setOcrText(text);
       onText(text);
+      setProgress(100);
     } catch (e: any) {
       const t = `⚠️ Échec OCR (${e?.message || "erreur"}). Vérifie la netteté / langue.`;
       setOcrText(t);
@@ -67,12 +79,20 @@ export default function OcrUploader({
 
   const Progress = useMemo(
     () =>
-      running ? (
-        <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
-          <div className="h-2 animate-pulse bg-emerald-400" style={{ width: "50%" }} />
+      running || progress > 0 ? (
+        <div className="w-full">
+          <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
+            <div
+              className="h-2 bg-emerald-400 transition-[width] duration-200"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-1 text-right text-[11px] text-white/60">
+            {running && progress < 100 ? `Analyse… ${progress}%` : progress === 100 ? "Terminé" : null}
+          </div>
         </div>
       ) : null,
-    [running]
+    [running, progress]
   );
 
   return (
