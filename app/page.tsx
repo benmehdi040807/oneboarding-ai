@@ -1,7 +1,7 @@
 "use client";
 export const runtime = "nodejs";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import OcrUploader from "@/components/OcrUploader";
 
 /* ===== Bandeau RGPD ===== */
@@ -9,10 +9,16 @@ function RgpdBanner() {
   const CONSENT_KEY = "oneboarding.rgpdConsent";
   const [show, setShow] = useState(false);
   useEffect(() => {
-    try { if (localStorage.getItem(CONSENT_KEY) !== "1") setShow(true); }
-    catch { setShow(true); }
+    try {
+      if (localStorage.getItem(CONSENT_KEY) !== "1") setShow(true);
+    } catch {
+      setShow(true);
+    }
   }, []);
-  const accept = () => { try { localStorage.setItem(CONSENT_KEY, "1"); } catch {} ; setShow(false); };
+  const accept = () => {
+    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    setShow(false);
+  };
   if (!show) return null;
   return (
     <div className="fixed inset-x-0 bottom-0 z-50">
@@ -34,16 +40,61 @@ function RgpdBanner() {
 /* ===== Types ===== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
+/* ===== Utils ===== */
+const cleanText = (s: string) =>
+  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
+
+function copyToClipboard(text: string) {
+  try { navigator.clipboard.writeText(text); } catch {}
+}
+
 /* ===== Page ===== */
 export default function Page() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Texte OCR (remonté par le composant)
+  // OCR
+  const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
 
-  // Charger / Sauver l'historique
+  // 🎙️ Micro (final only)
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recogRef = useRef<any>(null);
+  const baseInputRef = useRef<string>("");
+
+  // init micro
+  useEffect(() => {
+    const SR: any =
+      (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
+      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
+    if (SR) {
+      setSpeechSupported(true);
+      const r = new SR();
+      r.lang = "fr-FR";
+      r.continuous = true;
+      r.interimResults = false; // texte final uniquement
+      r.maxAlternatives = 1;
+      r.onstart = () => { baseInputRef.current = input; };
+      r.onresult = (e: any) => {
+        let final = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
+        setInput(cleanText([baseInputRef.current, final].join(" ")));
+      };
+      r.onend = () => setListening(false);
+      recogRef.current = r;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const toggleMic = () => {
+    const r = recogRef.current;
+    if (!r) return;
+    if (listening) { r.stop(); return; }
+    try { r.start(); setListening(true); } catch {}
+  };
+
+  // historique
   useEffect(() => {
     try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
   }, []);
@@ -51,21 +102,22 @@ export default function Page() {
     try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
-  // ENVOI IA
+  // envoyer
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
-    if ((!q && !ocrText) || loading) return;
+    const hasOcr = Boolean(ocrText.trim());
+    if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const shown = q || (ocrText ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (shown) setHistory(h => [{ role: "user", text: shown, time: now }, ...h]);
+    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
 
-    const composedPrompt = ocrText
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume, explique et réponds à la question. Sois clair et concis.`
+    const composedPrompt = hasOcr
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -76,61 +128,78 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory(h => [
-          { role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
       } else {
-        setHistory(h => [
-          { role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
       }
     } catch (err: any) {
-      setHistory(h => [
-        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
-        ...h,
-      ]);
+      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
     } finally {
       setLoading(false);
     }
-  }
-
-  function copyText(t: string) {
-    try { navigator.clipboard.writeText(t); } catch {}
   }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== OCR (composant) ===== */}
-      <div className="w-full max-w-md space-y-3 mb-6">
-        <OcrUploader
-          defaultLang="fra+eng+ara"
-          onText={(t) => setOcrText(t)}
-        />
-      </div>
+      {/* ===== Barre unique ===== */}
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Votre question…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="flex-1 rounded-xl px-4 py-2 text-black"
+          />
 
-      {/* ===== Saisie + Envoi ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md flex gap-2 mb-6">
-        <input
-          type="text"
-          placeholder="Votre question sur le document…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 rounded-xl px-4 py-2 text-black"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
-        >
-          {loading ? "…" : "OK"}
-        </button>
+          {/* Bouton OCR (📎) */}
+          <button
+            type="button"
+            onClick={() => setShowOcr(v => !v)}
+            className="px-3 py-2 rounded-xl font-medium border bg-white text-black hover:bg-gray-200"
+            title="Joindre un document (OCR)"
+          >
+            📎
+          </button>
+
+          {/* Micro */}
+          <button
+            type="button"
+            disabled={!speechSupported}
+            onClick={toggleMic}
+            className={`px-3 py-2 rounded-xl font-medium border ${
+              listening ? "bg-red-500 text-white border-red-400" : "bg-white text-black hover:bg-gray-200 border-transparent"
+            } disabled:opacity-50`}
+            title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
+          >
+            {listening ? "⏹" : "🎤"}
+          </button>
+
+          {/* Envoyer */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
+          >
+            {loading ? "…" : "OK"}
+          </button>
+        </div>
       </form>
 
-      {/* ===== Historique ===== */}
+      {/* Tiroir OCR (collapsable) */}
+      {showOcr && (
+        <div className="w-full max-w-md mb-6 animate-[fadeIn_.2s_ease]">
+          <OcrUploader
+            onText={setOcrText}
+            onPreview={() => {}}
+            defaultLang="fra+eng+ara"
+          />
+        </div>
+      )}
+
+      {/* Historique */}
       <div className="w-full max-w-md space-y-3">
         {history.map((item, idx) => (
           <div
@@ -147,7 +216,7 @@ export default function Page() {
 
             {item.role === "assistant" && (
               <button
-                onClick={() => copyText(item.text)}
+                onClick={() => copyToClipboard(item.text)}
                 className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25"
               >
                 Copier
