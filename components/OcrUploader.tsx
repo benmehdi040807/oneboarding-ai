@@ -17,7 +17,6 @@ export default function OcrUploader({
   const [ocrText, setOcrText] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -29,22 +28,12 @@ export default function OcrUploader({
 
   async function runOCR(file: File) {
     setRunning(true);
-    setProgress(0);
     setOcrText("");
     try {
       const mod = await import("tesseract.js");
-      // IMPORTANT : ne PAS faire "const { createWorker } = await import(...)"
-      // On récupère la fonction puis on caste en any pour accepter "logger".
+      // ❌ PAS de destructuring + PAS de "logger"
       const createWorker: any = (mod as any).createWorker;
-
-      // @ts-ignore - 'logger' n'est pas exposé dans les typings mais supporté à l'exécution
-      const worker: any = await createWorker({
-        logger: (m: any) => {
-          if (m?.status === "recognizing text" && m?.progress != null) {
-            setProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
+      const worker: any = await createWorker(); // ← aucun argument
 
       await worker.load();
       await worker.loadLanguage(ocrLang);
@@ -60,7 +49,6 @@ export default function OcrUploader({
 
       setOcrText(text);
       onText(text);
-      setProgress(100);
     } catch (e: any) {
       const t = `⚠️ Échec OCR (${e?.message || "erreur"}). Vérifie la netteté / langue.`;
       setOcrText(t);
@@ -86,14 +74,15 @@ export default function OcrUploader({
     if (f) await runOCR(f);
   }
 
+  // Indicateur simple (indéterminé)
   const Progress = useMemo(
     () =>
-      running || progress > 0 ? (
+      running ? (
         <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
-          <div className="h-2 bg-emerald-400" style={{ width: `${progress}%` }} />
+          <div className="h-2 animate-pulse bg-emerald-400" style={{ width: "50%" }} />
         </div>
       ) : null,
-    [running, progress]
+    [running]
   );
 
   return (
