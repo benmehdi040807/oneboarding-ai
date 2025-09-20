@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* --- Bandeau RGPD --- */
 function RgpdBanner() {
@@ -32,13 +32,35 @@ function RgpdBanner() {
 /* --- Types --- */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-/* ===== Helpers anti-répétitions pour la voix ===== */
-function collapseRepeats(s: string) {
-  // 1) espaces propres
-  let t = s.replace(/\s+/g, " ").trim();
-  // 2) déduplication de mots consécutifs: "bonjour bonjour" -> "bonjour"
-  t = t.replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1");
-  return t;
+/* ===== Helpers anti-répétitions/anti-doublons ===== */
+function normalizeSpaces(s: string) {
+  return s.replace(/\s+/g, " ").trim();
+}
+// déduplique mots consécutifs: "bonjour bonjour" -> "bonjour"
+function collapseWordRepeats(s: string) {
+  return s.replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1");
+}
+// découpe en “morceaux” de N mots (par défaut 3)
+function chunkWords(s: string, n = 3) {
+  const words = s.split(/\s+/).filter(Boolean);
+  const chunks: string[] = [];
+  for (let i = 0; i < words.length; i += n) {
+    chunks.push(words.slice(i, i + n).join(" "));
+  }
+  return chunks;
+}
+// ajoute à base les chunks de add, en évitant d'insérer des morceaux déjà inclus
+function mergeUniqueChunks(base: string, add: string, n = 3) {
+  let result = base;
+  const baseL = base.toLowerCase();
+  for (const ch of chunkWords(normalizeSpaces(add), n)) {
+    const c = ch.toLowerCase();
+    if (!c) continue;
+    if (!baseL.includes(c)) {
+      result = normalizeSpaces(result + " " + ch);
+    }
+  }
+  return result;
 }
 
 export default function Page() {
@@ -54,10 +76,9 @@ export default function Page() {
   const [speechSupported, setSpeechSupported] = useState(false);
   const recogRef = useRef<any>(null);
 
-  // On garde séparément ce qui existait déjà dans l’input au démarrage
+  // on garde séparément l'input avant démarrage micro + l'accumulation finale
   const baseInputRef = useRef<string>("");
-  // On accumule uniquement le texte FINAL (non intérimaire)
-  const finalVoiceRef = useRef<string>("");
+  const finalVoiceRef = useRef<string>("");  // accumulation “finale”
 
   // init SpeechRecognition
   useEffect(() => {
@@ -73,42 +94,33 @@ export default function Page() {
       r.maxAlternatives = 1;
 
       r.onstart = () => {
-        baseInputRef.current = input;   // snapshot de l’input
-        finalVoiceRef.current = "";     // on repart propre
+        baseInputRef.current = input;
+        finalVoiceRef.current = "";
       };
 
       r.onresult = (e: any) => {
         let interim = "";
-        // Parcours des résultats depuis le dernier index
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          const tr = e.results[i][0].transcript;
+          const tr0 = e.results[i][0].transcript;
+          const tr = normalizeSpaces(collapseWordRepeats(tr0));
           if (e.results[i].isFinal) {
-            // Ajout au buffer final (propre + sans doublons)
-            const clean = collapseRepeats(tr);
-            finalVoiceRef.current = collapseRepeats(
-              (finalVoiceRef.current + " " + clean).trim()
-            );
+            // Ajout “final” : on merge par chunks pour éviter les doublons de segments
+            finalVoiceRef.current = mergeUniqueChunks(finalVoiceRef.current, tr, 3);
           } else {
-            // Buffer provisoire, non ajouté définitivement
-            interim = collapseRepeats(interim + " " + tr);
+            // Affichage provisoire propre
+            interim = normalizeSpaces(collapseWordRepeats(interim + " " + tr));
           }
         }
-        // Affichage en live = base + final + interim (sans polluer l’historique)
-        const live = [baseInputRef.current, finalVoiceRef.current, interim]
-          .filter(Boolean)
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim();
+        const live = normalizeSpaces(
+          [baseInputRef.current, finalVoiceRef.current, interim].filter(Boolean).join(" ")
+        );
         setInput(live);
       };
 
       r.onend = () => {
-        // Quand ça s’arrête, on fixe l’input à base + final (sans l’interim)
-        const fixed = [baseInputRef.current, finalVoiceRef.current]
-          .filter(Boolean)
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim();
+        const fixed = normalizeSpaces(
+          [baseInputRef.current, finalVoiceRef.current].filter(Boolean).join(" ")
+        );
         setInput(fixed);
         setListening(false);
       };
@@ -131,7 +143,7 @@ export default function Page() {
     } catch { /* démarrage multiple, ignorer */ }
   };
 
-  // charge / save historique
+  // charger / sauvegarder historique
   useEffect(() => {
     try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
   }, []);
@@ -141,8 +153,13 @@ export default function Page() {
 
   // copier
   async function handleCopy(text: string, id: number) {
-    try { await navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(()=>setCopiedId(null),1500); }
-    catch { alert("Impossible de copier le texte."); }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      alert("Impossible de copier le texte.");
+    }
   }
 
   // ENVOI + RÉPONSE IA
@@ -197,7 +214,7 @@ export default function Page() {
           className="flex-1 rounded-xl px-4 py-2 text-black"
         />
 
-        {/* 🎙️ Bouton micro */}
+        {/* 🎙️ Micro */}
         <button
           type="button"
           disabled={!speechSupported}
