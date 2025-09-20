@@ -10,10 +10,11 @@ type Props = {
 export default function OcrUploader({ onText, onPreview }: Props) {
   /* ===== Config ===== */
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-  const SMALL_LANG = "eng+fra+ara";
-  const BIG_LANG =
-    "eng+fra+ara+spa+deu+ita+por+tur+nld+pol+rus+ukr+rom+chi_sim+chi_tra+jpn+kor";
 
+  // 🔒 Pack langues “léger” et invisible côté UI
+  const LANGS = "eng+fra+ara";
+
+  // CDNs de secours (2 suffisent pour la fiabilité sans trop multiplier les essais)
   const LANG_PATHS = [
     "https://tessdata.projectnaptha.com/4.0.0",
     "https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0",
@@ -27,10 +28,11 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     "https://unpkg.com/tesseract.js@5/dist/worker.min.js",
   ];
 
-  const STEP_TIMEOUT_MS = 12000;
+  // Timeouts un peu plus larges pour mobile/4G
+  const STEP_TIMEOUT_MS = 20000;
 
   /* ===== UI state ===== */
-  const [inputKey, setInputKey] = useState(0);     // << re-monte le <input>
+  const [inputKey, setInputKey] = useState(0); // force le remontage de <input> après "Retirer"
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -101,14 +103,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
   async function recognizeOnce(
     file: File,
-    langs: string,
     langPath: string,
     corePath: string,
     workerPath: string
   ) {
     const T = (await import("tesseract.js")).default as any;
 
-    // ⛑️ timeout aussi sur createWorker pour éviter le “bloqué à Préparation…”
     const worker = (await withTimeout(
       T.createWorker({
         corePath,
@@ -125,10 +125,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       await withTimeout(worker.load(), STEP_TIMEOUT_MS, "load");
 
       setStatusText("Téléchargement du modèle…");
-      await withTimeout(worker.loadLanguage(langs), STEP_TIMEOUT_MS, "loadLanguage");
+      await withTimeout(worker.loadLanguage(LANGS), STEP_TIMEOUT_MS * 2, "loadLanguage");
 
       setStatusText("Initialisation…");
-      await withTimeout(worker.initialize(langs), STEP_TIMEOUT_MS, "initialize");
+      await withTimeout(worker.initialize(LANGS), STEP_TIMEOUT_MS, "initialize");
 
       setStatusText("Reconnaissance…");
       const recogRes = (await withTimeout(
@@ -156,17 +156,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setProgress(1);
     setStatusText("Préparation…");
 
-    const combos: Array<{
-      langs: string;
-      langPath: string;
-      corePath: string;
-      workerPath: string;
-    }> = [];
+    // On teste quelques combinaisons CDN (langPath/corePath/workerPath) — sans multiplier les langues
+    const combos: Array<{ langPath: string; corePath: string; workerPath: string }> = [];
     for (const langPath of LANG_PATHS) {
       for (const corePath of CORE_PATHS) {
         for (const workerPath of WORKER_PATHS) {
-          combos.push({ langs: SMALL_LANG, langPath, corePath, workerPath });
-          combos.push({ langs: BIG_LANG, langPath, corePath, workerPath });
+          combos.push({ langPath, corePath, workerPath });
         }
       }
     }
@@ -174,13 +169,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     for (let i = 0; i < combos.length; i++) {
       const c = combos[i];
       try {
-        const text = await recognizeOnce(
-          file, c.langs, c.langPath, c.corePath, c.workerPath
-        );
-
-        // Si résultat très court avec pack "léger", on tente le grand pack
-        if (text.length < 40 && c.langs === SMALL_LANG) continue;
-
+        const text = await recognizeOnce(file, c.langPath, c.corePath, c.workerPath);
         onText(text);
         setProgress(100);
         setStatusText("Terminé");
@@ -201,11 +190,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   }
 
   function clearFile() {
-    // vide le champ et force le remontage pour permettre de re-sélectionner le même fichier
     if (fileRef.current) fileRef.current.value = "";
-    setInputKey(k => k + 1); // << important
-
-    // reset UI
+    setInputKey(k => k + 1); // permet de re-choisir le même fichier
     setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
     setFileName("");
     setFileSize("");
@@ -213,7 +199,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setStatusText("");
     setErrorMsg("");
     setRunning(false);
-
     onText("");
   }
 
@@ -236,7 +221,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     const url = URL.createObjectURL(f);
     setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
 
-    // lance l'OCR
     void runOCR(f);
   }
 
@@ -265,7 +249,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       {/* Choix fichier */}
       <div className="flex items-center gap-2">
         <input
-          key={inputKey}                 // << re-montage quand on clear
+          key={inputKey}
           ref={fileRef}
           id="ocr-file"
           type="file"
