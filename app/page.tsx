@@ -1,45 +1,27 @@
-"use client";                 // ⬅️ doit être la toute première ligne
+"use client";
 export const runtime = 'nodejs';
 
 import { useState, useEffect } from "react";
 
-// --- Bandeau RGPD intégré directement ---
+/* --- Bandeau RGPD --- */
 function RgpdBanner() {
   const CONSENT_KEY = "oneboarding.rgpdConsent";
   const [show, setShow] = useState(false);
-
   useEffect(() => {
-    try {
-      const v = localStorage.getItem(CONSENT_KEY);
-      if (v !== "1") setShow(true);
-    } catch {
-      setShow(true);
-    }
+    try { if (localStorage.getItem(CONSENT_KEY) !== "1") setShow(true); }
+    catch { setShow(true); }
   }, []);
-
-  const accept = () => {
-    try {
-      localStorage.setItem(CONSENT_KEY, "1");
-    } catch {}
-    setShow(false);
-  };
-
+  const accept = () => { try { localStorage.setItem(CONSENT_KEY, "1"); } catch {} ; setShow(false); };
   if (!show) return null;
-
   return (
     <div className="fixed inset-x-0 bottom-0 z-50">
       <div className="mx-auto max-w-5xl px-4">
         <div className="m-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur p-3 text-sm text-white">
           <p className="mb-2">
             Vos données restent privées sur cet appareil.{" "}
-            <a href="/legal" className="underline">
-              En savoir plus
-            </a>
+            <a href="/legal" className="underline">En savoir plus</a>
           </p>
-          <button
-            onClick={accept}
-            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
-          >
+          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
             D’accord
           </button>
         </div>
@@ -48,49 +30,80 @@ function RgpdBanner() {
   );
 }
 
-// --- Page principale ---
+/* --- Types --- */
+type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
+
+/* --- Page --- */
 export default function Page() {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<{ text: string; time: string }[]>([]);
+  const [history, setHistory] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  // charger / sauvegarder historique
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("oneboarding.history");
-      if (saved) setHistory(JSON.parse(saved));
-    } catch {}
+    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
   }, []);
-
   useEffect(() => {
-    try {
-      localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch {}
+    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ENVOI + RÉPONSE IA
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
-    const entry = { text: input.trim(), time: new Date().toISOString() };
-    setHistory([entry, ...history]);
+    const q = input.trim();
+    if (!q || loading) return;
+
+    const now = new Date().toISOString();
+    setHistory(h => [{ role: "user", text: q, time: now }, ...h]);
     setInput("");
-  };
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: q }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        setHistory(h => [
+          { role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() },
+          ...h,
+        ]);
+      } else {
+        setHistory(h => [
+          { role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() },
+          ...h,
+        ]);
+      }
+    } catch (err: any) {
+      setHistory(h => [
+        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
+        ...h,
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
-      <h1 className="text-2xl font-bold mb-6 fade-in">OneBoarding AI ✨</h1>
+      <h1 className="text-2xl font-bold mb-6 fade-in text-center">OneBoarding AI ✨</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-md flex gap-2 mb-6">
         <input
           type="text"
-          placeholder="Décrivez votre besoin..."
+          placeholder="Décrivez votre besoin…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           className="flex-1 rounded-xl px-4 py-2 text-black"
         />
         <button
           type="submit"
-          className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition"
+          disabled={loading}
+          className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
         >
-          OK
+          {loading ? "…" : "OK"}
         </button>
       </form>
 
@@ -98,17 +111,23 @@ export default function Page() {
         {history.map((item, idx) => (
           <div
             key={idx}
-            className="fade-in rounded-xl border border-white/10 bg-white/5 p-3"
+            className={`fade-in rounded-xl border p-3 ${
+              item.role === "user"
+                ? "border-white/10 bg-white/5"
+                : item.role === "assistant"
+                ? "border-emerald-300/20 bg-emerald-500/10"
+                : "border-red-400/30 bg-red-500/10"
+            }`}
           >
-            <p className="text-white/90">{item.text}</p>
+            <p className="text-white/90 whitespace-pre-wrap">{item.text}</p>
             <p className="text-xs text-white/50 mt-1">
+              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
               {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Bandeau RGPD */}
       <RgpdBanner />
     </div>
   );
