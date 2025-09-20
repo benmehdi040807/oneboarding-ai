@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';  // ✅ empêche le warning Edge
+
 import "./globals.css";
 
 export const metadata = {
