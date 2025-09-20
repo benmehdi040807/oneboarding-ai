@@ -1,40 +1,18 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-
-/** ====== Réglages Groq ====== */
+// ====== Réglages Groq ======
 const GROQ_BASE = "https://api.groq.com/openai/v1";
-// modèles Groq encore supportés (sept. 2025)
-const DEFAULT_MODEL = "llama-3.1-8b-instant";        // rapide, économique
-const FALLBACK_MODEL = "llama-3.1-70b-versatile";    // plus puissant
-const MODEL = process.env.GROQ_MODEL || DEFAULT_MODEL;
+const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant"; 
+// 💡 tu peux aussi tester "llama-3.1-70b-versatile" si tu veux plus puissant
 
 function json(data: any, status = 200) {
-  return new NextResponse(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+  return NextResponse.json(data, { status });
 }
 
-/** Petit utilitaire timeout (Edge OK) */
-async function withTimeout<T>(p: Promise<T>, ms = 20000): Promise<T> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    // @ts-ignore - signal accepté par fetch
-    return await (p as any)(ctrl.signal);
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-/** ====== GET ======
- *  /api/generate            -> ping (clé détectée ?)
- *  /api/generate?test=1     -> test IA réel (courte phrase)
- */
+// ====== GET ======
+// /api/generate            -> ping (clé détectée ?)
+// /api/generate?test=1     -> test IA réel (retourne une courte phrase)
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const doTest = url.searchParams.get("test") === "1";
@@ -93,9 +71,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** ====== POST ======
- *  Appel normal depuis l’UI (barre unique)
- */
+// ====== POST ======
+// Appel normal depuis l’UI (barre unique)
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return json({ ok: false, error: "GROQ_API_KEY is not set" }, 500);
@@ -130,7 +107,6 @@ export async function POST(req: NextRequest) {
     const data = await resp.json();
 
     if (!resp.ok) {
-      // Si le modèle est décommissionné, le message Groq l’indiquera ici
       return json(
         {
           ok: false,
