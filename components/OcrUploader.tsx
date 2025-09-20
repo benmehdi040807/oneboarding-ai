@@ -30,18 +30,28 @@ export default function OcrUploader({
     };
   }, [imageUrl, onPreview]);
 
+  // si la langue change et qu’un fichier est déjà sélectionné → relancer
+  useEffect(() => {
+    const f = fileRef.current?.files?.[0];
+    if (f) {
+      setProgress(1);
+      runOCR(f);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocrLang]);
+
   async function runOCR(file: File) {
+    if (running) return; // anti double-clic
     setRunning(true);
-    setProgress(1);
+    setProgress((p) => (p <= 1 ? 1 : p));
+
     try {
-      // Utilise l’export par défaut pour éviter les soucis d’ESM/typages
       const Tesseract = (await import("tesseract.js")).default as any;
 
       const result = await Tesseract.recognize(
         file,
         ocrLang,
         {
-          // typings souples pour la barre de progression
           logger: (m: any) => {
             if (m?.status === "recognizing text" && typeof m?.progress === "number") {
               const p = Math.max(1, Math.min(100, Math.round(m.progress * 100)));
@@ -56,7 +66,7 @@ export default function OcrUploader({
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
-      onText(text); // ← on envoie le texte OCR au parent, sans l’afficher
+      onText(text); // on envoie le texte OCR au parent
       setProgress(100);
     } catch (e: any) {
       const fallback = `⚠️ Échec OCR (${e?.message || "erreur"}).`;
@@ -69,6 +79,8 @@ export default function OcrUploader({
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    // reset progression visuelle
+    setProgress(1);
     const url = URL.createObjectURL(f);
     setImageUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -127,7 +139,7 @@ export default function OcrUploader({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/*,image/heic,image/heif"
           onChange={onPickFile}
           className="block w-full text-sm"
         />
@@ -135,7 +147,8 @@ export default function OcrUploader({
           <button
             onClick={rerun}
             type="button"
-            className="shrink-0 px-3 py-2 rounded-xl bg-white text-black text-sm font-medium"
+            disabled={running}
+            className="shrink-0 px-3 py-2 rounded-xl bg-white text-black text-sm font-medium disabled:opacity-50"
             title="Relancer l'OCR (si vous changez la langue par ex.)"
           >
             Relancer OCR
@@ -156,11 +169,6 @@ export default function OcrUploader({
 
       {/* Barre de progression */}
       {Progress}
-
-      {/* Petit hint discret */}
-      <p className="mt-2 text-xs text-white/50">
-        L’IA recevra automatiquement le texte détecté. Si besoin, change la langue puis “Relancer OCR”.
-      </p>
     </div>
   );
 }
