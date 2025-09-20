@@ -1,10 +1,11 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "edge";
+
 // ====== Réglages Groq ======
 const GROQ_BASE = "https://api.groq.com/openai/v1";
-const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant"; 
-// 💡 tu peux aussi tester "llama-3.1-70b-versatile" si tu veux plus puissant
+const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -44,8 +45,9 @@ export async function GET(req: NextRequest) {
         temperature: 0.3,
         max_tokens: 60,
         messages: [
-          { role: "system", content: "Réponds en une phrase brève." },
-          { role: "user", content: "Dis bonjour pour un test rapide." },
+          // ✅ Répondre dans la langue détectée du message utilisateur
+          { role: "system", content: "أجب دائمًا باللغة نفسها التي يستخدمها المستخدم في رسالته. If the user writes in English, reply in English. Si l’utilisateur écrit en français, réponds en français. لا تترجم إلا إذا طُلب منك ذلك صراحةً." },
+          { role: "user", content: "اختبار سريع: قل مرحبًا بجملة قصيرة." },
         ],
       }),
     });
@@ -94,10 +96,11 @@ export async function POST(req: NextRequest) {
         temperature: 0.6,
         max_tokens: 400,
         messages: [
+          // ✅ Règle centrale : réponds dans la même langue que le message utilisateur
           {
             role: "system",
             content:
-              "Tu es OneBoarding AI. Donne des réponses courtes, utiles et polies. Si la demande est vague, propose 2–3 pistes concrètes. Réponds en français si le prompt est en français.",
+              "Always reply in the same language as the user's message. لا تُترجم إلا إذا طُلب منك ذلك صراحةً. Donne des réponses courtes, utiles et polies. If user is vague, propose 2–3 concrete options.",
           },
           { role: "user", content: prompt },
         ],
