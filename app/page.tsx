@@ -32,36 +32,9 @@ function RgpdBanner() {
 /* --- Types --- */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-/* ===== Helpers anti-répétitions/anti-doublons ===== */
-function normalizeSpaces(s: string) {
-  return s.replace(/\s+/g, " ").trim();
-}
-// déduplique mots consécutifs: "bonjour bonjour" -> "bonjour"
-function collapseWordRepeats(s: string) {
-  return s.replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1");
-}
-// découpe en “morceaux” de N mots (par défaut 3)
-function chunkWords(s: string, n = 3) {
-  const words = s.split(/\s+/).filter(Boolean);
-  const chunks: string[] = [];
-  for (let i = 0; i < words.length; i += n) {
-    chunks.push(words.slice(i, i + n).join(" "));
-  }
-  return chunks;
-}
-// ajoute à base les chunks de add, en évitant d'insérer des morceaux déjà inclus
-function mergeUniqueChunks(base: string, add: string, n = 3) {
-  let result = base;
-  const baseL = base.toLowerCase();
-  for (const ch of chunkWords(normalizeSpaces(add), n)) {
-    const c = ch.toLowerCase();
-    if (!c) continue;
-    if (!baseL.includes(c)) {
-      result = normalizeSpaces(result + " " + ch);
-    }
-  }
-  return result;
-}
+/* --- Helpers --- */
+const cleanText = (s: string) =>
+  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 export default function Page() {
   const [input, setInput] = useState("");
@@ -71,16 +44,12 @@ export default function Page() {
   // Copier
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // 🎙️ Saisie vocale
+  // 🎙️ Micro (final-only)
   const [listening, setListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const recogRef = useRef<any>(null);
-
-  // on garde séparément l'input avant démarrage micro + l'accumulation finale
   const baseInputRef = useRef<string>("");
-  const finalVoiceRef = useRef<string>("");  // accumulation “finale”
 
-  // init SpeechRecognition
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
@@ -90,41 +59,24 @@ export default function Page() {
       const r = new SR();
       r.lang = "fr-FR";
       r.continuous = true;
-      r.interimResults = true;
+      r.interimResults = false; // 🔒 IMPORTANT : uniquement le texte final
       r.maxAlternatives = 1;
 
       r.onstart = () => {
-        baseInputRef.current = input;
-        finalVoiceRef.current = "";
+        baseInputRef.current = input; // on garde ce qui était déjà tapé
       };
 
       r.onresult = (e: any) => {
-        let interim = "";
+        // Ici on ne reçoit que du FINAL → une seule fois
+        let final = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          const tr0 = e.results[i][0].transcript;
-          const tr = normalizeSpaces(collapseWordRepeats(tr0));
-          if (e.results[i].isFinal) {
-            // Ajout “final” : on merge par chunks pour éviter les doublons de segments
-            finalVoiceRef.current = mergeUniqueChunks(finalVoiceRef.current, tr, 3);
-          } else {
-            // Affichage provisoire propre
-            interim = normalizeSpaces(collapseWordRepeats(interim + " " + tr));
-          }
+          final += " " + e.results[i][0].transcript;
         }
-        const live = normalizeSpaces(
-          [baseInputRef.current, finalVoiceRef.current, interim].filter(Boolean).join(" ")
-        );
-        setInput(live);
-      };
-
-      r.onend = () => {
-        const fixed = normalizeSpaces(
-          [baseInputRef.current, finalVoiceRef.current].filter(Boolean).join(" ")
-        );
+        const fixed = cleanText([baseInputRef.current, final].join(" "));
         setInput(fixed);
-        setListening(false);
       };
 
+      r.onend = () => setListening(false);
       recogRef.current = r;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,14 +85,8 @@ export default function Page() {
   const toggleMic = () => {
     const r = recogRef.current;
     if (!r) return;
-    if (listening) {
-      r.stop();
-      return;
-    }
-    try {
-      r.start();
-      setListening(true);
-    } catch { /* démarrage multiple, ignorer */ }
+    if (listening) { r.stop(); return; }
+    try { r.start(); setListening(true); } catch {}
   };
 
   // charger / sauvegarder historique
@@ -153,13 +99,8 @@ export default function Page() {
 
   // copier
   async function handleCopy(text: string, id: number) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 1500);
-    } catch {
-      alert("Impossible de copier le texte.");
-    }
+    try { await navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(()=>setCopiedId(null),1500); }
+    catch { alert("Impossible de copier le texte."); }
   }
 
   // ENVOI + RÉPONSE IA
@@ -214,7 +155,7 @@ export default function Page() {
           className="flex-1 rounded-xl px-4 py-2 text-black"
         />
 
-        {/* 🎙️ Micro */}
+        {/* 🎙️ Micro (final only) */}
         <button
           type="button"
           disabled={!speechSupported}
