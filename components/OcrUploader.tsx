@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
+  /** Texte OCR final renvoyé “en coulisses” vers le parent */
   onText: (text: string) => void;
+  /** Prévisualisation (utile si tu veux afficher l’image ailleurs) */
   onPreview?: (url: string | null) => void;
+  /** Langue(s) Tesseract (ex: "fra", "eng", "ara", "fra+eng+ara") */
   defaultLang?: string;
 };
 
@@ -14,12 +17,12 @@ export default function OcrUploader({
   defaultLang = "fra+eng+ara",
 }: Props) {
   const [ocrLang, setOcrLang] = useState<string>(defaultLang);
-  const [ocrText, setOcrText] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  // propage l’aperçu & nettoie l’ancien ObjectURL
   useEffect(() => {
     onPreview?.(imageUrl ?? null);
     return () => {
@@ -30,32 +33,34 @@ export default function OcrUploader({
   async function runOCR(file: File) {
     setRunning(true);
     setProgress(1);
-    setOcrText("");
     try {
-      const T = (await import("tesseract.js")).default as any;
+      // Utilise l’export par défaut pour éviter les soucis d’ESM/typages
+      const Tesseract = (await import("tesseract.js")).default as any;
 
-      // ✅ Progress via logger (typings contournés par `as any`)
-      const res = await T.recognize(file, ocrLang, {
-        logger: (m: any) => {
-          if (m?.status === "recognizing text" && typeof m?.progress === "number") {
-            const p = Math.max(1, Math.min(100, Math.round(m.progress * 100)));
-            setProgress(p);
-          }
-        },
-      } as any);
+      const result = await Tesseract.recognize(
+        file,
+        ocrLang,
+        {
+          // typings souples pour la barre de progression
+          logger: (m: any) => {
+            if (m?.status === "recognizing text" && typeof m?.progress === "number") {
+              const p = Math.max(1, Math.min(100, Math.round(m.progress * 100)));
+              setProgress(p);
+            }
+          },
+        } as any
+      );
 
-      const text = (res?.data?.text || "")
+      const text: string = String(result?.data?.text || "")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
-      setOcrText(text);
-      onText(text);
+      onText(text); // ← on envoie le texte OCR au parent, sans l’afficher
       setProgress(100);
     } catch (e: any) {
-      const t = `⚠️ Échec OCR (${e?.message || "erreur"}). Vérifie la netteté / langue.`;
-      setOcrText(t);
-      onText(t);
+      const fallback = `⚠️ Échec OCR (${e?.message || "erreur"}).`;
+      onText(fallback);
     } finally {
       setRunning(false);
     }
@@ -65,7 +70,7 @@ export default function OcrUploader({
     const f = e.target.files?.[0];
     if (!f) return;
     const url = URL.createObjectURL(f);
-    setImageUrl(prev => {
+    setImageUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return url;
     });
@@ -80,7 +85,7 @@ export default function OcrUploader({
   const Progress = useMemo(
     () =>
       running || progress > 0 ? (
-        <div className="w-full">
+        <div className="w-full mt-3">
           <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
             <div
               className="h-2 bg-emerald-400 transition-[width] duration-200"
@@ -88,7 +93,11 @@ export default function OcrUploader({
             />
           </div>
           <div className="mt-1 text-right text-[11px] text-white/60">
-            {running && progress < 100 ? `Analyse… ${progress}%` : progress === 100 ? "Terminé" : null}
+            {running && progress < 100
+              ? `Analyse… ${progress}%`
+              : progress === 100
+              ? "Terminé"
+              : null}
           </div>
         </div>
       ) : null,
@@ -97,12 +106,14 @@ export default function OcrUploader({
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      {/* En-tête + langue */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <label className="text-sm text-white/80">Image / document</label>
         <select
           value={ocrLang}
           onChange={(e) => setOcrLang(e.target.value)}
           className="bg-black/60 border border-white/20 rounded px-2 py-1 text-sm"
+          title="Langue(s) OCR"
         >
           <option value="fra+eng+ara">Auto (fr+en+ar)</option>
           <option value="fra">Français (fra)</option>
@@ -111,6 +122,7 @@ export default function OcrUploader({
         </select>
       </div>
 
+      {/* Choix fichier + relance */}
       <div className="flex items-center gap-2">
         <input
           ref={fileRef}
@@ -124,36 +136,30 @@ export default function OcrUploader({
             onClick={rerun}
             type="button"
             className="shrink-0 px-3 py-2 rounded-xl bg-white text-black text-sm font-medium"
+            title="Relancer l'OCR (si vous changez la langue par ex.)"
           >
             Relancer OCR
           </button>
         )}
       </div>
 
+      {/* Aperçu visuel */}
       {imageUrl && (
         <div className="mt-3">
           <img
             src={imageUrl}
-            alt="aperçu"
+            alt="aperçu du document"
             className="rounded-lg w-full max-h-64 object-contain border border-white/10"
           />
         </div>
       )}
 
-      <div className="mt-3">{Progress}</div>
+      {/* Barre de progression */}
+      {Progress}
 
-      <textarea
-        value={ocrText}
-        onChange={(e) => {
-          setOcrText(e.target.value);
-          onText(e.target.value);
-        }}
-        rows={6}
-        placeholder="Texte OCR (éditable)…"
-        className="mt-3 w-full rounded-xl px-3 py-2 text-sm text-white bg-black/40 border border-white/15"
-      />
+      {/* Petit hint discret */}
       <p className="mt-2 text-xs text-white/50">
-        Astuce : si l’OCR n’est pas propre, change la langue puis “Relancer OCR”.
+        L’IA recevra automatiquement le texte détecté. Si besoin, change la langue puis “Relancer OCR”.
       </p>
     </div>
   );
