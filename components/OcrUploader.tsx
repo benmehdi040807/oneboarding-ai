@@ -20,6 +20,8 @@ export default function OcrUploader({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [fileName, setFileName] = useState<string>("");
+  const [fileSize, setFileSize] = useState<string>("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // propage l’aperçu & nettoie l’ancien ObjectURL
@@ -30,7 +32,7 @@ export default function OcrUploader({
     };
   }, [imageUrl, onPreview]);
 
-  // si la langue change et qu’un fichier est déjà sélectionné → relancer
+  // relance auto si la langue change et qu’un fichier est sélectionné
   useEffect(() => {
     const f = fileRef.current?.files?.[0];
     if (f) {
@@ -39,6 +41,12 @@ export default function OcrUploader({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ocrLang]);
+
+  function humanSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} o`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+  }
 
   async function runOCR(file: File) {
     if (running) return; // anti double-clic
@@ -69,8 +77,7 @@ export default function OcrUploader({
       onText(text); // on envoie le texte OCR au parent
       setProgress(100);
     } catch (e: any) {
-      const fallback = `⚠️ Échec OCR (${e?.message || "erreur"}).`;
-      onText(fallback);
+      onText(`⚠️ Échec OCR (${e?.message || "erreur"}).`);
     } finally {
       setRunning(false);
     }
@@ -79,19 +86,19 @@ export default function OcrUploader({
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    // reset progression visuelle
+
+    // feedback immédiat
+    setFileName(f.name);
+    setFileSize(humanSize(f.size));
     setProgress(1);
+
     const url = URL.createObjectURL(f);
     setImageUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return url;
     });
-    runOCR(f);
-  }
 
-  async function rerun() {
-    const f = fileRef.current?.files?.[0];
-    if (f) await runOCR(f);
+    runOCR(f);
   }
 
   const Progress = useMemo(
@@ -116,6 +123,8 @@ export default function OcrUploader({
     [running, progress]
   );
 
+  const hasFile = Boolean(fileName);
+
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
       {/* En-tête + langue */}
@@ -134,36 +143,48 @@ export default function OcrUploader({
         </select>
       </div>
 
-      {/* Choix fichier + relance */}
+      {/* Choix fichier (bouton custom) */}
       <div className="flex items-center gap-2">
+        {/* input natif masqué */}
         <input
           ref={fileRef}
+          id="ocr-file"
           type="file"
           accept="image/*,image/heic,image/heif"
           onChange={onPickFile}
-          className="block w-full text-sm"
+          className="hidden"
         />
-        {fileRef.current?.files?.[0] && (
-          <button
-            onClick={rerun}
-            type="button"
-            disabled={running}
-            className="shrink-0 px-3 py-2 rounded-xl bg-white text-black text-sm font-medium disabled:opacity-50"
-            title="Relancer l'OCR (si vous changez la langue par ex.)"
-          >
-            Relancer OCR
-          </button>
-        )}
+        {/* label = bouton visible */}
+        <label
+          htmlFor="ocr-file"
+          className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
+            ${hasFile ? "bg-emerald-500 text-black border-emerald-400" : "bg-white text-black hover:bg-gray-200 border-transparent"}
+            ${running ? "opacity-70 pointer-events-none" : ""}
+          `}
+          title={hasFile ? "Changer de fichier" : "Choisir un fichier"}
+        >
+          {hasFile ? "Fichier chargé ✓" : "Choisir un fichier"}
+        </label>
+
+        {/* Infos fichier */}
+        <div className="text-xs text-white/70 truncate">
+          {hasFile ? `${fileName} — ${fileSize}` : "Aucun fichier choisi"}
+        </div>
       </div>
 
       {/* Aperçu visuel */}
       {imageUrl && (
-        <div className="mt-3">
+        <div className="mt-3 relative">
           <img
             src={imageUrl}
             alt="aperçu du document"
             className="rounded-lg w-full max-h-64 object-contain border border-white/10"
           />
+          {running && (
+            <div className="absolute inset-0 rounded-lg bg-black/30 grid place-items-center text-xs">
+              Analyse en cours…
+            </div>
+          )}
         </div>
       )}
 
