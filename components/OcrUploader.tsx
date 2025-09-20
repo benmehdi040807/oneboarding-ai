@@ -30,19 +30,10 @@ export default function OcrUploader({
     setRunning(true);
     setOcrText("");
     try {
-      const mod = await import("tesseract.js");
-      // ❌ PAS de destructuring + PAS de "logger"
-      const createWorker: any = (mod as any).createWorker;
-      const worker: any = await createWorker(); // ← aucun argument
-
-      await worker.load();
-      await worker.loadLanguage(ocrLang);
-      await worker.initialize(ocrLang);
-
-      const { data } = await worker.recognize(file);
-      await worker.terminate();
-
-      const text = (data?.text || "")
+      // Import dynamique + API simple sans worker ni logger
+      const T = (await import("tesseract.js")).default as any;
+      const res = await T.recognize(file, ocrLang); // ← pas d’options
+      const text = (res?.data?.text || "")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
@@ -74,7 +65,6 @@ export default function OcrUploader({
     if (f) await runOCR(f);
   }
 
-  // Indicateur simple (indéterminé)
   const Progress = useMemo(
     () =>
       running ? (
