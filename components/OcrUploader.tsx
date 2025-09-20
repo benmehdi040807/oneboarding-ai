@@ -33,10 +33,11 @@ export default function OcrUploader({
     setOcrText("");
     try {
       const mod = await import("tesseract.js");
-      const createWorker = (mod as any).createWorker;
+      // IMPORTANT : ne PAS faire "const { createWorker } = await import(...)"
+      // On récupère la fonction puis on caste en any pour accepter "logger".
+      const createWorker: any = (mod as any).createWorker;
 
-      // ⛳️ Forcer l’acceptation de l’option `logger` (les typings du package sont stricts)
-      // @ts-ignore - 'logger' n'est pas dans les types publiés mais bien supporté à l'exécution
+      // @ts-ignore - 'logger' n'est pas exposé dans les typings mais supporté à l'exécution
       const worker: any = await createWorker({
         logger: (m: any) => {
           if (m?.status === "recognizing text" && m?.progress != null) {
@@ -73,7 +74,7 @@ export default function OcrUploader({
     const f = e.target.files?.[0];
     if (!f) return;
     const url = URL.createObjectURL(f);
-    setImageUrl((prev) => {
+    setImageUrl(prev => {
       if (prev) URL.revokeObjectURL(prev);
       return url;
     });
