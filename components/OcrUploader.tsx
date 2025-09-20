@@ -13,9 +13,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   // === Réglages UX ===
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
   /**
-   * Langues “larges” pour auto-détection pragmatique (européennes + arabe + cyrillique + CJK).
-   * Remarque: plus on en met, plus le premier chargement est long.
-   * Ajustable ensuite selon tes pays cibles.
+   * Langues larges pour auto-détection pragmatique (européennes + arabe + cyrillique + CJK).
+   * Plus il y en a, plus le premier chargement est long.
    */
   const AUTO_LANG =
     "eng+fra+ara+spa+deu+ita+por+tur+nld+pol+rus+ukr+rom+chi_sim+chi_tra+jpn+kor";
@@ -93,22 +92,19 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setFileSize("");
     setProgress(0);
     setErrorMsg("");
-    onText(""); // on vide le texte OCR côté parent
+    onText(""); // vide le texte OCR côté parent
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
 
-    // validations
     if (f.size > MAX_SIZE) {
       setErrorMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite: 10 Mo.`);
-      // remet visuellement le champ à vide
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
 
-    // feedback immédiat
     setFileName(f.name);
     setFileSize(humanSize(f.size));
     setProgress(1);
@@ -149,9 +145,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      {/* Choix fichier (bouton custom) */}
+      {/* Choix fichier */}
       <div className="flex items-center gap-2">
-        {/* input natif masqué */}
         <input
           ref={fileRef}
           id="ocr-file"
@@ -160,19 +155,16 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           onChange={onPickFile}
           className="hidden"
         />
-        {/* bouton visible */}
         <label
           htmlFor="ocr-file"
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
             ${hasFile ? "bg-emerald-500 text-black border-emerald-400" : "bg-white text-black hover:bg-gray-200 border-transparent"}
             ${running ? "opacity-70 pointer-events-none" : ""}
           `}
-          title={hasFile ? "Changer de fichier" : "Choisir un fichier"}
         >
           {hasFile ? "Fichier chargé ✓" : "Choisir un fichier"}
         </label>
 
-        {/* Infos + bouton Retirer */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="text-xs text-white/70 truncate">
             {hasFile ? `${fileName} — ${fileSize}` : "Aucun fichier choisi"}
@@ -182,7 +174,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
               type="button"
               onClick={clearFile}
               className="shrink-0 text-xs px-2 py-1 rounded-lg bg-white/15 hover:bg-white/25"
-              title="Retirer le fichier"
             >
               Retirer ✕
             </button>
@@ -190,14 +181,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       </div>
 
-      {/* Alerte douce */}
       {errorMsg && (
         <div className="mt-2 text-xs text-red-300">
           {errorMsg}
         </div>
       )}
 
-      {/* Aperçu visuel */}
       {imageUrl && (
         <div className="mt-3 relative">
           <img
@@ -213,7 +202,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       )}
 
-      {/* Barre de progression */}
       {Progress}
     </div>
   );
