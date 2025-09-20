@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
-  onText: (text: string) => void;           // texte OCR remonté au parent
-  onPreview?: (url: string | null) => void; // URL locale de l’aperçu (image)
-  defaultLang?: string;                      // ex: "fra+eng+ara"
+  onText: (text: string) => void;
+  onPreview?: (url: string | null) => void;
+  defaultLang?: string;
 };
 
 export default function OcrUploader({
@@ -20,26 +20,24 @@ export default function OcrUploader({
   const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  // notifier le parent de l’aperçu
   useEffect(() => {
     onPreview?.(imageUrl ?? null);
     return () => {
-      // nettoyage de l'ObjectURL si on quitte/changé d’image
       if (imageUrl) URL.revokeObjectURL(imageUrl);
     };
   }, [imageUrl, onPreview]);
 
-  // --- OCR principal ---
   async function runOCR(file: File) {
     setRunning(true);
     setProgress(0);
     setOcrText("");
     try {
       const mod = await import("tesseract.js");
-      // cast pour accepter l’option `logger` (types trop stricts)
-      const createWorkerAny = (mod as any).createWorker as any;
+      const createWorker = (mod as any).createWorker;
 
-      const worker = await createWorkerAny({
+      // ⛳️ Forcer l’acceptation de l’option `logger` (les typings du package sont stricts)
+      // @ts-ignore - 'logger' n'est pas dans les types publiés mais bien supporté à l'exécution
+      const worker: any = await createWorker({
         logger: (m: any) => {
           if (m?.status === "recognizing text" && m?.progress != null) {
             setProgress(Math.round(m.progress * 100));
@@ -71,7 +69,6 @@ export default function OcrUploader({
     }
   }
 
-  // sélection d’un fichier
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -106,7 +103,6 @@ export default function OcrUploader({
           value={ocrLang}
           onChange={(e) => setOcrLang(e.target.value)}
           className="bg-black/60 border border-white/20 rounded px-2 py-1 text-sm"
-          title="Langue OCR"
         >
           <option value="fra+eng+ara">Auto (fr+en+ar)</option>
           <option value="fra">Français (fra)</option>
