@@ -8,25 +8,32 @@ type Props = {
 };
 
 export default function OcrUploader({ onText, onPreview }: Props) {
-  // ===== Réglages =====
+  /* ====== Config ====== */
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-  const SMALL_LANG = "eng+fra+ara"; // pass 1 (rapide)
+  const SMALL_LANG = "eng+fra+ara"; // 1er essai rapide
   const BIG_LANG =
     "eng+fra+ara+spa+deu+ita+por+tur+nld+pol+rus+ukr+rom+chi_sim+chi_tra+jpn+kor"; // fallback
 
-  // deux miroirs pour les modèles (le 1er peut échouer selon l’opérateur / région)
+  // miroirs des modèles
   const LANG_PATHS = [
     "https://tessdata.projectnaptha.com/4.0.0",
     "https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0",
   ];
 
-  // fichiers du moteur (CDN stables)
-  const CORE_PATH =
-    "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.2/tesseract-core.wasm.js";
-  const WORKER_PATH =
-    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js";
+  // miroirs du core/worker
+  const CORE_PATHS = [
+    "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.2/tesseract-core.wasm.js",
+    "https://unpkg.com/tesseract.js-core@5.0.2/tesseract-core.wasm.js",
+  ];
+  const WORKER_PATHS = [
+    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+    "https://unpkg.com/tesseract.js@5/dist/worker.min.js",
+  ];
 
-  // ===== UI state =====
+  // timeouts (ms) pour détecter un blocage réseau
+  const STEP_TIMEOUT_MS = 12000;
+
+  /* ====== UI state ====== */
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -34,9 +41,9 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
+
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  // propage l’aperçu & nettoie l’ancien ObjectURL
   useEffect(() => {
     onPreview?.(imageUrl ?? null);
     return () => {
@@ -44,7 +51,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     };
   }, [imageUrl, onPreview]);
 
-  // ===== Helpers =====
+  /* ====== Helpers ====== */
   function humanSize(bytes: number) {
     if (bytes < 1024) return `${bytes} o`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
@@ -54,6 +61,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   function updateProgress(m: any) {
     const s: string = m?.status || "";
     const p: number = typeof m?.progress === "number" ? m.progress : 0;
+
     let pct = progress;
     let label = statusText;
 
@@ -65,7 +73,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       label = "Initialisation du moteur…";
     } else if (s.includes("loading language traineddata")) {
       pct = Math.max(18, Math.round(20 + p * 40));
-      label = "Téléchargement du modèle de langue…";
+      label = "Téléchargement du modèle…";
     } else if (s.includes("initializing api")) {
       pct = Math.max(60, 68);
       label = "Initialisation de l’API…";
@@ -81,29 +89,42 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setStatusText(label);
   }
 
-  async function recognizeWithCreateWorker(
-    file: File,
-    langs: string,
-    langPath: string
-  ) {
+  function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const id = setTimeout(() => reject(new Error(`timeout:${label}`)), ms);
+      p.then((v) => {
+        clearTimeout(id);
+        resolve(v);
+      }).catch((e) => {
+        clearTimeout(id);
+        reject(e);
+      });
+    });
+  }
+
+  async function recognizeOnce(file: File, langs: string, langPath: string, corePath: string, workerPath: string) {
     const T = (await import("tesseract.js")).default as any;
+
     const worker = await T.createWorker({
-      corePath: CORE_PATH,
-      workerPath: WORKER_PATH,
+      corePath,
+      workerPath,
       langPath,
       logger: (m: any) => updateProgress(m),
     } as any);
 
     try {
       setStatusText("Chargement…");
-      await worker.load();
+      await withTimeout(worker.load(), STEP_TIMEOUT_MS, "load");
+
       setStatusText("Téléchargement du modèle…");
-      await worker.loadLanguage(langs);
+      await withTimeout(worker.loadLanguage(langs), STEP_TIMEOUT_MS, "loadLanguage");
+
       setStatusText("Initialisation…");
-      await worker.initialize(langs);
+      await withTimeout(worker.initialize(langs), STEP_TIMEOUT_MS, "initialize");
 
       setStatusText("Reconnaissance…");
-      const { data } = await worker.recognize(file);
+      const { data } = await withTimeout(worker.recognize(file), STEP_TIMEOUT_MS * 3, "recognize");
+
       const text: string = String(data?.text || "")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
@@ -111,14 +132,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
       return text;
     } finally {
-      // toujours terminer le worker pour éviter les blocages mémoire
-      try {
-        await worker.terminate();
-      } catch {}
+      try { await worker.terminate(); } catch {}
     }
   }
 
-  /** Essaie SMALL_LANG puis (si texte trop court) BIG_LANG ; et alterne les langPath en cas d’échec réseau. */
   async function runOCR(file: File) {
     if (running) return;
     setRunning(true);
@@ -126,18 +143,23 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setProgress(1);
     setStatusText("Préparation…");
 
-    const attempts: Array<{ langs: string; langPath: string }> = [];
-    for (const lp of LANG_PATHS) {
-      attempts.push({ langs: SMALL_LANG, langPath: lp });
-      attempts.push({ langs: BIG_LANG, langPath: lp });
+    // Ordre des tentatives : (small/big) × (langPath) × (core/worker path combo)
+    const combos: Array<{ langs: string; langPath: string; corePath: string; workerPath: string }> = [];
+    for (const langPath of LANG_PATHS) {
+      for (const corePath of CORE_PATHS) {
+        for (const workerPath of WORKER_PATHS) {
+          combos.push({ langs: SMALL_LANG, langPath, corePath, workerPath });
+          combos.push({ langs: BIG_LANG, langPath, corePath, workerPath });
+        }
+      }
     }
 
-    for (let i = 0; i < attempts.length; i++) {
-      const { langs, langPath } = attempts[i];
+    for (let i = 0; i < combos.length; i++) {
+      const c = combos[i];
       try {
-        const text = await recognizeWithCreateWorker(file, langs, langPath);
-        if (text.length < 40 && langs === SMALL_LANG) {
-          // trop court : on tente la passe suivante (BIG_LANG) sans sortir
+        const text = await recognizeOnce(file, c.langs, c.langPath, c.corePath, c.workerPath);
+        // si SMALL_LANG donne un texte très court, on laisse la boucle passer au BIG_LANG
+        if (text.length < 40 && c.langs === SMALL_LANG) {
           continue;
         }
         onText(text);
@@ -146,17 +168,18 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         setRunning(false);
         return;
       } catch (e: any) {
-        // on tente l’étape suivante (autre pack / autre CDN)
-        const msg = e?.message || "erreur";
-        setErrorMsg(`Tentative ${i + 1}/${attempts.length} échouée (${msg}).`);
+        const msg = String(e?.message || e || "erreur");
+        // feedback discret mais utile
+        setErrorMsg(`Tentative ${i + 1}/${combos.length} échouée (${msg}).`);
+        // on continue sur le miroir suivant
       }
     }
 
-    // si toutes les tentatives échouent :
+    // échec total
     setRunning(false);
     setStatusText("Erreur");
     const finalMsg =
-      "Échec OCR après plusieurs tentatives (réseau/CDN bloqué ?). Réessaie plus tard.";
+      "Échec OCR après plusieurs tentatives (réseau ou CDN indisponible). Réessaie plus tard.";
     setErrorMsg(finalMsg);
     onText(`⚠️ ${finalMsg}`);
   }
@@ -222,7 +245,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      {/* Choix fichier (bouton custom) */}
+      {/* Choix fichier */}
       <div className="flex items-center gap-2">
         <input
           ref={fileRef}
@@ -260,7 +283,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       </div>
 
-      {/* Alerte douce */}
+      {/* Alerte */}
       {errorMsg && <div className="mt-2 text-xs text-red-300">{errorMsg}</div>}
 
       {/* Aperçu */}
