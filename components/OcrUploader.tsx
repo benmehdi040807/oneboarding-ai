@@ -10,29 +10,11 @@ type Props = {
 export default function OcrUploader({ onText, onPreview }: Props) {
   /* ===== Config ===== */
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-
-  // 🔒 Pack langues “léger” et invisible côté UI
+  // 🔒 pack tri-langue caché (comme au début, via les CDN par défaut de tesseract.js)
   const LANGS = "eng+fra+ara";
 
-  // CDNs de secours (2 suffisent pour la fiabilité sans trop multiplier les essais)
-  const LANG_PATHS = [
-    "https://tessdata.projectnaptha.com/4.0.0",
-    "https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0",
-  ];
-  const CORE_PATHS = [
-    "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.2/tesseract-core.wasm.js",
-    "https://unpkg.com/tesseract.js-core@5.0.2/tesseract-core.wasm.js",
-  ];
-  const WORKER_PATHS = [
-    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
-    "https://unpkg.com/tesseract.js@5/dist/worker.min.js",
-  ];
-
-  // Timeouts un peu plus larges pour mobile/4G
-  const STEP_TIMEOUT_MS = 20000;
-
   /* ===== UI state ===== */
-  const [inputKey, setInputKey] = useState(0); // force le remontage de <input> après "Retirer"
+  const [inputKey, setInputKey] = useState(0);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -88,67 +70,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setStatusText(label);
   }
 
-  function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const id = setTimeout(() => reject(new Error(`timeout:${label}`)), ms);
-      p.then((v) => {
-        clearTimeout(id);
-        resolve(v);
-      }).catch((e) => {
-        clearTimeout(id);
-        reject(e);
-      });
-    });
-  }
-
-  async function recognizeOnce(
-    file: File,
-    langPath: string,
-    corePath: string,
-    workerPath: string
-  ) {
-    const T = (await import("tesseract.js")).default as any;
-
-    const worker = (await withTimeout(
-      T.createWorker({
-        corePath,
-        workerPath,
-        langPath,
-        logger: (m: any) => updateProgress(m),
-      } as any),
-      STEP_TIMEOUT_MS,
-      "createWorker"
-    )) as any;
-
-    try {
-      setStatusText("Chargement…");
-      await withTimeout(worker.load(), STEP_TIMEOUT_MS, "load");
-
-      setStatusText("Téléchargement du modèle…");
-      await withTimeout(worker.loadLanguage(LANGS), STEP_TIMEOUT_MS * 2, "loadLanguage");
-
-      setStatusText("Initialisation…");
-      await withTimeout(worker.initialize(LANGS), STEP_TIMEOUT_MS, "initialize");
-
-      setStatusText("Reconnaissance…");
-      const recogRes = (await withTimeout(
-        worker.recognize(file),
-        STEP_TIMEOUT_MS * 3,
-        "recognize"
-      )) as any;
-
-      const data = (recogRes as any)?.data;
-      const text: string = String(data?.text || "")
-        .replace(/[ \t]+\n/g, "\n")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
-
-      return text;
-    } finally {
-      try { await worker.terminate(); } catch {}
-    }
-  }
-
   async function runOCR(file: File) {
     if (running) return;
     setRunning(true);
@@ -156,43 +77,39 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setProgress(1);
     setStatusText("Préparation…");
 
-    // On teste quelques combinaisons CDN (langPath/corePath/workerPath) — sans multiplier les langues
-    const combos: Array<{ langPath: string; corePath: string; workerPath: string }> = [];
-    for (const langPath of LANG_PATHS) {
-      for (const corePath of CORE_PATHS) {
-        for (const workerPath of WORKER_PATHS) {
-          combos.push({ langPath, corePath, workerPath });
-        }
-      }
-    }
+    try {
+      // ✅ Version “simple” comme au départ : Tesseract.recognize()
+      const Tesseract = (await import("tesseract.js")).default as any;
 
-    for (let i = 0; i < combos.length; i++) {
-      const c = combos[i];
-      try {
-        const text = await recognizeOnce(file, c.langPath, c.corePath, c.workerPath);
-        onText(text);
-        setProgress(100);
-        setStatusText("Terminé");
-        setRunning(false);
-        return;
-      } catch (e: any) {
-        const msg = String(e?.message || e || "erreur");
-        setErrorMsg(`Tentative ${i + 1}/${combos.length} échouée (${msg}).`);
-      }
-    }
+      const res = (await Tesseract.recognize(file, LANGS, {
+        logger: (m: any) => updateProgress(m),
+      } as any)) as any;
 
-    setRunning(false);
-    setStatusText("Erreur");
-    const finalMsg =
-      "Échec OCR après plusieurs tentatives (réseau ou CDN indisponible). Réessaie plus tard.";
-    setErrorMsg(finalMsg);
-    onText(`⚠️ ${finalMsg}`);
+      const text: string = String(res?.data?.text || "")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+      onText(text);
+      setProgress(100);
+      setStatusText("Terminé");
+    } catch (e: any) {
+      const msg = `Échec OCR (${e?.message || "erreur"}).`;
+      setErrorMsg(msg);
+      setStatusText("Erreur");
+      onText(`⚠️ ${msg}`);
+    } finally {
+      setRunning(false);
+    }
   }
 
   function clearFile() {
     if (fileRef.current) fileRef.current.value = "";
-    setInputKey(k => k + 1); // permet de re-choisir le même fichier
-    setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setInputKey((k) => k + 1); // permet de re-sélectionner le même fichier
+    setImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setFileName("");
     setFileSize("");
     setProgress(0);
@@ -219,7 +136,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setErrorMsg("");
 
     const url = URL.createObjectURL(f);
-    setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+    setImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
 
     void runOCR(f);
   }
