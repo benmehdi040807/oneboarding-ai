@@ -16,9 +16,7 @@ function RgpdBanner() {
     }
   }, []);
   const accept = () => {
-    try {
-      localStorage.setItem(CONSENT_KEY, "1");
-    } catch {}
+    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
     setShow(false);
   };
   if (!show) return null;
@@ -30,10 +28,7 @@ function RgpdBanner() {
             Vos données restent privées sur cet appareil.{" "}
             <a href="/legal" className="underline">En savoir plus</a>
           </p>
-          <button
-            onClick={accept}
-            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
-          >
+          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
             D’accord
           </button>
         </div>
@@ -50,9 +45,7 @@ const cleanText = (s: string) =>
   s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try {
-    navigator.clipboard.writeText(text);
-  } catch {}
+  try { navigator.clipboard.writeText(text); } catch {}
 }
 
 /* ===== Page ===== */
@@ -129,15 +122,10 @@ export default function Page() {
 
   // historique
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("oneboarding.history");
-      if (s) setHistory(JSON.parse(s));
-    } catch {}
+    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
   }, []);
   useEffect(() => {
-    try {
-      localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch {}
+    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
   // envoyer
@@ -148,10 +136,8 @@ export default function Page() {
     if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const userShown =
-      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown)
-      setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
@@ -168,34 +154,12 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory((h) => [
-          {
-            role: "error",
-            text: `Erreur: ${data?.error || `HTTP ${res.status}`}`,
-            time: new Date().toISOString(),
-          },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
       } else {
-        setHistory((h) => [
-          {
-            role: "assistant",
-            text: String(data.text || "Réponse vide."),
-            time: new Date().toISOString(),
-          },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
       }
     } catch (err: any) {
-      setHistory((h) => [
-        {
-          role: "error",
-            text: `Erreur: ${err?.message || "réseau"}`,
-            time: new Date().toISOString(),
-          },
-          ...h,
-        ],
-      );
+      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
     } finally {
       setLoading(false);
     }
@@ -254,7 +218,8 @@ export default function Page() {
       {/* Tiroir OCR */}
       {showOcr && (
         <div className="w-full max-w-md mb-6 animate-[fadeIn_.2s_ease]">
-          <OcrUploader onText={setOcrText} onPreview={() => {}} defaultLang="fra+eng+ara" />
+          {/* ⬇️ plus de defaultLang */}
+          <OcrUploader onText={setOcrText} onPreview={() => {}} />
         </div>
       )}
 
@@ -283,12 +248,8 @@ export default function Page() {
             )}
 
             <p className="text-xs text-white/50 mt-6">
-              {item.role === "user"
-                ? "Vous"
-                : item.role === "assistant"
-                ? "IA"
-                : "Erreur"}{" "}
-              • {new Date(item.time).toLocaleString()}
+              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
+              {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
