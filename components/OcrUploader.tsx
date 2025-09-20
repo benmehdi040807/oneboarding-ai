@@ -30,6 +30,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   const STEP_TIMEOUT_MS = 12000;
 
   /* ===== UI state ===== */
+  const [inputKey, setInputKey] = useState(0);     // << re-monte le <input>
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -107,12 +108,17 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   ) {
     const T = (await import("tesseract.js")).default as any;
 
-    const worker = await T.createWorker({
-      corePath,
-      workerPath,
-      langPath,
-      logger: (m: any) => updateProgress(m),
-    } as any);
+    // ⛑️ timeout aussi sur createWorker pour éviter le “bloqué à Préparation…”
+    const worker = (await withTimeout(
+      T.createWorker({
+        corePath,
+        workerPath,
+        langPath,
+        logger: (m: any) => updateProgress(m),
+      } as any),
+      STEP_TIMEOUT_MS,
+      "createWorker"
+    )) as any;
 
     try {
       setStatusText("Chargement…");
@@ -129,7 +135,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         worker.recognize(file),
         STEP_TIMEOUT_MS * 3,
         "recognize"
-      )) as any; // <- cast pour TS
+      )) as any;
 
       const data = (recogRes as any)?.data;
       const text: string = String(data?.text || "")
@@ -139,9 +145,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
       return text;
     } finally {
-      try {
-        await worker.terminate();
-      } catch {}
+      try { await worker.terminate(); } catch {}
     }
   }
 
@@ -171,15 +175,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       const c = combos[i];
       try {
         const text = await recognizeOnce(
-          file,
-          c.langs,
-          c.langPath,
-          c.corePath,
-          c.workerPath
+          file, c.langs, c.langPath, c.corePath, c.workerPath
         );
-        if (text.length < 40 && c.langs === SMALL_LANG) {
-          continue;
-        }
+
+        // Si résultat très court avec pack "léger", on tente le grand pack
+        if (text.length < 40 && c.langs === SMALL_LANG) continue;
+
         onText(text);
         setProgress(100);
         setStatusText("Terminé");
@@ -200,16 +201,19 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   }
 
   function clearFile() {
+    // vide le champ et force le remontage pour permettre de re-sélectionner le même fichier
     if (fileRef.current) fileRef.current.value = "";
-    setImageUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
+    setInputKey(k => k + 1); // << important
+
+    // reset UI
+    setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
     setFileName("");
     setFileSize("");
     setProgress(0);
     setStatusText("");
     setErrorMsg("");
+    setRunning(false);
+
     onText("");
   }
 
@@ -230,12 +234,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setErrorMsg("");
 
     const url = URL.createObjectURL(f);
-    setImageUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
-    });
+    setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
 
-    runOCR(f);
+    // lance l'OCR
+    void runOCR(f);
   }
 
   const ProgressBar = useMemo(
@@ -263,6 +265,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       {/* Choix fichier */}
       <div className="flex items-center gap-2">
         <input
+          key={inputKey}                 // << re-montage quand on clear
           ref={fileRef}
           id="ocr-file"
           type="file"
@@ -273,11 +276,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         <label
           htmlFor="ocr-file"
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
-            ${
-              hasFile
-                ? "bg-emerald-500 text-black border-emerald-400"
-                : "bg-white text-black hover:bg-gray-200 border-transparent"
-            }
+            ${hasFile ? "bg-emerald-500 text-black border-emerald-400"
+                      : "bg-white text-black hover:bg-gray-200 border-transparent"}
             ${running ? "opacity-70 pointer-events-none" : ""}
           `}
           title={hasFile ? "Changer de fichier" : "Choisir un fichier"}
