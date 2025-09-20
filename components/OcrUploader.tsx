@@ -3,11 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
-  /** Reçoit le texte OCR nettoyé (éditable ensuite côté parent) */
   onText: (text: string) => void;
-  /** Optionnel : on te remonte un aperçu de l’image (URL locale) pour l’afficher côté parent si tu veux */
   onPreview?: (url: string | null) => void;
-  /** Langues par défaut (ex: "fra+eng+ara") */
   defaultLang?: string;
 };
 
@@ -32,21 +29,25 @@ export default function OcrUploader({
     setProgress(0);
     setOcrText("");
     try {
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker({
-        logger: (m) => {
-          if (m.status === "recognizing text" && m.progress != null) {
+      // ✅ Import namespaced pour éviter le bug de typings sur createWorker
+      const Tesseract: any = await import("tesseract.js");
+
+      const worker = await Tesseract.createWorker({
+        logger: (m: any) => {
+          if (m?.status === "recognizing text" && m?.progress != null) {
             setProgress(Math.round(m.progress * 100));
           }
         },
       });
+
       await worker.load();
       await worker.loadLanguage(ocrLang);
       await worker.initialize(ocrLang);
+
       const { data } = await worker.recognize(file);
       await worker.terminate();
 
-      const text = (data.text || "")
+      const text = (data?.text || "")
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
