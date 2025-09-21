@@ -54,7 +54,7 @@ function copyToClipboard(text: string) {
 export default function Page() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(false);       // sert aussi pour l’indicateur de saisie
+  const [loading, setLoading] = useState(false);
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
 
@@ -189,7 +189,7 @@ export default function Page() {
 
       {/* ===== Barre : input + OK (fusion) ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2">
-        <div className="flex items-stretch shadow-[0_4px_20px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
+        <div className="flex items-stretch shadow-[0_4px_20px_rgba(0,0,0,0.10)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <input
             type="text"
             placeholder="Votre question…"
@@ -217,7 +217,6 @@ export default function Page() {
             title="Joindre un document (OCR)"
             aria-label="Joindre un document"
           >
-            {/* 📎 minimaliste */}
             <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78"/>
             </svg>
@@ -235,7 +234,6 @@ export default function Page() {
             aria-label={speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"}
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
           >
-            {/* 🎤 ligne claire */}
             <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
               <path d="M19 10.5a7 7 0 01-14 0" />
@@ -245,16 +243,15 @@ export default function Page() {
         </div>
       </form>
 
-      {/* Tiroir OCR */}
+      {/* Tiroir OCR — skinné pour cacher « Aucun fichier choisi » */}
       {showOcr && (
-        <div className="w-full max-w-md mb-6 animate-fadeUp">
+        <div className="w-full max-w-md mb-6 animate-fadeUp ocr-skin">
           <OcrUploader onText={setOcrText} onPreview={() => {}} />
         </div>
       )}
 
       {/* Historique (bubbles) */}
       <div className="w-full max-w-md space-y-3">
-        {/* Indicateur de saisie IA pendant le chargement */}
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]">
@@ -299,12 +296,19 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (thème + animations) =================== */
+/* =================== Styles globaux (thème + OCR + animations) =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
+      /* Appliquer la couleur de fond à TOUTE la page (supprime les bandes noires) */
+      html, body, #__next {
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100%;
+      }
+
       :root{
-        --bg:#000;               /* fond app */
+        --bg:#000;               /* fond app (dark) */
         --fg:#fff;               /* texte primaire */
         --panel:#0b0b0b;         /* zone saisie */
         --panel-strong:#121212;  /* bouton OK */
@@ -312,17 +316,17 @@ function StyleGlobals() {
         --user-bg:rgba(255,255,255,0.04);
         --assistant-bg:rgba(16, 94, 77, 0.25);
         --assistant-border:rgba(80, 255, 200, 0.25);
-        --error-bg:rgba(220, 38, 38, 0.1);
+        --error-bg:rgba(220, 38, 38, 0.10);
         --error-border:rgba(248, 113, 113, 0.35);
         --chip-bg:rgba(255,255,255,0.06);
-        --chip-hover:rgba(255,255,255,0.1);
+        --chip-hover:rgba(255,255,255,0.10);
         --border:rgba(255,255,255,0.14);
         --accent:#34d399;
         --accent-tint:rgba(52,211,153,0.12);
       }
       @media (prefers-color-scheme: light){
         :root{
-          --bg:#f7f7f7;
+          --bg:#f3f4f6;          /* gris clair plein écran */
           --fg:#0e0e0e;
           --panel:#ffffff;
           --panel-strong:#f3f3f3;
@@ -348,7 +352,7 @@ function StyleGlobals() {
       .msg-appear { animation: fadeUp .28s ease-out both; }
       .animate-fadeUp { animation: fadeUp .28s ease-out both; }
 
-      /* Indicateur de saisie (… qui respirent) */
+      /* Indicateur de saisie (… respirent) */
       @keyframes dots {
         0% { opacity: .2; }
         20% { opacity: 1; }
@@ -368,6 +372,33 @@ function StyleGlobals() {
         100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); transform: scale(1); }
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
+
+      /* ====== Skin OCR pour cacher “Aucun fichier choisi” sans changer OcrUploader ====== */
+      .ocr-skin input[type="file"]{
+        font-size: 0;                 /* masque le libellé (aucun fichier choisi) */
+        color: transparent;           /* au cas où certains navigateurs affichent quand même */
+      }
+      .ocr-skin input[type="file"]::file-selector-button{
+        font-size: 0.95rem;           /* rétablit la taille uniquement sur le bouton */
+        line-height: 1;
+        padding: .75rem 1rem;
+        border-radius: .75rem;
+        border: 1px solid var(--border);
+        background: var(--chip-bg);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .ocr-skin input[type="file"]::file-selector-button:hover{
+        background: var(--chip-hover);
+      }
+      /* Firefox fallback — on cache l’input natif et OcrUploader montre déjà son UI */
+      @-moz-document url-prefix() {
+        .ocr-skin input[type="file"] {
+          opacity: 0;
+          height: 0;
+          pointer-events: none;
+        }
+      }
     `}</style>
   );
-    }
+}
