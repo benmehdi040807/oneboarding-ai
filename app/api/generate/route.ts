@@ -6,7 +6,10 @@ export const runtime = "edge";
 // ====== Réglages Groq ======
 const GROQ_BASE = "https://api.groq.com/openai/v1";
 const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+const CREATOR_BLURB =
+  "J’ai été conçu et développé par Benmehdi Mohamed Rida (avocat, docteur en droit, MBA), fondateur de l’office Benmehdi. Mon objectif est de faciliter l’interaction entre l’humain et l’intelligence artificielle de façon simple et universelle.";
 
+// Petit helper JSON
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
@@ -43,11 +46,10 @@ export async function GET(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.3,
-        max_tokens: 60,
+        max_tokens: 80,
         messages: [
-          // ✅ Répondre dans la langue détectée du message utilisateur
-          { role: "system", content: "أجب دائمًا باللغة نفسها التي يستخدمها المستخدم في رسالته. If the user writes in English, reply in English. Si l’utilisateur écrit en français, réponds en français. لا تترجم إلا إذا طُلب منك ذلك صراحةً." },
-          { role: "user", content: "اختبار سريع: قل مرحبًا بجملة قصيرة." },
+          { role: "system", content: "Réponds en une phrase brève." },
+          { role: "user", content: "Dis bonjour pour un test rapide." },
         ],
       }),
     });
@@ -67,7 +69,7 @@ export async function GET(req: NextRequest) {
     }
 
     const text = data?.choices?.[0]?.message?.content?.trim() || "(réponse vide)";
-    return json({ ok: true, text, from: "GET test", provider: "GROQ", model: MODEL });
+    return json({ ok: true, text, from: "GET test", provider: "GROQ" });
   } catch (e: any) {
     return json({ ok: false, error: e?.message || "Server error" }, 500);
   }
@@ -85,6 +87,21 @@ export async function POST(req: NextRequest) {
       return json({ ok: false, error: "Missing prompt" }, 400);
     }
 
+    // ---------- System Prompt (gouvernance minimale + liberté de style) ----------
+    const SYSTEM_PROMPT = `
+Tu es OneBoarding AI.
+
+Principes :
+1) Langue miroir : réponds dans la langue du message de l’utilisateur (FR/AR/EN…), avec le ton adapté (sobre, courtois, naturel).
+2) Concision utile : va droit au but ; si la demande est vague, propose 2–3 options concrètes (listes courtes).
+3) Identité :
+   - Ne parle du créateur que si l’utilisateur demande explicitement l’identité de OneBoarding AI / “qui t’a créé ?” / “qui a créé OneBoarding AI ?”.
+   - Si on te le demande, réponds par : "${CREATOR_BLURB}"
+4) OCR : si le prompt contient un bloc OCR entre """ ... """, analyse ce texte (résume, explique, réponds à la consigne).
+5) Respect, clarté, zéro jargon inutile. Tu es un assistant universel, pas spécialisé par défaut.
+    `.trim();
+
+    // Si notre UI a inséré un bloc OCR, on garde tout tel quel : le modèle suit la règle (4).
     const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
       method: "POST",
       headers: {
@@ -94,14 +111,9 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.6,
-        max_tokens: 400,
+        max_tokens: 500,
         messages: [
-          // ✅ Règle centrale : réponds dans la même langue que le message utilisateur
-          {
-            role: "system",
-            content:
-              "Always reply in the same language as the user's message. لا تُترجم إلا إذا طُلب منك ذلك صراحةً. Donne des réponses courtes, utiles et polies. If user is vague, propose 2–3 concrete options.",
-          },
+          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
       }),
@@ -129,4 +141,4 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-}
+        }
