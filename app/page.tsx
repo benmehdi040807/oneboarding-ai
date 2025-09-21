@@ -16,7 +16,9 @@ function RgpdBanner() {
     }
   }, []);
   const accept = () => {
-    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    try {
+      localStorage.setItem(CONSENT_KEY, "1");
+    } catch {}
     setShow(false);
   };
   if (!show) return null;
@@ -26,9 +28,14 @@ function RgpdBanner() {
         <div className="m-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur p-3 text-sm text-white">
           <p className="mb-2">
             Vos données restent privées sur cet appareil.{" "}
-            <a href="/legal" className="underline">En savoir plus</a>
+            <a href="/legal" className="underline">
+              En savoir plus
+            </a>
           </p>
-          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
+          <button
+            onClick={accept}
+            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
+          >
             D’accord
           </button>
         </div>
@@ -38,19 +45,35 @@ function RgpdBanner() {
 }
 
 /* ===== Types & utils ===== */
-type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
+type Item = {
+  role: "user" | "assistant" | "error";
+  text: string;
+  time: string;
+};
 
 const cleanText = (s: string) =>
-  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
+  s.replace(/\s+/g, " ")
+    .replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1")
+    .trim();
 
 function copyToClipboard(text: string) {
-  try { navigator.clipboard.writeText(text); } catch {}
+  try {
+    navigator.clipboard.writeText(text);
+  } catch {}
 }
 
 /* ===== Icônes SVG ===== */
 function IconClip({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M21 15.5V8.75a4.75 4.75 0 0 0-9.5 0v7a3.25 3.25 0 1 0 6.5 0V9.5" />
       <path d="M7 12v4.5a5 5 0 0 0 10 0" />
     </svg>
@@ -58,7 +81,15 @@ function IconClip({ className = "w-6 h-6" }: { className?: string }) {
 }
 function IconMic({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
       <path d="M12 19v3" />
@@ -94,7 +125,8 @@ export default function Page() {
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
-      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
+      (typeof window !== "undefined" &&
+        (window as any).webkitSpeechRecognition);
     if (!SR) return;
 
     setSpeechSupported(true);
@@ -132,14 +164,37 @@ export default function Page() {
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-    if (!listening) { try { r.start(); } catch {} return; }
-    try { r.stop(); } catch {}
-    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 800);
+    if (!listening) {
+      try {
+        r.start();
+      } catch {}
+      return;
+    }
+    try {
+      r.stop();
+    } catch {}
+    setTimeout(() => {
+      if (listening) {
+        try {
+          r.abort?.();
+        } catch {}
+        setListening(false);
+      }
+    }, 800);
   }
 
   // historique
-  useEffect(() => { try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {} }, []);
-  useEffect(() => { try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {} }, [history]);
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("oneboarding.history");
+      if (s) setHistory(JSON.parse(s));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("oneboarding.history", JSON.stringify(history));
+    } catch {}
+  }, [history]);
 
   // envoyer
   async function handleSubmit(e: React.FormEvent) {
@@ -149,15 +204,19 @@ export default function Page() {
     if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown =
+      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown)
+      setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
     setTimeout(autoresize, 0);
 
     const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+          q || "(aucune)"
+        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -168,25 +227,48 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "error",
+            text: `Erreur: ${data?.error || `HTTP ${res.status}`}`,
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "assistant",
+            text: String(data.text || "Réponse vide."),
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory((h) => [
+        {
+          role: "error",
+          text: `Erreur: ${err?.message || "réseau"}`,
+          time: new Date().toISOString(),
+        },
+        ...h,
+      ]);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { autoresize(); }, []);
+  useEffect(() => {
+    autoresize();
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
-        <div className="flex gap-2 items-stretch">
+        <div className="flex gap-3 items-stretch">
           {/* Colonne texte + boutons */}
           <div className="flex-1 min-w-0">
             <div className="rounded-2xl bg-white text-black px-3 py-2">
@@ -195,7 +277,10 @@ export default function Page() {
                 rows={2}
                 placeholder="Votre question…"
                 value={input}
-                onChange={(e) => { setInput(e.target.value); autoresize(); }}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  autoresize();
+                }}
                 className="w-full bg-transparent resize-none outline-none leading-relaxed placeholder:text-black/50"
                 style={{ maxHeight: 140 }}
               />
@@ -205,7 +290,7 @@ export default function Page() {
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowOcr(v => !v)}
+                onClick={() => setShowOcr((v) => !v)}
                 className="w-11 h-11 rounded-2xl bg-white text-black hover:bg-gray-200 transition grid place-items-center"
                 title="Joindre un document (OCR)"
               >
@@ -228,12 +313,12 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Bouton OK : même hauteur que la barre */}
+          {/* Bouton OK : plus grand et bien visible */}
           <button
             type="submit"
             disabled={loading}
-            className="shrink-0 bg-white text-black rounded-2xl font-medium hover:bg-gray-200 transition disabled:opacity-60 flex items-center justify-center"
-            style={{ minWidth: "4.5rem", height: "100%" }}
+            className="shrink-0 bg-white text-black rounded-2xl font-bold hover:bg-gray-200 transition disabled:opacity-60 flex items-center justify-center text-lg"
+            style={{ minWidth: "5.5rem", height: "4.5rem" }}
           >
             {loading ? "…" : "OK"}
           </button>
@@ -248,17 +333,32 @@ export default function Page() {
 
       <div className="w-full max-w-2xl space-y-3">
         {history.map((item, idx) => (
-          <div key={idx}
+          <div
+            key={idx}
             className={`fade-in rounded-xl border p-3 relative ${
-              item.role === "user" ? "border-white/10 bg-white/5"
-              : item.role === "assistant" ? "border-emerald-300/20 bg-emerald-950/40"
-              : "border-red-400/30 bg-red-500/10"}`}>
+              item.role === "user"
+                ? "border-white/10 bg-white/5"
+                : item.role === "assistant"
+                ? "border-emerald-300/20 bg-emerald-950/40"
+                : "border-red-400/30 bg-red-500/10"
+            }`}
+          >
             <p className="text-white/90 whitespace-pre-wrap">{item.text}</p>
             {item.role === "assistant" && (
-              <button onClick={() => copyToClipboard(item.text)} className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25">Copier</button>
+              <button
+                onClick={() => copyToClipboard(item.text)}
+                className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25"
+              >
+                Copier
+              </button>
             )}
             <p className="text-xs text-white/50 mt-6">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} • {new Date(item.time).toLocaleString()}
+              {item.role === "user"
+                ? "Vous"
+                : item.role === "assistant"
+                ? "IA"
+                : "Erreur"}{" "}
+              • {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
