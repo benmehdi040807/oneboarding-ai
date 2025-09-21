@@ -28,7 +28,7 @@ function RgpdBanner() {
             Vos données restent privées sur cet appareil.{" "}
             <a href="/legal" className="underline">En savoir plus</a>
           </p>
-          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
+        <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
             D’accord
           </button>
         </div>
@@ -48,7 +48,7 @@ function copyToClipboard(text: string) {
 }
 
 /* ===== Icônes SVG (paperclip & mic) ===== */
-function IconClip({ className = "w-5 h-5" }: { className?: string }) {
+function IconClip({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 15.5V8.75a4.75 4.75 0 0 0-9.5 0v7a3.25 3.25 0 1 0 6.5 0V9.5" />
@@ -56,7 +56,7 @@ function IconClip({ className = "w-5 h-5" }: { className?: string }) {
     </svg>
   );
 }
-function IconMic({ className = "w-5 h-5" }: { className?: string }) {
+function IconMic({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -192,7 +192,7 @@ export default function Page() {
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Zone de saisie : barre + boutons dessous (alignés sur la barre) + OK à droite ===== */}
+      {/* ===== Zone de saisie : barre + deux icônes dessous à gauche + OK à droite ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
         <div className="flex gap-2 items-stretch">
           {/* Colonne BARRE + BOUTONS (sa largeur ne comprend PAS le bouton OK) */}
@@ -210,35 +210,29 @@ export default function Page() {
               />
             </div>
 
-            {/* Deux boutons fins sous la barre — largeur = largeur barre uniquement */}
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            {/* Deux boutons icône-seuls, alignés à gauche */}
+            <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowOcr(v => !v)}
-                className="w-full px-3 py-1 rounded-xl font-medium border bg-white text-black hover:bg-gray-200 active:translate-y-px transition"
+                className="w-11 h-11 rounded-2xl bg-white text-black hover:bg-gray-200 active:translate-y-px transition grid place-items-center"
                 title="Joindre un document (OCR)"
               >
-                <span className="inline-flex items-center gap-2">
-                  <IconClip className="w-5 h-5" />
-                  <span>Joindre</span>
-                </span>
+                <IconClip />
               </button>
 
               <button
                 type="button"
                 disabled={!speechSupported}
                 onClick={toggleMic}
-                className={`w-full px-3 py-1 rounded-xl font-medium border transition active:translate-y-px ${
+                className={`w-11 h-11 rounded-2xl transition active:translate-y-px grid place-items-center ${
                   listening
-                    ? "bg-red-500 text-white border-red-400"
-                    : "bg-white text-black hover:bg-gray-200 border-transparent"
+                    ? "bg-red-500 text-white border border-red-400"
+                    : "bg-white text-black hover:bg-gray-200"
                 } disabled:opacity-50`}
                 title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
               >
-                <span className="inline-flex items-center gap-2">
-                  <IconMic className="w-5 h-5" />
-                  <span>{listening ? "Arrêter" : "Parler"}</span>
-                </span>
+                <IconMic />
               </button>
             </div>
           </div>
@@ -297,4 +291,4 @@ export default function Page() {
       <RgpdBanner />
     </div>
   );
-      }
+}
