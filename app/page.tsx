@@ -59,6 +59,7 @@ export default function Page() {
   // OCR
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
+  const [ocrHasFile, setOcrHasFile] = useState(false);
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
   // 🎙️ Micro (final only) — discret
@@ -86,17 +87,11 @@ export default function Page() {
     };
     r.onresult = (e: any) => {
       let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        final += " " + e.results[i][0].transcript;
-      }
+      for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
       setInput(cleanText([baseInputRef.current, final].join(" ")));
     };
     const stopUI = () => setListening(false);
-    r.onend = stopUI;
-    r.onspeechend = stopUI;
-    r.onaudioend = stopUI;
-    r.onnomatch = stopUI;
-    r.onerror = stopUI;
+    r.onend = stopUI; r.onspeechend = stopUI; r.onaudioend = stopUI; r.onnomatch = stopUI; r.onerror = stopUI;
 
     recogRef.current = r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,33 +100,19 @@ export default function Page() {
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-    if (!listening) {
-      try { r.start(); } catch {}
-      return;
-    }
+    if (!listening) { try { r.start(); } catch {} return; }
     try { r.stop(); } catch {}
-    setTimeout(() => {
-      if (listening) {
-        try { r.abort?.(); } catch {}
-        setListening(false);
-      }
-    }, 600);
+    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 600);
   }
 
   // historique persist
-  useEffect(() => {
-    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
-  }, [history]);
+  useEffect(() => { try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {} }, []);
+  useEffect(() => { try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {} }, [history]);
 
   // Auto-scroll vers le haut à la fin de génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
-    if (prevLoadingRef.current && !loading) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    if (prevLoadingRef.current && !loading) window.scrollTo({ top: 0, behavior: "smooth" });
     prevLoadingRef.current = loading;
   }, [loading]);
 
@@ -180,7 +161,7 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen w-full text-[var(--fg)] bg-[var(--bg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
@@ -243,21 +224,25 @@ export default function Page() {
       {/* Tiroir OCR — input natif totalement masqué + bouton uniforme déclencheur */}
       {showOcr && (
         <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin">
-          <div className="mb-3">
+          <div className="mb-3 flex gap-2">
             <button
               type="button"
               onClick={triggerHiddenFileInput}
               className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium"
             >
-              Choisir un fichier
+              {ocrHasFile ? "Changer de fichier" : "Choisir un fichier"}
             </button>
           </div>
-          <OcrUploader onText={setOcrText} onPreview={() => {}} />
+
+          <OcrUploader
+            onText={(t) => { setOcrText(t); }}
+            onPreview={() => { setOcrHasFile(true); }}
+          />
         </div>
       )}
 
       {/* Historique */}
-      <div className="w-full max-w-md space-y-3">
+      <div className="w-full max-w-md space-y-3 pb-28">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]">
@@ -306,12 +291,14 @@ export default function Page() {
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      /* Plein écran partout (supprime les bandes noires sur mobile) */
+      /* Plein écran partout (supprime toute bande noire) */
       html, body, #__next {
-        background: var(--bg);
+        background: var(--bg) !important;
         color: var(--fg);
-        min-height: 100vh;
+        min-height: 100dvh;
         width: 100%;
+        margin: 0;
+        padding: 0;
       }
 
       :root{
@@ -375,22 +362,22 @@ function StyleGlobals() {
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      /* ====== Skin OCR : on masque totalement l’input natif ====== */
+      /* ====== Skin OCR : on masque TOUT le natif & le texte adjacent ====== */
       .ocr-skin input[type="file"]{
         position: absolute !important;
-        left: -9999px !important;
+        inset: auto !important;
+        left: -10000px !important;
         width: 1px !important;
         height: 1px !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        display: none !important;
       }
-      /* Par sécurité, neutralise aussi le texte si un navigateur l’affiche encore */
-      .ocr-skin input[type="file"], 
-      .ocr-skin input[type="file"]::-webkit-file-upload-button,
-      .ocr-skin input[type="file"]::file-selector-button{
-        color: transparent !important;
-        font-size: 0 !important;
-      }
+      /* cache le bouton du sélecteur natif (Safari/Chromium) */
+      .ocr-skin input[type="file"]::file-selector-button { display: none !important; }
+      .ocr-skin input[type="file"]::-webkit-file-upload-button { display: none !important; }
+      /* neutralise tout éventuel libellé adjacent */
+      .ocr-skin input[type="file"] + * { display: none !important; }
     `}</style>
   );
-}
+      }
