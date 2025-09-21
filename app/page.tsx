@@ -59,7 +59,6 @@ export default function Page() {
   // OCR
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
-  const [ocrHasFile, setOcrHasFile] = useState(false);
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
   // 🎙️ Micro (final only) — discret
@@ -236,13 +235,14 @@ export default function Page() {
               onClick={triggerHiddenFileInput}
               className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium"
             >
-              {ocrHasFile ? "Changer de fichier" : "Charger un fichier"}
+              {/* Libellé figé, valable avant/après */}
+              Charger 1 fichier
             </button>
           </div>
 
           <OcrUploader
             onText={(t) => { setOcrText(t); }}
-            onPreview={() => { setOcrHasFile(true); }}
+            onPreview={() => { /* on garde pour plus tard si besoin */ }}
           />
         </div>
       )}
@@ -400,4 +400,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-}
+                                }
