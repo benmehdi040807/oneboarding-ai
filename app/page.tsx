@@ -28,7 +28,7 @@ function RgpdBanner() {
             Vos données restent privées sur cet appareil.{" "}
             <a href="/legal" className="underline">En savoir plus</a>
           </p>
-        <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
+          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
             D’accord
           </button>
         </div>
@@ -47,10 +47,10 @@ function copyToClipboard(text: string) {
   try { navigator.clipboard.writeText(text); } catch {}
 }
 
-/* ===== Icônes SVG (paperclip & mic) ===== */
+/* ===== Icônes SVG ===== */
 function IconClip({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15.5V8.75a4.75 4.75 0 0 0-9.5 0v7a3.25 3.25 0 1 0 6.5 0V9.5" />
       <path d="M7 12v4.5a5 5 0 0 0 10 0" />
     </svg>
@@ -58,7 +58,7 @@ function IconClip({ className = "w-6 h-6" }: { className?: string }) {
 }
 function IconMic({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
       <path d="M12 19v3" />
@@ -76,7 +76,7 @@ export default function Page() {
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
 
-  // 🎙️ Micro (final only)
+  // 🎙️ Micro
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
@@ -88,7 +88,7 @@ export default function Page() {
     const el = taRef.current;
     if (!el) return;
     el.style.height = "0px";
-    el.style.height = Math.min(el.scrollHeight, 140) + "px"; // ~2–3 lignes, max ~6
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
   }
 
   useEffect(() => {
@@ -127,26 +127,19 @@ export default function Page() {
     r.onerror = stopUI;
 
     recogRef.current = r;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [input]);
 
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
     if (!listening) { try { r.start(); } catch {} return; }
     try { r.stop(); } catch {}
-    setTimeout(() => {
-      if (listening) { try { r.abort?.(); } catch {} setListening(false); }
-    }, 800);
+    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 800);
   }
 
   // historique
-  useEffect(() => {
-    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
-  }, [history]);
+  useEffect(() => { try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {} }, []);
+  useEffect(() => { try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {} }, [history]);
 
   // envoyer
   async function handleSubmit(e: React.FormEvent) {
@@ -192,12 +185,10 @@ export default function Page() {
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Zone de saisie : barre + deux icônes dessous à gauche + OK à droite ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
         <div className="flex gap-2 items-stretch">
-          {/* Colonne BARRE + BOUTONS (sa largeur ne comprend PAS le bouton OK) */}
+          {/* Colonne texte + boutons */}
           <div className="flex-1 min-w-0">
-            {/* Barre (textarea) */}
             <div className="rounded-2xl bg-white text-black px-3 py-2">
               <textarea
                 ref={taRef}
@@ -210,12 +201,12 @@ export default function Page() {
               />
             </div>
 
-            {/* Deux boutons icône-seuls, alignés à gauche */}
+            {/* deux boutons sous la barre */}
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowOcr(v => !v)}
-                className="w-11 h-11 rounded-2xl bg-white text-black hover:bg-gray-200 active:translate-y-px transition grid place-items-center"
+                className="w-11 h-11 rounded-2xl bg-white text-black hover:bg-gray-200 transition grid place-items-center"
                 title="Joindre un document (OCR)"
               >
                 <IconClip />
@@ -225,7 +216,7 @@ export default function Page() {
                 type="button"
                 disabled={!speechSupported}
                 onClick={toggleMic}
-                className={`w-11 h-11 rounded-2xl transition active:translate-y-px grid place-items-center ${
+                className={`w-11 h-11 rounded-2xl transition grid place-items-center ${
                   listening
                     ? "bg-red-500 text-white border border-red-400"
                     : "bg-white text-black hover:bg-gray-200"
@@ -237,52 +228,37 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Bouton OK (extérieur, à droite) */}
+          {/* Bouton OK : même hauteur que la barre */}
           <button
             type="submit"
             disabled={loading}
-            className="shrink-0 bg-white text-black px-4 py-2 rounded-2xl font-medium hover:bg-gray-200 transition disabled:opacity-60 self-start"
-            title="Envoyer"
+            className="shrink-0 bg-white text-black rounded-2xl font-medium hover:bg-gray-200 transition disabled:opacity-60 flex items-center justify-center"
+            style={{ minWidth: "4.5rem", height: "100%" }}
           >
             {loading ? "…" : "OK"}
           </button>
         </div>
       </form>
 
-      {/* Tiroir OCR */}
       {showOcr && (
         <div className="w-full max-w-2xl mb-6 animate-[fadeIn_.2s_ease]">
           <OcrUploader onText={setOcrText} onPreview={() => {}} />
         </div>
       )}
 
-      {/* Historique */}
       <div className="w-full max-w-2xl space-y-3">
         {history.map((item, idx) => (
-          <div
-            key={idx}
+          <div key={idx}
             className={`fade-in rounded-xl border p-3 relative ${
-              item.role === "user"
-                ? "border-white/10 bg-white/5"
-                : item.role === "assistant"
-                ? "border-emerald-300/20 bg-emerald-950/40"
-                : "border-red-400/30 bg-red-500/10"
-            }`}
-          >
+              item.role === "user" ? "border-white/10 bg-white/5"
+              : item.role === "assistant" ? "border-emerald-300/20 bg-emerald-950/40"
+              : "border-red-400/30 bg-red-500/10"}`}>
             <p className="text-white/90 whitespace-pre-wrap">{item.text}</p>
-
             {item.role === "assistant" && (
-              <button
-                onClick={() => copyToClipboard(item.text)}
-                className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25"
-              >
-                Copier
-              </button>
+              <button onClick={() => copyToClipboard(item.text)} className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25">Copier</button>
             )}
-
             <p className="text-xs text-white/50 mt-6">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
-              {new Date(item.time).toLocaleString()}
+              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} • {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
