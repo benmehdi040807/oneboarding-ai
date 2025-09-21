@@ -40,7 +40,7 @@ function RgpdBanner() {
   );
 }
 
-/* =================== Types & utilitaires =================== */
+/* =================== Types & utils =================== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
 const cleanText = (s: string) =>
@@ -55,10 +55,13 @@ export default function Page() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // OCR
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
+  const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // 🎙️ Micro (final only) — robuste & discret
+  // 🎙️ Micro (final only) — discret
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
@@ -115,18 +118,15 @@ export default function Page() {
     }, 600);
   }
 
-  // historique (persist)
+  // historique persist
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("oneboarding.history");
-      if (s) setHistory(JSON.parse(s));
-    } catch {}
+    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
   }, []);
   useEffect(() => {
     try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
-  // Auto-scroll vers le haut quand une réponse arrive
+  // Auto-scroll vers le haut à la fin de génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
     if (prevLoadingRef.current && !loading) {
@@ -160,34 +160,32 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory(h => [
-          { role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
       } else {
-        setHistory(h => [
-          { role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
       }
     } catch (err: any) {
-      setHistory(h => [
-        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
-        ...h,
-      ]);
+      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
     } finally {
       setLoading(false);
     }
   }
 
+  // Déclenche le file input caché à l’intérieur d’OcrUploader
+  function triggerHiddenFileInput() {
+    const container = ocrContainerRef.current;
+    if (!container) return;
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement | null;
+    input?.click();
+  }
+
   return (
-    <div className="min-h-screen text-[var(--fg)] bg-[var(--bg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
-      {/* Thème / animations globales */}
+    <div className="min-h-screen w-full text-[var(--fg)] bg-[var(--bg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Barre : input + OK (fusion) ===== */}
+      {/* ===== Barre : input + OK (fusion + séparateur fin) ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2">
         <div className="flex items-stretch shadow-[0_4px_20px_rgba(0,0,0,0.10)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <input
@@ -197,7 +195,6 @@ export default function Page() {
             onChange={(e) => setInput(e.target.value)}
             className="flex-1 min-w-0 px-4 py-3 text-[var(--fg)] bg-[var(--panel)] outline-none"
           />
-          {/* séparation subtile */}
           <div className="w-px bg-[var(--border)]" aria-hidden />
           <button
             type="submit"
@@ -243,14 +240,23 @@ export default function Page() {
         </div>
       </form>
 
-      {/* Tiroir OCR — skinné pour cacher « Aucun fichier choisi » */}
+      {/* Tiroir OCR — input natif totalement masqué + bouton uniforme déclencheur */}
       {showOcr && (
-        <div className="w-full max-w-md mb-6 animate-fadeUp ocr-skin">
+        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin">
+          <div className="mb-3">
+            <button
+              type="button"
+              onClick={triggerHiddenFileInput}
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium"
+            >
+              Choisir un fichier
+            </button>
+          </div>
           <OcrUploader onText={setOcrText} onPreview={() => {}} />
         </div>
       )}
 
-      {/* Historique (bubbles) */}
+      {/* Historique */}
       <div className="w-full max-w-md space-y-3">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
@@ -300,11 +306,12 @@ export default function Page() {
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      /* Appliquer la couleur de fond à TOUTE la page (supprime les bandes noires) */
+      /* Plein écran partout (supprime les bandes noires sur mobile) */
       html, body, #__next {
         background: var(--bg);
         color: var(--fg);
-        min-height: 100%;
+        min-height: 100vh;
+        width: 100%;
       }
 
       :root{
@@ -358,14 +365,9 @@ function StyleGlobals() {
         20% { opacity: 1; }
         100% { opacity: .2; }
       }
-      .typing-dots::after { content: " "; }
-      .typing-dots {
-        letter-spacing: .25em;
-        display: inline-block;
-        animation: dots 1.2s ease-in-out infinite;
-      }
+      .typing-dots { letter-spacing: .25em; display: inline-block; animation: dots 1.2s ease-in-out infinite; }
 
-      /* Pulsation douce du micro actif */
+      /* Pulsation douce du micro actif (non intrusive) */
       @keyframes micPulse {
         0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.25); transform: scale(1); }
         70%  { box-shadow: 0 0 0 10px rgba(52,211,153,0); transform: scale(1.02); }
@@ -373,31 +375,21 @@ function StyleGlobals() {
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      /* ====== Skin OCR pour cacher “Aucun fichier choisi” sans changer OcrUploader ====== */
+      /* ====== Skin OCR : on masque totalement l’input natif ====== */
       .ocr-skin input[type="file"]{
-        font-size: 0;                 /* masque le libellé (aucun fichier choisi) */
-        color: transparent;           /* au cas où certains navigateurs affichent quand même */
+        position: absolute !important;
+        left: -9999px !important;
+        width: 1px !important;
+        height: 1px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
       }
+      /* Par sécurité, neutralise aussi le texte si un navigateur l’affiche encore */
+      .ocr-skin input[type="file"], 
+      .ocr-skin input[type="file"]::-webkit-file-upload-button,
       .ocr-skin input[type="file"]::file-selector-button{
-        font-size: 0.95rem;           /* rétablit la taille uniquement sur le bouton */
-        line-height: 1;
-        padding: .75rem 1rem;
-        border-radius: .75rem;
-        border: 1px solid var(--border);
-        background: var(--chip-bg);
-        color: var(--fg);
-        cursor: pointer;
-      }
-      .ocr-skin input[type="file"]::file-selector-button:hover{
-        background: var(--chip-hover);
-      }
-      /* Firefox fallback — on cache l’input natif et OcrUploader montre déjà son UI */
-      @-moz-document url-prefix() {
-        .ocr-skin input[type="file"] {
-          opacity: 0;
-          height: 0;
-          pointer-events: none;
-        }
+        color: transparent !important;
+        font-size: 0 !important;
       }
     `}</style>
   );
