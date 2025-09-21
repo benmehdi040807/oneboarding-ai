@@ -3,18 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
+  /** Texte OCR final renvoyé vers le parent (non affiché ici) */
   onText: (text: string) => void;
+  /** Prévisualisation (utile si tu veux afficher l’image ailleurs) */
   onPreview?: (url: string | null) => void;
 };
 
 export default function OcrUploader({ onText, onPreview }: Props) {
-  /* ===== Config ===== */
+  // === Réglages ===
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-  // 🔒 pack tri-langue caché (comme au début, via les CDN par défaut de tesseract.js)
-  const LANGS = "eng+fra+ara";
+  const AUTO_LANG = "fra+eng+ara"; // auto fr+en+ar (performant et léger)
+  const MAX_ATTEMPTS = 3;
 
-  /* ===== UI state ===== */
-  const [inputKey, setInputKey] = useState(0);
+  // === State UI ===
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -22,9 +23,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [attempt, setAttempt] = useState<number>(0);
+  const [justFinished, setJustFinished] = useState<boolean>(false); // pour l’animation pulse
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  // propage l’aperçu & nettoie l’ancien ObjectURL
   useEffect(() => {
     onPreview?.(imageUrl ?? null);
     return () => {
@@ -32,80 +36,71 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     };
   }, [imageUrl, onPreview]);
 
-  /* ===== Helpers ===== */
   function humanSize(bytes: number) {
     if (bytes < 1024) return `${bytes} o`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
     return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
   }
 
-  function updateProgress(m: any) {
-    const s: string = m?.status || "";
-    const p: number = typeof m?.progress === "number" ? m.progress : 0;
-
-    let pct = progress;
-    let label = statusText;
-
-    if (s.includes("loading tesseract core")) {
-      pct = Math.max(1, Math.round(5 + p * 10));
-      label = "Chargement du moteur…";
-    } else if (s.includes("initializing tesseract")) {
-      pct = Math.max(10, 18);
-      label = "Initialisation du moteur…";
-    } else if (s.includes("loading language traineddata")) {
-      pct = Math.max(18, Math.round(20 + p * 40));
-      label = "Téléchargement du modèle…";
-    } else if (s.includes("initializing api")) {
-      pct = Math.max(60, 68);
-      label = "Initialisation de l’API…";
-    } else if (s.includes("recognizing text")) {
-      pct = Math.max(68, Math.round(70 + p * 30));
-      label = "Analyse du texte…";
-    } else if (s) {
-      pct = Math.max(progress, 15);
-      label = s;
-    }
-
-    setProgress(Math.min(99, pct));
-    setStatusText(label);
-  }
-
-  async function runOCR(file: File) {
-    if (running) return;
+  async function recognizeWithRetry(file: File) {
     setRunning(true);
     setErrorMsg("");
-    setProgress(1);
     setStatusText("Préparation…");
+    setProgress((p) => (p <= 1 ? 1 : p));
 
-    try {
-      // ✅ Version “simple” comme au départ : Tesseract.recognize()
-      const Tesseract = (await import("tesseract.js")).default as any;
+    let lastErr: any = null;
 
-      const res = (await Tesseract.recognize(file, LANGS, {
-        logger: (m: any) => updateProgress(m),
-      } as any)) as any;
+    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+      try {
+        setAttempt(i);
+        if (i > 1) setStatusText(`Nouvelle tentative ${i}/${MAX_ATTEMPTS}…`);
 
-      const text: string = String(res?.data?.text || "")
-        .replace(/[ \t]+\n/g, "\n")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+        const Tesseract = (await import("tesseract.js")).default as any;
 
-      onText(text);
-      setProgress(100);
-      setStatusText("Terminé");
-    } catch (e: any) {
-      const msg = `Échec OCR (${e?.message || "erreur"}).`;
-      setErrorMsg(msg);
-      setStatusText("Erreur");
-      onText(`⚠️ ${msg}`);
-    } finally {
-      setRunning(false);
+        setStatusText("Téléchargement du modèle…");
+        // NB: avec l’API .recognize, le téléchargement/chargement modèle est géré en interne.
+        // On s’appuie sur le logger pour exposer la progression.
+
+        setStatusText("Reconnaissance…");
+        const result: any = await Tesseract.recognize(file, AUTO_LANG, {
+          logger: (m: any) => {
+            if (m?.status === "recognizing text" && typeof m?.progress === "number") {
+              const p = Math.max(1, Math.min(100, Math.round(m.progress * 100)));
+              setProgress(p);
+            }
+          },
+        } as any);
+
+        const text: string = String(result?.data?.text || "")
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+
+        onText(text);
+        setProgress(100);
+        setStatusText("Terminé");
+        setJustFinished(true);
+        // on enlève le pulse après 1.2s pour ne pas distraire
+        setTimeout(() => setJustFinished(false), 1200);
+        setRunning(false);
+        return;
+      } catch (e: any) {
+        lastErr = e;
+        // petit backoff (200ms, 500ms) avant de retenter
+        await new Promise((r) => setTimeout(r, i * 200 + 300));
+      }
     }
+
+    setRunning(false);
+    const msg = `Échec OCR après ${MAX_ATTEMPTS} tentatives (${lastErr?.message || "erreur"}).`;
+    setErrorMsg(msg);
+    setStatusText("Erreur");
+    onText(`⚠️ ${msg}`);
   }
 
   function clearFile() {
+    // réinitialise tout
     if (fileRef.current) fileRef.current.value = "";
-    setInputKey((k) => k + 1); // permet de re-sélectionner le même fichier
     setImageUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -115,8 +110,9 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setProgress(0);
     setStatusText("");
     setErrorMsg("");
-    setRunning(false);
-    onText("");
+    setAttempt(0);
+    setJustFinished(false);
+    onText(""); // on vide le texte OCR côté parent
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -129,11 +125,14 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       return;
     }
 
+    // feedback immédiat
     setFileName(f.name);
     setFileSize(humanSize(f.size));
     setProgress(1);
-    setStatusText("Préparation…");
     setErrorMsg("");
+    setStatusText("Préparation…");
+    setAttempt(0);
+    setJustFinished(false);
 
     const url = URL.createObjectURL(f);
     setImageUrl((prev) => {
@@ -141,10 +140,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       return url;
     });
 
-    void runOCR(f);
+    recognizeWithRetry(f);
   }
 
-  const ProgressBar = useMemo(
+  const Progress = useMemo(
     () =>
       running || progress > 0 ? (
         <div className="w-full mt-3">
@@ -154,22 +153,25 @@ export default function OcrUploader({ onText, onPreview }: Props) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="mt-1 text-right text-[11px] text-white/70">
-            {progress < 100 ? statusText : "Terminé"}
+          <div className="mt-1 flex items-center justify-between text-[11px] text-white/60">
+            <span>
+              {statusText}
+              {attempt > 1 && statusText !== "Terminé" ? ` (${attempt}/${MAX_ATTEMPTS})` : ""}
+            </span>
+            {progress === 100 ? <span className="text-emerald-300">Terminé</span> : null}
           </div>
         </div>
       ) : null,
-    [running, progress, statusText]
+    [running, progress, statusText, attempt]
   );
 
   const hasFile = Boolean(fileName);
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      {/* Choix fichier */}
+      {/* Barre info fichier + actions */}
       <div className="flex items-center gap-2">
         <input
-          key={inputKey}
           ref={fileRef}
           id="ocr-file"
           type="file"
@@ -177,12 +179,14 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           onChange={onPickFile}
           className="hidden"
         />
+
+        {/* Badge “Fichier chargé” avec check qui pulse juste après Terminé */}
         <label
           htmlFor="ocr-file"
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
-            ${hasFile ? "bg-emerald-500 text-black border-emerald-400"
-                      : "bg-white text-black hover:bg-gray-200 border-transparent"}
+            ${hasFile ? "bg-emerald-500 text-black border-emerald-400" : "bg-white text-black hover:bg-gray-200 border-transparent"}
             ${running ? "opacity-70 pointer-events-none" : ""}
+            ${justFinished ? "animate-pulse" : ""}
           `}
           title={hasFile ? "Changer de fichier" : "Choisir un fichier"}
         >
@@ -193,6 +197,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           <div className="text-xs text-white/70 truncate">
             {hasFile ? `${fileName} — ${fileSize}` : "Aucun fichier choisi"}
           </div>
+
           {hasFile && (
             <button
               type="button"
@@ -206,8 +211,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       </div>
 
+      {/* Alerte douce */}
       {errorMsg && <div className="mt-2 text-xs text-red-300">{errorMsg}</div>}
 
+      {/* Aperçu visuel */}
       {imageUrl && (
         <div className="mt-3 relative">
           <img
@@ -216,14 +223,15 @@ export default function OcrUploader({ onText, onPreview }: Props) {
             className="rounded-lg w-full max-h-64 object-contain border border-white/10"
           />
           {running && (
-            <div className="absolute inset-0 rounded-lg bg-black/30 grid place-items-center text-xs">
-              {statusText || "Analyse en cours…"}
+            <div className="absolute inset-0 rounded-lg bg-black/25 grid place-items-center text-xs">
+              {statusText || "Analyse…"}
             </div>
           )}
         </div>
       )}
 
-      {ProgressBar}
+      {/* Barre de progression */}
+      {Progress}
     </div>
   );
-}
+      }
