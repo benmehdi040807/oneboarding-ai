@@ -64,13 +64,13 @@ export default function Page() {
   const recogRef = useRef<any>(null);
   const baseInputRef = useRef<string>("");
 
-  // ref pour textarea (auto-resize)
+  // textarea auto-resize
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   function autoresize() {
     const el = taRef.current;
     if (!el) return;
     el.style.height = "0px";
-    el.style.height = Math.min(el.scrollHeight, 140) + "px"; // ~2–3 lignes, max ~6
+    el.style.height = Math.min(el.scrollHeight, 140) + "px"; // ~2–3 lignes visibles, max ~6
   }
 
   useEffect(() => {
@@ -98,7 +98,6 @@ export default function Page() {
       }
       const merged = cleanText([baseInputRef.current, final].join(" "));
       setInput(merged);
-      // petite attente pour laisser React peindre, puis resize
       setTimeout(autoresize, 0);
     };
 
@@ -176,60 +175,60 @@ export default function Page() {
     }
   }
 
-  // ajuste la hauteur au montage/changement d'input
-  useEffect(() => { autoresize(); }, []); // au 1er rendu
+  useEffect(() => { autoresize(); }, []); // 1er rendu
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Barre élargie : icônes + textarea, OK à l’extérieur ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-2">
+      {/* ===== Barre élargie (textarea) + OK dehors ===== */}
+      <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
         <div className="flex gap-2 items-stretch">
-          <div className="flex-1 min-w-0 rounded-2xl bg-white text-black px-3 py-2 flex items-start gap-2">
-            {/* Icône 📎 */}
-            <button
-              type="button"
-              onClick={() => setShowOcr(v => !v)}
-              className="p-2 rounded-lg hover:bg-gray-200 shrink-0"
-              title="Joindre un document (OCR)"
-            >
-              {/* 📎 moderne (emoji pour l’instant) */}
-              📎
-            </button>
-
-            {/* Icône 🎤 */}
-            <button
-              type="button"
-              disabled={!speechSupported}
-              onClick={toggleMic}
-              className={`p-2 rounded-lg shrink-0 ${
-                listening ? "bg-red-500 text-white" : "hover:bg-gray-200 text-black"
-              } disabled:opacity-50`}
-              title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
-            >
-              {listening ? "⏹" : "🎤"}
-            </button>
-
-            {/* Zone de saisie multilignes */}
+          <div className="flex-1 min-w-0 rounded-2xl bg-white text-black px-3 py-2 flex items-start">
             <textarea
               ref={taRef}
               rows={2}
               placeholder="Votre question…"
               value={input}
               onChange={(e) => { setInput(e.target.value); autoresize(); }}
-              className="flex-1 min-w-0 bg-transparent resize-none outline-none leading-relaxed placeholder:text-black/50"
+              className="w-full bg-transparent resize-none outline-none leading-relaxed placeholder:text-black/50"
               style={{ maxHeight: 140 }}
             />
           </div>
 
-          {/* Bouton OK à l’extérieur */}
+          {/* Bouton OK (à l’extérieur, à droite) */}
           <button
             type="submit"
             disabled={loading}
             className="shrink-0 bg-white text-black px-4 py-2 rounded-2xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
           >
             {loading ? "…" : "OK"}
+          </button>
+        </div>
+
+        {/* ===== 2 boutons sous la barre, plus fins, largeur totale ===== */}
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setShowOcr(v => !v)}
+            className="w-full px-3 py-2 rounded-xl font-medium border bg-white text-black hover:bg-gray-200"
+            title="Joindre un document (OCR)"
+          >
+            📎 Joindre
+          </button>
+
+          <button
+            type="button"
+            disabled={!speechSupported}
+            onClick={toggleMic}
+            className={`w-full px-3 py-2 rounded-xl font-medium border ${
+              listening
+                ? "bg-red-500 text-white border-red-400"
+                : "bg-white text-black hover:bg-gray-200 border-transparent"
+            } disabled:opacity-50`}
+            title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
+          >
+            {listening ? "⏹ Arrêter" : "🎤 Parler"}
           </button>
         </div>
       </form>
