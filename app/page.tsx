@@ -4,15 +4,6 @@ export const runtime = "nodejs";
 import { useEffect, useRef, useState } from "react";
 import OcrUploader from "@/components/OcrUploader";
 
-/* ===== mini keyframe util (pour le pulse du micro) ===== */
-if (typeof document !== "undefined" && !document.getElementById("pulseSoftKF")) {
-  const s = document.createElement("style");
-  s.id = "pulseSoftKF";
-  s.textContent = `
-  @keyframes pulseSoft { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }`;
-  document.head.appendChild(s);
-}
-
 /* ===== Bandeau RGPD ===== */
 function RgpdBanner() {
   const CONSENT_KEY = "oneboarding.rgpdConsent";
@@ -77,6 +68,10 @@ export default function Page() {
   const recogRef = useRef<any>(null);
   const baseInputRef = useRef<string>("");
 
+  // ===== Auto-scroll refs =====
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const shouldScrollRef = useRef(false);
+
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
@@ -125,6 +120,7 @@ export default function Page() {
       return;
     }
 
+    // stop + fallback abort si onend ne vient pas
     try {
       r.stop();
     } catch {}
@@ -151,6 +147,20 @@ export default function Page() {
     } catch {}
   }, [history]);
 
+  // Auto-scroll quand un nouveau message assistant/erreur arrive
+  useEffect(() => {
+    if (!shouldScrollRef.current) return;
+    shouldScrollRef.current = false;
+    // remonter en haut (nouveaux messages sont en haut)
+    requestAnimationFrame(() => {
+      if (topRef.current) {
+        topRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+  }, [history]);
+
   // envoyer
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -158,13 +168,15 @@ export default function Page() {
     const hasOcr = Boolean(ocrText.trim());
     if ((!q && !hasOcr) || loading) return;
 
+    // refermer clavier mobile pour libérer l’écran
+    (document.activeElement as HTMLElement | null)?.blur?.();
+
     const now = new Date().toISOString();
     const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
     if (userShown) setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
-    try { navigator.vibrate?.(15); } catch {} // #5 petite vibration
 
     const composedPrompt = hasOcr
       ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
@@ -188,104 +200,102 @@ export default function Page() {
           ...h,
         ]);
       }
+      // Une réponse a été ajoutée : on déclenche l'auto-scroll
+      shouldScrollRef.current = true;
     } catch (err: any) {
-      setHistory((h) => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory((h) => [
+        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
+        ...h,
+      ]);
+      shouldScrollRef.current = true;
     } finally {
       setLoading(false);
     }
   }
 
-  const okDisabled = loading || (!input.trim() && !ocrText.trim());
-
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
+      {/* ancre pour auto-scroll */}
+      <div ref={topRef} />
+
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Barre fusionnée + OK (divider subtil) ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-[720px] mb-3">
-        <div className="flex items-stretch w-full select-none">
-          {/* zone de saisie */}
-          <div className="flex-1 min-w-0 rounded-l-2xl bg-white text-black overflow-hidden">
-            <textarea
+      {/* ===== Barre fusionnée : input + OK ===== */}
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-3">
+        <div className="flex items-stretch w-full">
+          {/* zone de texte */}
+          <div className="flex-1 bg-white rounded-l-2xl px-4 py-3 text-black border border-white/10 border-r-0">
+            <input
+              type="text"
+              placeholder="Votre question…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Votre question…"
-              rows={2}
-              className="w-full resize-none px-4 py-3 leading-6 placeholder-black/40 bg-transparent
-                         focus:outline-none focus:ring-2 focus:ring-emerald-300/60" /* #1 focus ring */
+              className="w-full bg-transparent outline-none"
             />
           </div>
-
-          {/* séparateur visuel */}
-          <div className="w-[1px] bg-black/10" />
-
-          {/* bouton OK */}
+          {/* séparateur subtil */}
+          <div className="w-px bg-white/20" />
+          {/* bouton OK fusionné */}
           <button
             type="submit"
-            disabled={okDisabled}
-            title="Envoyer la question"
-            className={`w-[100px] rounded-r-2xl bg-white text-black font-semibold
-                        transition-colors grid place-items-center px-3
-                        disabled:opacity-60 hover:bg-gray-100
-                        shadow-sm active:scale-[0.98]`} /* #2 ombre + press */
+            disabled={loading}
+            className="rounded-r-2xl bg-white text-black px-6 font-semibold hover:bg-gray-200 transition disabled:opacity-60 border border-white/10 border-l-0"
+            style={{ minWidth: 110 }}
           >
-            {loading ? (
-              /* #3 spinner clean */
-              <svg className="animate-spin w-4 h-4 mx-[2px]" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
-                <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            ) : (
-              "OK"
-            )}
-          </button>
-        </div>
-
-        {/* rangée d’actions sous la barre */}
-        <div className="mt-3 flex gap-3 items-center">
-          {/* Joindre (toggle OCR) */}
-          <button
-            type="button"
-            onClick={() => setShowOcr((v) => !v)}
-            title="Joindre un document (OCR)"
-            className="w-11 h-11 rounded-xl bg-white text-black grid place-items-center hover:bg-gray-200 transition"
-          >
-            {/* trombone minimal */}
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 7l-9.5 9.5a4 4 0 11-5.657-5.657L14.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-
-          {/* Micro */}
-          <button
-            type="button"
-            disabled={!speechSupported}
-            onClick={toggleMic}
-            title={speechSupported ? (listening ? "Arrêter l’écoute" : "Saisie vocale") : "Micro non supporté"}
-            className={`w-11 h-11 rounded-xl grid place-items-center transition
-                        ${listening
-                          ? "bg-red-500 text-white border border-red-400 ring-2 ring-red-300/60 animate-[pulseSoft_1.5s_ease-in-out_infinite]"
-                          : "bg-white text-black hover:bg-gray-200"} disabled:opacity-50`} /* #4 */
-          >
-            {/* micro minimal */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z" />
-              <path d="M19 10v1a7 7 0 01-14 0v-1" />
-              <path d="M12 17v4" />
-            </svg>
+            {loading ? "…" : "OK"}
           </button>
         </div>
       </form>
 
+      {/* Deux icônes sous la barre, à gauche */}
+      <div className="w-full max-w-md flex gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setShowOcr((v) => !v)}
+          className="h-12 w-12 grid place-items-center rounded-xl bg-white text-black border border-white/10 hover:bg-gray-200 transition"
+          title="Joindre un document (OCR)"
+        >
+          {/* trombone épuré (SVG) */}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M7 12.5l6.5-6.5a3.5 3.5 0 015 5L9.5 19a4.5 4.5 0 01-6.5-6.5l8-8"
+              stroke="black"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          disabled={!speechSupported}
+          onClick={toggleMic}
+          className={`h-12 w-12 grid place-items-center rounded-xl border transition ${
+            listening
+              ? "bg-red-500 text-white border-red-400"
+              : "bg-white text-black hover:bg-gray-200 border-white/10"
+          } disabled:opacity-50`}
+          title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
+        >
+          {/* micro épuré (SVG) */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="4" width="6" height="10" rx="3" stroke="black" strokeWidth="2" />
+            <path d="M5 11a7 7 0 0014 0" stroke="black" strokeWidth="2" strokeLinecap="round" />
+            <path d="M12 18v3" stroke="black" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+
       {/* Tiroir OCR */}
       {showOcr && (
-        <div className="w-full max-w-[720px] mb-6 animate-[fadeIn_.2s_ease]">
+        <div className="w-full max-w-md mb-6 animate-[fadeIn_.2s_ease]">
           <OcrUploader onText={setOcrText} onPreview={() => {}} />
         </div>
       )}
 
       {/* Historique */}
-      <div className="w-full max-w-[720px] space-y-3">
+      <div className="w-full max-w-md space-y-3">
         {history.map((item, idx) => (
           <div
             key={idx}
@@ -303,7 +313,6 @@ export default function Page() {
               <button
                 onClick={() => copyToClipboard(item.text)}
                 className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25"
-                title="Copier la réponse"
               >
                 Copier
               </button>
