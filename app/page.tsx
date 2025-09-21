@@ -141,7 +141,13 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
+        const raw = String(data?.error || `HTTP ${res.status}`);
+        let msg = `Erreur: ${raw}`;
+        if (raw.includes("GROQ_API_KEY")) {
+          msg = "Service temporairement indisponible. (Configuration serveur requise)";
+          console.warn("Tip dev : définis GROQ_API_KEY dans Vercel → Project → Settings → Environment Variables (et redeploy).");
+        }
+        setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
         setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
       }
@@ -230,7 +236,7 @@ export default function Page() {
               onClick={triggerHiddenFileInput}
               className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium"
             >
-              {ocrHasFile ? "Changer de fichier" : "Choisir un fichier"}
+              {ocrHasFile ? "Changer de fichier" : "Charger un fichier"}
             </button>
           </div>
 
@@ -362,7 +368,11 @@ function StyleGlobals() {
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      /* ====== Skin OCR : on masque TOUT le natif & le texte adjacent ====== */
+      /* ====== Skin OCR ====== */
+      /* couleur de tout le texte OCR (ex: “Reconnaissance…”, “Terminé”, “Retirer”) */
+      .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
+
+      /* masque le file input natif + ses libellés */
       .ocr-skin input[type="file"]{
         position: absolute !important;
         inset: auto !important;
@@ -373,11 +383,21 @@ function StyleGlobals() {
         pointer-events: none !important;
         display: none !important;
       }
-      /* cache le bouton du sélecteur natif (Safari/Chromium) */
       .ocr-skin input[type="file"]::file-selector-button { display: none !important; }
       .ocr-skin input[type="file"]::-webkit-file-upload-button { display: none !important; }
-      /* neutralise tout éventuel libellé adjacent */
+      /* cache les petits libellés style “Aucun fichier choisi” souvent rendus en span/small */
       .ocr-skin input[type="file"] + * { display: none !important; }
+      .ocr-skin input[type="file"] ~ span { display: none !important; }
+      .ocr-skin input[type="file"] ~ small { display: none !important; }
+
+      /* cache l’overlay du NOM DE FICHIER dans l’en-tête de preview (souvent .truncate / *name*) */
+      .ocr-skin .truncate,
+      .ocr-skin [class*="file-name"],
+      .ocr-skin [class*="filename"],
+      .ocr-skin [class*="fileName"],
+      .ocr-skin [class*="name"] {
+        display: none !important;
+      }
     `}</style>
   );
-      }
+}
