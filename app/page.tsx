@@ -4,6 +4,13 @@ export const runtime = "nodejs";
 import { useEffect, useRef, useState } from "react";
 import OcrUploader from "@/components/OcrUploader";
 
+/** ====== Sélecteur de style de la barre d’envoi ======
+ * "divider" (par défaut) : bouton OK fusionné + fine bordure claire
+ * "fused"                 : coins collés (genre Google)
+ * "mirror"                : input et OK exactement 50/50 en largeur
+ */
+const STYLE: "divider" | "fused" | "mirror" = "divider";
+
 /* ===== Bandeau RGPD ===== */
 function RgpdBanner() {
   const CONSENT_KEY = "oneboarding.rgpdConsent";
@@ -28,14 +35,9 @@ function RgpdBanner() {
         <div className="m-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur p-3 text-sm text-white">
           <p className="mb-2">
             Vos données restent privées sur cet appareil.{" "}
-            <a href="/legal" className="underline">
-              En savoir plus
-            </a>
+            <a href="/legal" className="underline">En savoir plus</a>
           </p>
-          <button
-            onClick={accept}
-            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
-          >
+          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
             D’accord
           </button>
         </div>
@@ -45,35 +47,19 @@ function RgpdBanner() {
 }
 
 /* ===== Types & utils ===== */
-type Item = {
-  role: "user" | "assistant" | "error";
-  text: string;
-  time: string;
-};
+type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
 const cleanText = (s: string) =>
-  s.replace(/\s+/g, " ")
-    .replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1")
-    .trim();
+  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try {
-    navigator.clipboard.writeText(text);
-  } catch {}
+  try { navigator.clipboard.writeText(text); } catch {}
 }
 
-/* ===== Icônes SVG ===== */
+/* ===== Icônes SVG (épurées) ===== */
 function IconClip({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15.5V8.75a4.75 4.75 0 0 0-9.5 0v7a3.25 3.25 0 1 0 6.5 0V9.5" />
       <path d="M7 12v4.5a5 5 0 0 0 10 0" />
     </svg>
@@ -81,15 +67,7 @@ function IconClip({ className = "w-6 h-6" }: { className?: string }) {
 }
 function IconMic({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
       <path d="M12 19v3" />
@@ -125,8 +103,7 @@ export default function Page() {
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
-      (typeof window !== "undefined" &&
-        (window as any).webkitSpeechRecognition);
+      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
     if (!SR) return;
 
     setSpeechSupported(true);
@@ -136,65 +113,34 @@ export default function Page() {
     r.interimResults = false;
     r.maxAlternatives = 1;
 
-    r.onstart = () => {
-      baseInputRef.current = input;
-      setListening(true);
-    };
-
+    r.onstart = () => { baseInputRef.current = input; setListening(true); };
     r.onresult = (e: any) => {
       let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        final += " " + e.results[i][0].transcript;
-      }
+      for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
       const merged = cleanText([baseInputRef.current, final].join(" "));
       setInput(merged);
       setTimeout(autoresize, 0);
     };
 
     const stopUI = () => setListening(false);
-    r.onend = stopUI;
-    r.onspeechend = stopUI;
-    r.onaudioend = stopUI;
-    r.onnomatch = stopUI;
-    r.onerror = stopUI;
-
+    r.onend = stopUI; r.onspeechend = stopUI; r.onaudioend = stopUI; r.onnomatch = stopUI; r.onerror = stopUI;
     recogRef.current = r;
-  }, [input]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-    if (!listening) {
-      try {
-        r.start();
-      } catch {}
-      return;
-    }
-    try {
-      r.stop();
-    } catch {}
+    if (!listening) { try { r.start(); } catch {} return; }
+    try { r.stop(); } catch {}
     setTimeout(() => {
-      if (listening) {
-        try {
-          r.abort?.();
-        } catch {}
-        setListening(false);
-      }
+      if (listening) { try { r.abort?.(); } catch {} setListening(false); }
     }, 800);
   }
 
   // historique
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem("oneboarding.history");
-      if (s) setHistory(JSON.parse(s));
-    } catch {}
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch {}
-  }, [history]);
+  useEffect(() => { try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {} }, []);
+  useEffect(() => { try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {} }, [history]);
 
   // envoyer
   async function handleSubmit(e: React.FormEvent) {
@@ -204,19 +150,15 @@ export default function Page() {
     if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const userShown =
-      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown)
-      setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
     setTimeout(autoresize, 0);
 
     const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
-          q || "(aucune)"
-        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -227,76 +169,76 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory((h) => [
-          {
-            role: "error",
-            text: `Erreur: ${data?.error || `HTTP ${res.status}`}`,
-            time: new Date().toISOString(),
-          },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
       } else {
-        setHistory((h) => [
-          {
-            role: "assistant",
-            text: String(data.text || "Réponse vide."),
-            time: new Date().toISOString(),
-          },
-          ...h,
-        ]);
+        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
       }
     } catch (err: any) {
-      setHistory((h) => [
-        {
-          role: "error",
-          text: `Erreur: ${err?.message || "réseau"}`,
-          time: new Date().toISOString(),
-        },
-        ...h,
-      ]);
+      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    autoresize();
-  }, []);
+  useEffect(() => { autoresize(); }, []);
+
+  /* ===== classes selon le STYLE ===== */
+  const barWrapClass =
+    STYLE === "mirror"
+      ? "grid grid-cols-2 w-full"
+      : "flex w-full";
+  const inputClassBase = "bg-white text-black resize-none outline-none leading-relaxed placeholder:text-black/50";
+  const okClassBase    = "font-bold transition disabled:opacity-60";
+
+  const inputClass =
+    STYLE === "fused"
+      ? `flex-1 rounded-l-2xl px-3 py-3 ${inputClassBase}`
+      : STYLE === "divider"
+      ? `flex-1 rounded-l-2xl px-3 py-3 ${inputClassBase} border-r border-black/10`
+      : // mirror
+        `rounded-l-2xl px-3 py-3 ${inputClassBase}`;
+
+  const okClass =
+    STYLE === "fused"
+      ? "px-6 py-3 bg-white text-black rounded-r-2xl hover:bg-gray-200 " + okClassBase
+      : STYLE === "divider"
+      ? "px-6 py-3 bg-white text-black rounded-r-2xl hover:bg-gray-200 " + okClassBase
+      : // mirror (50/50)
+        "px-6 py-3 bg-white text-black rounded-r-2xl hover:bg-gray-200 " + okClassBase;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
+      {/* ===== Barre ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
         <div className="flex flex-col gap-2">
-          {/* Barre de saisie + OK */}
-          <div className="flex w-full">
+          <div className={barWrapClass}>
             <textarea
               ref={taRef}
               rows={2}
               placeholder="Votre question…"
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                autoresize();
-              }}
-              className="flex-1 bg-white text-black rounded-l-2xl resize-none outline-none leading-relaxed px-3 py-3 placeholder:text-black/50"
+              onChange={(e) => { setInput(e.target.value); autoresize(); }}
+              className={inputClass}
               style={{ maxHeight: 140 }}
             />
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 bg-white text-black font-bold rounded-r-2xl hover:bg-gray-200 transition disabled:opacity-60"
+              className={okClass}
+              // En mode mirror on force 50/50
+              style={STYLE === "mirror" ? { width: "100%" } : undefined}
             >
               {loading ? "…" : "OK"}
             </button>
           </div>
 
-          {/* deux boutons sous la barre */}
+          {/* Actions sous la barre */}
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowOcr((v) => !v)}
+              onClick={() => setShowOcr(v => !v)}
               className="w-11 h-11 rounded-xl bg-white text-black hover:bg-gray-200 transition grid place-items-center"
               title="Joindre un document (OCR)"
             >
@@ -308,9 +250,7 @@ export default function Page() {
               disabled={!speechSupported}
               onClick={toggleMic}
               className={`w-11 h-11 rounded-xl transition grid place-items-center ${
-                listening
-                  ? "bg-red-500 text-white border border-red-400"
-                  : "bg-white text-black hover:bg-gray-200"
+                listening ? "bg-red-500 text-white border border-red-400" : "bg-white text-black hover:bg-gray-200"
               } disabled:opacity-50`}
               title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
             >
@@ -320,12 +260,14 @@ export default function Page() {
         </div>
       </form>
 
+      {/* Tiroir OCR */}
       {showOcr && (
         <div className="w-full max-w-2xl mb-6 animate-[fadeIn_.2s_ease]">
           <OcrUploader onText={setOcrText} onPreview={() => {}} />
         </div>
       )}
 
+      {/* Historique */}
       <div className="w-full max-w-2xl space-y-3">
         {history.map((item, idx) => (
           <div
@@ -348,12 +290,7 @@ export default function Page() {
               </button>
             )}
             <p className="text-xs text-white/50 mt-6">
-              {item.role === "user"
-                ? "Vous"
-                : item.role === "assistant"
-                ? "IA"
-                : "Erreur"}{" "}
-              • {new Date(item.time).toLocaleString()}
+              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} • {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
