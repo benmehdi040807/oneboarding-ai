@@ -16,7 +16,9 @@ function RgpdBanner() {
     }
   }, []);
   const accept = () => {
-    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    try {
+      localStorage.setItem(CONSENT_KEY, "1");
+    } catch {}
     setShow(false);
   };
   if (!show) return null;
@@ -26,9 +28,14 @@ function RgpdBanner() {
         <div className="m-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur p-3 text-sm text-white">
           <p className="mb-2">
             Vos données restent privées sur cet appareil.{" "}
-            <a href="/legal" className="underline">En savoir plus</a>
+            <a href="/legal" className="underline">
+              En savoir plus
+            </a>
           </p>
-          <button onClick={accept} className="px-3 py-2 rounded-xl bg-white text-black font-medium">
+          <button
+            onClick={accept}
+            className="px-3 py-2 rounded-xl bg-white text-black font-medium"
+          >
             D’accord
           </button>
         </div>
@@ -45,7 +52,9 @@ const cleanText = (s: string) =>
   s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try { navigator.clipboard.writeText(text); } catch {}
+  try {
+    navigator.clipboard.writeText(text);
+  } catch {}
 }
 
 /* ===== Page ===== */
@@ -67,7 +76,8 @@ export default function Page() {
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
-      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
+      (typeof window !== "undefined" &&
+        (window as any).webkitSpeechRecognition);
     if (!SR) return;
 
     setSpeechSupported(true);
@@ -106,15 +116,21 @@ export default function Page() {
     if (!r) return;
 
     if (!listening) {
-      try { r.start(); } catch {}
+      try {
+        r.start();
+      } catch {}
       return;
     }
 
     // stop + fallback abort si onend ne vient pas
-    try { r.stop(); } catch {}
+    try {
+      r.stop();
+    } catch {}
     setTimeout(() => {
       if (listening) {
-        try { r.abort?.(); } catch {}
+        try {
+          r.abort?.();
+        } catch {}
         setListening(false);
       }
     }, 800);
@@ -122,10 +138,15 @@ export default function Page() {
 
   // historique
   useEffect(() => {
-    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
+    try {
+      const s = localStorage.getItem("oneboarding.history");
+      if (s) setHistory(JSON.parse(s));
+    } catch {}
   }, []);
   useEffect(() => {
-    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
+    try {
+      localStorage.setItem("oneboarding.history", JSON.stringify(history));
+    } catch {}
   }, [history]);
 
   // envoyer
@@ -136,14 +157,21 @@ export default function Page() {
     if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown =
+      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown)
+      setHistory((h) => [
+        { role: "user", text: userShown, time: now },
+        ...h,
+      ]);
 
     setInput("");
     setLoading(true);
 
     const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+          q || "(aucune)"
+        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -154,12 +182,33 @@ export default function Page() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        setHistory(h => [{ role: "error", text: `Erreur: ${data?.error || `HTTP ${res.status}`}`, time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "error",
+            text: `Erreur: ${data?.error || `HTTP ${res.status}`}`,
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "assistant",
+            text: String(data.text || "Réponse vide."),
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory((h) => [
+        {
+          role: "error",
+          text: `Erreur: ${err?.message || "réseau"}`,
+          time: new Date().toISOString(),
+        },
+        ...h,
+      ]);
     } finally {
       setLoading(false);
     }
@@ -248,8 +297,12 @@ export default function Page() {
             )}
 
             <p className="text-xs text-white/50 mt-6">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
-              {new Date(item.time).toLocaleString()}
+              {item.role === "user"
+                ? "Vous"
+                : item.role === "assistant"
+                ? "IA"
+                : "Erreur"}{" "}
+              • {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
@@ -258,4 +311,4 @@ export default function Page() {
       <RgpdBanner />
     </div>
   );
-}
+              }
