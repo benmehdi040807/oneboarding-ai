@@ -37,15 +37,33 @@ function RgpdBanner() {
   );
 }
 
-/* ===== Types ===== */
+/* ===== Types & utils ===== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-/* ===== Utils ===== */
 const cleanText = (s: string) =>
   s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
   try { navigator.clipboard.writeText(text); } catch {}
+}
+
+/* ===== Icônes SVG (paperclip & mic) ===== */
+function IconClip({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15.5V8.75a4.75 4.75 0 0 0-9.5 0v7a3.25 3.25 0 1 0 6.5 0V9.5" />
+      <path d="M7 12v4.5a5 5 0 0 0 10 0" />
+    </svg>
+  );
+}
+function IconMic({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
+      <path d="M12 19v3" />
+    </svg>
+  );
 }
 
 /* ===== Page ===== */
@@ -70,7 +88,7 @@ export default function Page() {
     const el = taRef.current;
     if (!el) return;
     el.style.height = "0px";
-    el.style.height = Math.min(el.scrollHeight, 140) + "px"; // ~2–3 lignes visibles, max ~6
+    el.style.height = Math.min(el.scrollHeight, 140) + "px"; // ~2–3 lignes, max ~6
   }
 
   useEffect(() => {
@@ -115,17 +133,10 @@ export default function Page() {
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-
-    if (!listening) {
-      try { r.start(); } catch {}
-      return;
-    }
+    if (!listening) { try { r.start(); } catch {} return; }
     try { r.stop(); } catch {}
     setTimeout(() => {
-      if (listening) {
-        try { r.abort?.(); } catch {}
-        setListening(false);
-      }
+      if (listening) { try { r.abort?.(); } catch {} setListening(false); }
     }, 800);
   }
 
@@ -175,60 +186,71 @@ export default function Page() {
     }
   }
 
-  useEffect(() => { autoresize(); }, []); // 1er rendu
+  useEffect(() => { autoresize(); }, []);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
-      {/* ===== Barre élargie (textarea) + OK dehors ===== */}
+      {/* ===== Zone de saisie : barre + boutons dessous (alignés sur la barre) + OK à droite ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
         <div className="flex gap-2 items-stretch">
-          <div className="flex-1 min-w-0 rounded-2xl bg-white text-black px-3 py-2 flex items-start">
-            <textarea
-              ref={taRef}
-              rows={2}
-              placeholder="Votre question…"
-              value={input}
-              onChange={(e) => { setInput(e.target.value); autoresize(); }}
-              className="w-full bg-transparent resize-none outline-none leading-relaxed placeholder:text-black/50"
-              style={{ maxHeight: 140 }}
-            />
+          {/* Colonne BARRE + BOUTONS (sa largeur ne comprend PAS le bouton OK) */}
+          <div className="flex-1 min-w-0">
+            {/* Barre (textarea) */}
+            <div className="rounded-2xl bg-white text-black px-3 py-2">
+              <textarea
+                ref={taRef}
+                rows={2}
+                placeholder="Votre question…"
+                value={input}
+                onChange={(e) => { setInput(e.target.value); autoresize(); }}
+                className="w-full bg-transparent resize-none outline-none leading-relaxed placeholder:text-black/50"
+                style={{ maxHeight: 140 }}
+              />
+            </div>
+
+            {/* Deux boutons fins sous la barre — largeur = largeur barre uniquement */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowOcr(v => !v)}
+                className="w-full px-3 py-1 rounded-xl font-medium border bg-white text-black hover:bg-gray-200 active:translate-y-px transition"
+                title="Joindre un document (OCR)"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <IconClip className="w-5 h-5" />
+                  <span>Joindre</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={!speechSupported}
+                onClick={toggleMic}
+                className={`w-full px-3 py-1 rounded-xl font-medium border transition active:translate-y-px ${
+                  listening
+                    ? "bg-red-500 text-white border-red-400"
+                    : "bg-white text-black hover:bg-gray-200 border-transparent"
+                } disabled:opacity-50`}
+                title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <IconMic className="w-5 h-5" />
+                  <span>{listening ? "Arrêter" : "Parler"}</span>
+                </span>
+              </button>
+            </div>
           </div>
 
-          {/* Bouton OK (à l’extérieur, à droite) */}
+          {/* Bouton OK (extérieur, à droite) */}
           <button
             type="submit"
             disabled={loading}
-            className="shrink-0 bg-white text-black px-4 py-2 rounded-2xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
+            className="shrink-0 bg-white text-black px-4 py-2 rounded-2xl font-medium hover:bg-gray-200 transition disabled:opacity-60 self-start"
+            title="Envoyer"
           >
             {loading ? "…" : "OK"}
-          </button>
-        </div>
-
-        {/* ===== 2 boutons sous la barre, plus fins, largeur totale ===== */}
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setShowOcr(v => !v)}
-            className="w-full px-3 py-2 rounded-xl font-medium border bg-white text-black hover:bg-gray-200"
-            title="Joindre un document (OCR)"
-          >
-            📎 Joindre
-          </button>
-
-          <button
-            type="button"
-            disabled={!speechSupported}
-            onClick={toggleMic}
-            className={`w-full px-3 py-2 rounded-xl font-medium border ${
-              listening
-                ? "bg-red-500 text-white border-red-400"
-                : "bg-white text-black hover:bg-gray-200 border-transparent"
-            } disabled:opacity-50`}
-            title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
-          >
-            {listening ? "⏹ Arrêter" : "🎤 Parler"}
           </button>
         </div>
       </form>
@@ -275,4 +297,4 @@ export default function Page() {
       <RgpdBanner />
     </div>
   );
-}
+      }
