@@ -268,10 +268,10 @@ export default function Page() {
       <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-3">
-        <div className="flex gap-3 items-stretch">
+        <div className="flex gap-2 items-stretch">
           {/* Colonne texte + boutons */}
           <div className="flex-1 min-w-0">
-            <div className="rounded-2xl bg-white text-black px-3 py-2">
+            <div className="flex rounded-2xl overflow-hidden bg-white text-black">
               <textarea
                 ref={taRef}
                 rows={2}
@@ -281,9 +281,17 @@ export default function Page() {
                   setInput(e.target.value);
                   autoresize();
                 }}
-                className="w-full bg-transparent resize-none outline-none leading-relaxed placeholder:text-black/50"
+                className="flex-1 bg-transparent resize-none outline-none leading-relaxed px-3 py-2 placeholder:text-black/50"
                 style={{ maxHeight: 140 }}
               />
+              {/* Bouton OK aligné et même hauteur */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-black text-white px-5 font-bold hover:bg-gray-800 transition disabled:opacity-60"
+              >
+                {loading ? "…" : "OK"}
+              </button>
             </div>
 
             {/* deux boutons sous la barre */}
@@ -291,7 +299,7 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => setShowOcr((v) => !v)}
-                className="w-11 h-11 rounded-2xl bg-white text-black hover:bg-gray-200 transition grid place-items-center"
+                className="w-11 h-11 rounded-xl bg-white text-black hover:bg-gray-200 transition grid place-items-center"
                 title="Joindre un document (OCR)"
               >
                 <IconClip />
@@ -301,7 +309,7 @@ export default function Page() {
                 type="button"
                 disabled={!speechSupported}
                 onClick={toggleMic}
-                className={`w-11 h-11 rounded-2xl transition grid place-items-center ${
+                className={`w-11 h-11 rounded-xl transition grid place-items-center ${
                   listening
                     ? "bg-red-500 text-white border border-red-400"
                     : "bg-white text-black hover:bg-gray-200"
@@ -312,16 +320,6 @@ export default function Page() {
               </button>
             </div>
           </div>
-
-          {/* Bouton OK : plus grand et bien visible */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="shrink-0 bg-white text-black rounded-2xl font-bold hover:bg-gray-200 transition disabled:opacity-60 flex items-center justify-center text-lg"
-            style={{ minWidth: "5.5rem", height: "4.5rem" }}
-          >
-            {loading ? "…" : "OK"}
-          </button>
         </div>
       </form>
 
