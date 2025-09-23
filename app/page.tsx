@@ -2,6 +2,7 @@
 export const runtime = "nodejs";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 
 /* =================== Bandeau RGPD =================== */
@@ -169,7 +170,17 @@ export default function Page() {
     <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
-      <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
+      {/* ===== Logo centré (remplace l'ancien titre) ===== */}
+      <div className="mb-6 flex justify-center">
+        <Image
+          src="/brand/oneboardingai-logo.png"
+          alt="OneBoarding AI"
+          width={128}
+          height={128}
+          priority
+          className="h-24 w-24 md:h-28 md:w-28"
+        />
+      </div>
 
       {/* ===== Barre : input + OK (fusion + séparateur fin) ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2">
@@ -369,10 +380,7 @@ function StyleGlobals() {
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
       /* ====== Skin OCR ====== */
-      /* couleur de tout le texte OCR (ex: “Reconnaissance…”, “Terminé”, “Retirer”) */
       .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
-
-      /* masque le file input natif + ses libellés */
       .ocr-skin input[type="file"]{
         position: absolute !important;
         inset: auto !important;
@@ -385,19 +393,14 @@ function StyleGlobals() {
       }
       .ocr-skin input[type="file"]::file-selector-button { display: none !important; }
       .ocr-skin input[type="file"]::-webkit-file-upload-button { display: none !important; }
-      /* cache les petits libellés style “Aucun fichier choisi” souvent rendus en span/small */
       .ocr-skin input[type="file"] + * { display: none !important; }
       .ocr-skin input[type="file"] ~ span { display: none !important; }
       .ocr-skin input[type="file"] ~ small { display: none !important; }
-
-      /* cache l’overlay du NOM DE FICHIER dans l’en-tête de preview (souvent .truncate / *name*) */
       .ocr-skin .truncate,
       .ocr-skin [class*="file-name"],
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] {
-        display: none !important;
-      }
+      .ocr-skin [class*="name"] { display: none !important; }
     `}</style>
   );
-                                }
+}
