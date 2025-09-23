@@ -71,7 +71,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const text = data?.choices?.[0]?.message?.content?.trim() || "(réponse vide)";
+    const text =
+      data?.choices?.[0]?.message?.content?.trim() || "(réponse vide)";
     return json({ ok: true, text, from: "GET test", provider: "GROQ" });
   } catch (e: any) {
     return json({ ok: false, error: e?.message || "Server error" }, 500);
@@ -87,10 +88,7 @@ export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
     const raw = typeof prompt === "string" ? prompt.trim() : "";
-
-    if (!raw) {
-      return json({ ok: false, error: "Missing prompt" }, 400);
-    }
+    if (!raw) return json({ ok: false, error: "Missing prompt" }, 400);
 
     // ---------- 1) Court-circuit : questions sur le créateur ----------
     if (isCreatorQuestion(raw)) {
@@ -131,13 +129,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ---------- 3) Fallback + sanitation finale ----------
+    // Fallback plus cohérent : évite l’effet “échec de génération”.
     let text: string =
       data?.choices?.[0]?.message?.content?.trim() ||
-      "Désolé, je n’ai rien pu générer.";
+      "Désolé, je n’ai pas le droit de vous fournir plus d’informations à ce sujet.";
 
-    // ---------- 3) Sanitation finale (par sécurité) ----------
     // Retire toute mention indésirable (métiers/titres/entités pro).
-    // On reste volontairement “soft” pour ne pas abîmer le sens.
     text = text
       .replace(/\b(Office\s+Benmehdi)\b/gi, "")
       .replace(/\b(avocat|lawyer|docteur|doctorat|ph\.?d|phd|mba)\b/gi, "");
