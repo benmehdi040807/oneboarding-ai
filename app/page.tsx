@@ -145,10 +145,10 @@ export default function Page() {
         }
         setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toLocaleString() }, ...h]);
+        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toLocaleString() }, ...h]);
+      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
     } finally {
       setLoading(false);
     }
@@ -167,16 +167,18 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo ===== */}
-      <div className="mt-2 mb-2 flex justify-center">
-        <Image
-          src="/brand/oneboardingai-logo.png"
-          alt="OneBoarding AI"
-          width={288}
-          height={288}
-          priority
-          className="h-44 w-44 md:h-56 md:w-56 drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
-        />
+      {/* ===== Logo recadré (pictogramme uniquement) ===== */}
+      <div className="mb-1 flex justify-center">
+        {/* conteneur: carré, overflow hidden */}
+        <div className="relative h-36 w-36 md:h-48 md:w-48 overflow-hidden">
+          <Image
+            src="/brand/oneboardingai-logo.png"
+            alt="OneBoarding AI — logomark"
+            fill
+            priority
+            className="object-contain -translate-y-6 md:-translate-y-8 drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
+          />
+        </div>
       </div>
 
       {/* ===== Titre gradient ===== */}
