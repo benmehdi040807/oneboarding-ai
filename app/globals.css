@@ -2,10 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { background:#000; color:#fff; overflow-x:hidden; }
+/* === Fond dégradé officiel OneBoarding AI === */
+html, body {
+  background: linear-gradient(to bottom, #B3E5FC, #E0F7FA);
+  color: #fff;
+  overflow-x: hidden;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
 
+/* === Animation fade-in === */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-in { animation: fadeIn 280ms ease-out; }
+.fade-in {
+  animation: fadeIn 280ms ease-out;
+}
