@@ -17,7 +17,9 @@ function RgpdBanner() {
     }
   }, []);
   const accept = () => {
-    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    try {
+      localStorage.setItem(CONSENT_KEY, "1");
+    } catch {}
     setShow(false);
   };
   if (!show) return null;
@@ -27,7 +29,9 @@ function RgpdBanner() {
         <div className="m-3 rounded-2xl border bg-[var(--chip-bg)] border-[var(--border)] backdrop-blur p-3 text-sm text-[var(--fg)]">
           <p className="mb-2">
             Vos données restent privées sur cet appareil.{" "}
-            <a href="/legal" className="underline">En savoir plus</a>
+            <a href="/legal" className="underline">
+              En savoir plus
+            </a>
           </p>
           <button
             onClick={accept}
@@ -42,13 +46,19 @@ function RgpdBanner() {
 }
 
 /* =================== Types & utils =================== */
-type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
+type Item = {
+  role: "user" | "assistant" | "error";
+  text: string;
+  time: string;
+};
 
 const cleanText = (s: string) =>
   s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try { navigator.clipboard.writeText(text); } catch {}
+  try {
+    navigator.clipboard.writeText(text);
+  } catch {}
 }
 
 /* =================== Page =================== */
@@ -71,7 +81,8 @@ export default function Page() {
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
-      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
+      (typeof window !== "undefined" &&
+        (window as any).webkitSpeechRecognition);
     if (!SR) return;
 
     setSpeechSupported(true);
@@ -81,14 +92,22 @@ export default function Page() {
     r.interimResults = false;
     r.maxAlternatives = 1;
 
-    r.onstart = () => { baseInputRef.current = input; setListening(true); };
+    r.onstart = () => {
+      baseInputRef.current = input;
+      setListening(true);
+    };
     r.onresult = (e: any) => {
       let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
+      for (let i = e.resultIndex; i < e.results.length; i++)
+        final += " " + e.results[i][0].transcript;
       setInput(cleanText([baseInputRef.current, final].join(" ")));
     };
     const stopUI = () => setListening(false);
-    r.onend = stopUI; r.onspeechend = stopUI; r.onaudioend = stopUI; r.onnomatch = stopUI; r.onerror = stopUI;
+    r.onend = stopUI;
+    r.onspeechend = stopUI;
+    r.onaudioend = stopUI;
+    r.onnomatch = stopUI;
+    r.onerror = stopUI;
 
     recogRef.current = r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,19 +116,43 @@ export default function Page() {
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-    if (!listening) { try { r.start(); } catch {} return; }
-    try { r.stop(); } catch {}
-    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 600);
+    if (!listening) {
+      try {
+        r.start();
+      } catch {}
+      return;
+    }
+    try {
+      r.stop();
+    } catch {}
+    setTimeout(() => {
+      if (listening) {
+        try {
+          r.abort?.();
+        } catch {}
+        setListening(false);
+      }
+    }, 600);
   }
 
   // historique persist
-  useEffect(() => { try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {} }, []);
-  useEffect(() => { try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {} }, [history]);
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("oneboarding.history");
+      if (s) setHistory(JSON.parse(s));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("oneboarding.history", JSON.stringify(history));
+    } catch {}
+  }, [history]);
 
   // Auto-scroll vers le haut à la fin de génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
-    if (prevLoadingRef.current && !loading) window.scrollTo({ top: 0, behavior: "smooth" });
+    if (prevLoadingRef.current && !loading)
+      window.scrollTo({ top: 0, behavior: "smooth" });
     prevLoadingRef.current = loading;
   }, [loading]);
 
@@ -120,14 +163,21 @@ export default function Page() {
     if ((!q && !hasOcr) || loading) return;
 
     const now = new Date().toISOString();
-    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown =
+      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown)
+      setHistory((h) => [
+        { role: "user", text: userShown, time: now },
+        ...h,
+      ]);
 
     setInput("");
     setLoading(true);
 
     const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+          q || "(aucune)"
+        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -141,14 +191,32 @@ export default function Page() {
         const raw = String(data?.error || `HTTP ${res.status}`);
         let msg = `Erreur: ${raw}`;
         if (raw.includes("GROQ_API_KEY")) {
-          msg = "Service temporairement indisponible. (Configuration serveur requise)";
+          msg =
+            "Service temporairement indisponible. (Configuration serveur requise)";
         }
-        setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          { role: "error", text: msg, time: new Date().toISOString() },
+          ...h,
+        ]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "assistant",
+            text: String(data.text || "Réponse vide."),
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory((h) => [
+        {
+          role: "error",
+          text: `Erreur: ${err?.message || "réseau"}`,
+          time: new Date().toISOString(),
+        },
+        ...h,
+      ]);
     } finally {
       setLoading(false);
     }
@@ -158,13 +226,16 @@ export default function Page() {
   function triggerHiddenFileInput() {
     const container = ocrContainerRef.current;
     if (!container) return;
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement | null;
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement | null;
     input?.click();
   }
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] dawn-bg flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
+      <div className="halo" aria-hidden />
 
       {/* ===== Logo centré (halo doux) ===== */}
       <div className="mb-6 flex justify-center">
@@ -202,13 +273,21 @@ export default function Page() {
         <div className="mt-3 flex gap-3">
           <button
             type="button"
-            onClick={() => setShowOcr(v => !v)}
+            onClick={() => setShowOcr((v) => !v)}
             className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
             title="Joindre un document (OCR)"
             aria-label="Joindre un document"
           >
-            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78"/>
+            <svg
+              className="h-6 w-6 text-[var(--fg)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
             </svg>
           </button>
 
@@ -217,14 +296,30 @@ export default function Page() {
             disabled={!speechSupported}
             onClick={toggleMic}
             className={`h-12 w-12 rounded-xl border grid place-items-center transition
-              ${listening
-                ? "border-[var(--accent)] bg-[color:var(--accent-tint)] mic-pulse"
-                : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"}
+              ${
+                listening
+                  ? "border-[var(--accent)] bg-[color:var(--accent-tint)] mic-pulse"
+                  : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"
+              }
               disabled:opacity-50`}
-            aria-label={speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"}
+            aria-label={
+              speechSupported
+                ? listening
+                  ? "Arrêter le micro"
+                  : "Parler"
+                : "Micro non supporté"
+            }
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
           >
-            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="h-6 w-6 text-[var(--fg)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
               <path d="M19 10.5a7 7 0 01-14 0" />
               <path d="M12 21v-3" />
@@ -235,7 +330,10 @@ export default function Page() {
 
       {/* Tiroir OCR */}
       {showOcr && (
-        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[1]">
+        <div
+          ref={ocrContainerRef}
+          className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[1]"
+        >
           <div className="mb-3 flex gap-2">
             <button
               type="button"
@@ -254,9 +352,17 @@ export default function Page() {
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]">
-              <span className="typing-dots" aria-live="polite" aria-label="L’IA écrit">•••</span>
+              <span
+                className="typing-dots"
+                aria-live="polite"
+                aria-label="L’IA écrit"
+              >
+                •••
+              </span>
             </p>
-            <p className="text-xs opacity-70 mt-4">IA • {new Date().toLocaleString()}</p>
+            <p className="text-xs opacity-70 mt-4">
+              IA • {new Date().toLocaleString()}
+            </p>
           </div>
         )}
 
@@ -264,11 +370,12 @@ export default function Page() {
           <div
             key={idx}
             className={`msg-appear rounded-xl border p-3 relative
-              ${item.role === "user"
-                ? "border-[var(--border)] bg-[var(--user-bg)]"
-                : item.role === "assistant"
-                ? "border-[var(--assistant-border)] bg-[var(--assistant-bg)]"
-                : "border-[var(--error-border)] bg-[var(--error-bg)]"
+              ${
+                item.role === "user"
+                  ? "border-[var(--border)] bg-[var(--user-bg)]"
+                  : item.role === "assistant"
+                  ? "border-[var(--assistant-border)] bg-[var(--assistant-bg)]"
+                  : "border-[var(--error-border)] bg-[var(--error-bg)]"
               }`}
           >
             <p className="whitespace-pre-wrap">{item.text}</p>
@@ -283,8 +390,12 @@ export default function Page() {
             )}
 
             <p className="text-xs opacity-70 mt-6">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
-              {new Date(item.time).toLocaleString()}
+              {item.role === "user"
+                ? "Vous"
+                : item.role === "assistant"
+                ? "IA"
+                : "Erreur"}{" "}
+              • {new Date(item.time).toLocaleString()}
             </p>
           </div>
         ))}
@@ -295,91 +406,89 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (thème aube + OCR + animations) =================== */
+/* =================== Styles globaux (dégradé aube + halo + animations) =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      /* Plein écran partout, sans forcer une couleur (laisse voir le dégradé) */
-      html, body, #__next {
-        background: transparent !important;
-        color: var(--fg);
+      html,
+      body,
+      #__next {
         min-height: 100dvh;
         width: 100%;
-        margin: 0; padding: 0;
+        margin: 0;
+        padding: 0;
+        color: var(--fg);
+        background: linear-gradient(180deg, #b3e5fc 0%, #e0f7fa 100%) fixed !important;
       }
 
-      /* ===== Thème "Aube" (clair, premium) ===== */
-      :root{
-        --fg:#0B1B2B;              /* texte principal : bleu nuit profond pour lisibilité */
-        --panel:rgba(12,16,28,0.86);         /* barre de saisie sombre */
-        --panel-strong:rgba(12,16,28,0.92);
-        --panel-stronger:rgba(12,16,28,0.98);
-        --user-bg:rgba(255,255,255,0.55);
-        --assistant-bg:rgba(255,255,255,0.38);
-        --assistant-border:rgba(11,27,43,0.18);
-        --error-bg:rgba(220,38,38,0.10);
-        --error-border:rgba(220,38,38,0.35);
-        --chip-bg:rgba(255,255,255,0.60);
-        --chip-hover:rgba(255,255,255,0.78);
-        --border:rgba(11,27,43,0.12);
-        --accent:#22d3ee;          /* cyan */
-        --accent-tint:rgba(34,211,238,0.18);
+      :root {
+        --fg: #0b1b2b;
+        --panel: rgba(12, 16, 28, 0.86);
+        --panel-strong: rgba(12, 16, 28, 0.92);
+        --panel-stronger: rgba(12, 16, 28, 0.98);
+        --user-bg: rgba(255, 255, 255, 0.55);
+        --assistant-bg: rgba(255, 255, 255, 0.38);
+        --assistant-border: rgba(11, 27, 43, 0.18);
+        --error-bg: rgba(220, 38, 38, 0.1);
+        --error-border: rgba(220, 38, 38, 0.35);
+        --chip-bg: rgba(255, 255, 255, 0.6);
+        --chip-hover: rgba(255, 255, 255, 0.78);
+        --border: rgba(11, 27, 43, 0.12);
+        --accent: #22d3ee;
+        --accent-tint: rgba(34, 211, 238, 0.18);
       }
 
-      /* Fond dégradé ciel à l’aube + halo doux sous le logo */
-      .dawn-bg{ position: relative; }
-      .dawn-bg::before{
-        content:"";
-        position: fixed;
-        inset: 0;
-        z-index: -2;
-        background: linear-gradient(180deg, #B3E5FC 0%, #E0F7FA 100%);
-      }
-      .dawn-bg::after{
-        content:"";
+      /* Halo centré */
+      .halo {
         position: fixed;
         left: 50%;
         top: 110px;
-        transform: translateX(-50%);
-        width: 440px; height: 440px;
-        z-index: -1;
+        transform: translateX(-50%) translateZ(0);
+        width: 36rem;
+        height: 36rem;
+        z-index: 0;
         pointer-events: none;
-        background: radial-gradient(closest-side, rgba(56,189,248,0.35), rgba(56,189,248,0));
-        filter: blur(28px);
+        background: radial-gradient(
+          closest-side,
+          rgba(56, 189, 248, 0.3),
+          rgba(56, 189, 248, 0)
+        );
+      }
+      body > * {
+        position: relative;
+        z-index: 1;
       }
 
-      /* Apparition des messages */
-      @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
-      .msg-appear { animation: fadeUp .28s ease-out both; }
-      .animate-fadeUp { animation: fadeUp .28s ease-out both; }
-
-      /* Indicateur ( … ) */
-      @keyframes dots { 0%{opacity:.2;} 20%{opacity:1;} 100%{opacity:.2;} }
-      .typing-dots { letter-spacing:.25em; display:inline-block; animation:dots 1.2s ease-in-out infinite; }
-
-      /* Pulsation micro */
-      @keyframes micPulse {
-        0%   { box-shadow:0 0 0 0 rgba(34,211,238,0.25); transform:scale(1); }
-        70%  { box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
-        100% { box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
       }
-      .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
-
-      /* ====== Skin OCR ====== */
-      .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
-      .ocr-skin input[type="file"]{
-        position:absolute !important; inset:auto !important; left:-10000px !important;
-        width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; display:none !important;
+      .msg-appear {
+        animation: fadeUp 0.28s ease-out both;
       }
-      .ocr-skin input[type="file"]::file-selector-button,
-      .ocr-skin input[type="file"] + *,
-      .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small { display:none !important; }
-      .ocr-skin .truncate,
-      .ocr-skin [class*="file-name"],
-      .ocr-skin [class*="filename"],
-      .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] { display:none !important; }
-    `}</style>
-  );
-}
+      .animate-fadeUp {
+        animation: fadeUp 0.28s ease-out both;
+      }
+
+      @keyframes dots {
+        0% {
+          opacity: 0.2;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.2;
+        }
+      }
+      .typing-dots {
+        letter-spacing: 0.25em;
+        display: inline-block;
+        animation: dots 1.2s ease-in-out infinite;
+        }
