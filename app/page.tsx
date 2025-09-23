@@ -31,7 +31,7 @@ function RgpdBanner() {
           </p>
           <button
             onClick={accept}
-            className="px-3 py-2 rounded-xl bg-[var(--fg)] text-[var(--bg)] font-medium"
+            className="px-3 py-2 rounded-xl bg-[var(--fg)] text-white font-medium"
           >
             D’accord
           </button>
@@ -163,10 +163,10 @@ export default function Page() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] space-bg flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] dawn-bg flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
-      {/* ===== Logo centré (agrandi + halo) ===== */}
+      {/* ===== Logo centré (halo doux) ===== */}
       <div className="mb-6 flex justify-center">
         <Image
           src="/brand/oneboardingai-logo.png"
@@ -174,25 +174,25 @@ export default function Page() {
           width={288}
           height={288}
           priority
-          className="h-44 w-44 md:h-56 md:w-56 drop-shadow-[0_0_40px_rgba(56,189,248,0.45)]"
+          className="h-44 w-44 md:h-56 md:w-56 drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
         />
       </div>
 
       {/* ===== Barre : input + OK ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
-        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.35)] rounded-2xl overflow-hidden border border-[var(--border)]">
+        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <input
             type="text"
             placeholder="Votre question…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 min-w-0 px-4 py-3 text-[var(--fg)] bg-[var(--panel)] outline-none"
+            className="flex-1 min-w-0 px-4 py-3 text-white bg-[var(--panel)] outline-none"
           />
           <div className="w-px bg-[var(--border)]" aria-hidden />
           <button
             type="submit"
             disabled={loading}
-            className="px-5 md:px-6 font-medium bg-[var(--panel-strong)] text-[var(--fg)] hover:bg-[var(--panel-stronger)] transition disabled:opacity-60"
+            className="px-5 md:px-6 font-medium bg-[var(--panel-strong)] text-white hover:bg-[var(--panel-stronger)] transition disabled:opacity-60"
           >
             {loading ? "…" : "OK"}
           </button>
@@ -295,59 +295,58 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (thème + OCR + animations) =================== */
+/* =================== Styles globaux (thème aube + OCR + animations) =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      /* Plein écran partout */
+      /* Plein écran partout, sans forcer une couleur (laisse voir le dégradé) */
       html, body, #__next {
-        background: var(--bg) !important;
+        background: transparent !important;
         color: var(--fg);
         min-height: 100dvh;
         width: 100%;
         margin: 0; padding: 0;
       }
 
-      /* ===== Thème "Espace" uniforme (premium) ===== */
+      /* ===== Thème "Aube" (clair, premium) ===== */
       :root{
-        --bg:#0a0d18;              /* bleu nuit uniforme */
-        --fg:#ffffff;
-        --panel:#0f1426;
-        --panel-strong:#121a2c;
-        --panel-stronger:#16203a;
-        --user-bg:rgba(255,255,255,0.05);
-        --assistant-bg:rgba(34,211,238,0.18);
-        --assistant-border:rgba(34,211,238,0.35);
-        --error-bg:rgba(220,38,38,0.12);
-        --error-border:rgba(248,113,113,0.35);
-        --chip-bg:rgba(255,255,255,0.08);
-        --chip-hover:rgba(255,255,255,0.12);
-        --border:rgba(255,255,255,0.12);
+        --fg:#0B1B2B;              /* texte principal : bleu nuit profond pour lisibilité */
+        --panel:rgba(12,16,28,0.86);         /* barre de saisie sombre */
+        --panel-strong:rgba(12,16,28,0.92);
+        --panel-stronger:rgba(12,16,28,0.98);
+        --user-bg:rgba(255,255,255,0.55);
+        --assistant-bg:rgba(255,255,255,0.38);
+        --assistant-border:rgba(11,27,43,0.18);
+        --error-bg:rgba(220,38,38,0.10);
+        --error-border:rgba(220,38,38,0.35);
+        --chip-bg:rgba(255,255,255,0.60);
+        --chip-hover:rgba(255,255,255,0.78);
+        --border:rgba(11,27,43,0.12);
         --accent:#22d3ee;          /* cyan */
-        --accent-tint:rgba(34,211,238,0.14);
+        --accent-tint:rgba(34,211,238,0.18);
       }
 
-      /* Conteneur: fond uni + aura cosmique subtile
-         -> pseudo-élément flouté pour éviter tout "découpage" */
-      .space-bg{
-        position: relative;
-        background: var(--bg);
-      }
-      .space-bg::before{
+      /* Fond dégradé ciel à l’aube + halo doux sous le logo */
+      .dawn-bg{ position: relative; }
+      .dawn-bg::before{
         content:"";
-        position: fixed;           /* couvre tout l'écran, même en scroll */
-        inset: -25%;
-        pointer-events: none;
-        z-index: 0;
-        background:
-          radial-gradient(closest-side at 50% 18%,
-            rgba(56,189,248,0.10) 0%,
-            rgba(56,189,248,0.06) 28%,
-            rgba(56,189,248,0.00) 60%);
-        filter: blur(22px);
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        background: linear-gradient(180deg, #B3E5FC 0%, #E0F7FA 100%);
       }
-      /* assure que le contenu passe au-dessus de l'aura */
-      .space-bg > * { position: relative; z-index: 1; }
+      .dawn-bg::after{
+        content:"";
+        position: fixed;
+        left: 50%;
+        top: 110px;
+        transform: translateX(-50%);
+        width: 440px; height: 440px;
+        z-index: -1;
+        pointer-events: none;
+        background: radial-gradient(closest-side, rgba(56,189,248,0.35), rgba(56,189,248,0));
+        filter: blur(28px);
+      }
 
       /* Apparition des messages */
       @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
@@ -383,4 +382,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-              }
+}
