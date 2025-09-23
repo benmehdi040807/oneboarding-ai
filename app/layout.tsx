@@ -1,4 +1,4 @@
-export const runtime = 'nodejs';  // ✅ Force Node.js, enlève le warning Edge
+export const runtime = "nodejs"; // ✅ Force Node.js
 
 import "./globals.css";
 
@@ -17,11 +17,13 @@ export default function RootLayout({
       <head>
         {/* Crucial pour le mobile */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
+        {/* Harmonise la barre d'adresse mobile avec le haut du dégradé */}
+        <meta name="theme-color" content="#B3E5FC" />
       </head>
-      <body className="bg-black text-white overflow-x-hidden">
-        {/* Conteneur central : largeur max smartphone */}
-        <div className="mx-auto w-full max-w-xl px-4">
+      {/* IMPORTANT : pas de fond sombre ici */}
+      <body className="bg-transparent text-white overflow-x-hidden min-h-dvh antialiased">
+        {/* Conteneur central (transparent) */}
+        <div className="mx-auto w-full max-w-xl px-4 min-h-dvh bg-transparent">
           {children}
         </div>
       </body>
