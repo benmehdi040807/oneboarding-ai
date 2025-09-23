@@ -62,7 +62,7 @@ export default function Page() {
   const [ocrText, setOcrText] = useState("");
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // 🎙️ Micro (final only) — discret
+  // 🎙️ Micro (final only)
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
@@ -167,7 +167,7 @@ export default function Page() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] space-bg flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
       {/* ===== Logo centré (remplace l'ancien titre) ===== */}
@@ -175,16 +175,16 @@ export default function Page() {
         <Image
           src="/brand/oneboardingai-logo.png"
           alt="OneBoarding AI"
-          width={128}
-          height={128}
+          width={176}
+          height={176}
           priority
-          className="h-24 w-24 md:h-28 md:w-28"
+          className="h-28 w-28 md:h-32 md:w-32 drop-shadow-xl"
         />
       </div>
 
-      {/* ===== Barre : input + OK (fusion + séparateur fin) ===== */}
+      {/* ===== Barre : input + OK ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2">
-        <div className="flex items-stretch shadow-[0_4px_20px_rgba(0,0,0,0.10)] rounded-2xl overflow-hidden border border-[var(--border)]">
+        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.35)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <input
             type="text"
             placeholder="Votre question…"
@@ -237,7 +237,7 @@ export default function Page() {
         </div>
       </form>
 
-      {/* Tiroir OCR — input natif totalement masqué + bouton uniforme déclencheur */}
+      {/* Tiroir OCR */}
       {showOcr && (
         <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin">
           <div className="mb-3 flex gap-2">
@@ -246,14 +246,13 @@ export default function Page() {
               onClick={triggerHiddenFileInput}
               className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium"
             >
-              {/* Libellé figé, valable avant/après */}
               Charger 1 fichier
             </button>
           </div>
 
           <OcrUploader
             onText={(t) => { setOcrText(t); }}
-            onPreview={() => { /* on garde pour plus tard si besoin */ }}
+            onPreview={() => { /* réservé */ }}
           />
         </div>
       )}
@@ -308,7 +307,7 @@ export default function Page() {
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      /* Plein écran partout (supprime toute bande noire) */
+      /* Plein écran partout */
       html, body, #__next {
         background: var(--bg) !important;
         color: var(--fg);
@@ -318,41 +317,32 @@ function StyleGlobals() {
         padding: 0;
       }
 
+      /* ===== Thème "Espace" (full dark) ===== */
       :root{
-        --bg:#000;               /* fond app (dark) */
-        --fg:#fff;               /* texte primaire */
-        --panel:#0b0b0b;         /* zone saisie */
-        --panel-strong:#121212;  /* bouton OK */
-        --panel-stronger:#171717;
-        --user-bg:rgba(255,255,255,0.04);
-        --assistant-bg:rgba(16, 94, 77, 0.25);
-        --assistant-border:rgba(80, 255, 200, 0.25);
-        --error-bg:rgba(220, 38, 38, 0.10);
-        --error-border:rgba(248, 113, 113, 0.35);
-        --chip-bg:rgba(255,255,255,0.06);
-        --chip-hover:rgba(255,255,255,0.10);
-        --border:rgba(255,255,255,0.14);
-        --accent:#34d399;
-        --accent-tint:rgba(52,211,153,0.12);
+        --bg:#0b1020;              /* bleu nuit */
+        --fg:#ffffff;              /* texte primaire */
+        --panel:#0f1426;           /* zone saisie */
+        --panel-strong:#121a2c;    /* bouton OK */
+        --panel-stronger:#16203a;
+        --user-bg:rgba(255,255,255,0.05);
+        --assistant-bg:rgba(34,211,238,0.18); /* cyan doux */
+        --assistant-border:rgba(34,211,238,0.35);
+        --error-bg:rgba(220, 38, 38, 0.12);
+        --error-border:rgba(248,113,113,0.35);
+        --chip-bg:rgba(255,255,255,0.08);
+        --chip-hover:rgba(255,255,255,0.12);
+        --border:rgba(255,255,255,0.12);
+        --accent:#22d3ee;          /* cyan */
+        --accent-tint:rgba(34,211,238,0.14);
       }
-      @media (prefers-color-scheme: light){
-        :root{
-          --bg:#f3f4f6;          /* gris clair plein écran */
-          --fg:#0e0e0e;
-          --panel:#ffffff;
-          --panel-strong:#f3f3f3;
-          --panel-stronger:#ededed;
-          --user-bg:#ffffff;
-          --assistant-bg:#e9fbf6;
-          --assistant-border:#b5f3e3;
-          --error-bg:#fdecec;
-          --error-border:#f7bcbc;
-          --chip-bg:#ffffff;
-          --chip-hover:#f5f5f5;
-          --border:rgba(0,0,0,0.12);
-          --accent:#0ea5e9;
-          --accent-tint:rgba(14,165,233,0.12);
-        }
+      /* on SUPPRIME le thème clair: pas de @media light */
+
+      /* Fond "espace" (dégradés radiaux subtils) */
+      .space-bg{
+        background:
+          radial-gradient(120% 120% at 30% 10%, rgba(34,211,238,0.10) 0%, rgba(34,211,238,0.04) 28%, transparent 48%),
+          radial-gradient(100% 100% at 70% 15%, rgba(16,185,129,0.10) 0%, rgba(16,185,129,0.04) 30%, transparent 55%),
+          var(--bg);
       }
 
       /* Apparition des messages */
@@ -363,7 +353,7 @@ function StyleGlobals() {
       .msg-appear { animation: fadeUp .28s ease-out both; }
       .animate-fadeUp { animation: fadeUp .28s ease-out both; }
 
-      /* Indicateur de saisie (… respirent) */
+      /* Indicateur ( … ) */
       @keyframes dots {
         0% { opacity: .2; }
         20% { opacity: 1; }
@@ -371,11 +361,11 @@ function StyleGlobals() {
       }
       .typing-dots { letter-spacing: .25em; display: inline-block; animation: dots 1.2s ease-in-out infinite; }
 
-      /* Pulsation douce du micro actif (non intrusive) */
+      /* Pulsation micro */
       @keyframes micPulse {
-        0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.25); transform: scale(1); }
-        70%  { box-shadow: 0 0 0 10px rgba(52,211,153,0); transform: scale(1.02); }
-        100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); transform: scale(1); }
+        0%   { box-shadow: 0 0 0 0 rgba(34,211,238,0.25); transform: scale(1); }
+        70%  { box-shadow: 0 0 0 10px rgba(34,211,238,0); transform: scale(1.02); }
+        100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); transform: scale(1); }
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
@@ -393,8 +383,8 @@ function StyleGlobals() {
       }
       .ocr-skin input[type="file"]::file-selector-button { display: none !important; }
       .ocr-skin input[type="file"]::-webkit-file-upload-button { display: none !important; }
-      .ocr-skin input[type="file"] + * { display: none !important; }
-      .ocr-skin input[type="file"] ~ span { display: none !important; }
+      .ocr-skin input[type="file"] + *,
+      .ocr-skin input[type="file"] ~ span,
       .ocr-skin input[type="file"] ~ small { display: none !important; }
       .ocr-skin .truncate,
       .ocr-skin [class*="file-name"],
