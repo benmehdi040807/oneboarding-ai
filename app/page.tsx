@@ -81,10 +81,7 @@ export default function Page() {
     r.interimResults = false;
     r.maxAlternatives = 1;
 
-    r.onstart = () => {
-      baseInputRef.current = input;
-      setListening(true);
-    };
+    r.onstart = () => { baseInputRef.current = input; setListening(true); };
     r.onresult = (e: any) => {
       let final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
@@ -145,7 +142,6 @@ export default function Page() {
         let msg = `Erreur: ${raw}`;
         if (raw.includes("GROQ_API_KEY")) {
           msg = "Service temporairement indisponible. (Configuration serveur requise)";
-          console.warn("Tip dev : définis GROQ_API_KEY dans Vercel → Project → Settings → Environment Variables (et redeploy).");
         }
         setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
@@ -170,15 +166,15 @@ export default function Page() {
     <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] space-bg flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
-      {/* ===== Logo centré (remplace l'ancien titre) ===== */}
+      {/* ===== Logo centré (plus grand + halo) ===== */}
       <div className="mb-6 flex justify-center">
         <Image
           src="/brand/oneboardingai-logo.png"
           alt="OneBoarding AI"
-          width={176}
-          height={176}
+          width={256}
+          height={256}
           priority
-          className="h-28 w-28 md:h-32 md:w-32 drop-shadow-xl"
+          className="h-40 w-40 md:h-48 md:w-48 drop-shadow-[0_0_26px_rgba(34,211,238,0.35)]"
         />
       </div>
 
@@ -249,11 +245,7 @@ export default function Page() {
               Charger 1 fichier
             </button>
           </div>
-
-          <OcrUploader
-            onText={(t) => { setOcrText(t); }}
-            onPreview={() => { /* réservé */ }}
-          />
+          <OcrUploader onText={(t) => setOcrText(t)} onPreview={() => {}} />
         </div>
       )}
 
@@ -313,8 +305,7 @@ function StyleGlobals() {
         color: var(--fg);
         min-height: 100dvh;
         width: 100%;
-        margin: 0;
-        padding: 0;
+        margin: 0; padding: 0;
       }
 
       /* ===== Thème "Espace" (full dark) ===== */
@@ -325,7 +316,7 @@ function StyleGlobals() {
         --panel-strong:#121a2c;    /* bouton OK */
         --panel-stronger:#16203a;
         --user-bg:rgba(255,255,255,0.05);
-        --assistant-bg:rgba(34,211,238,0.18); /* cyan doux */
+        --assistant-bg:rgba(34,211,238,0.18);
         --assistant-border:rgba(34,211,238,0.35);
         --error-bg:rgba(220, 38, 38, 0.12);
         --error-border:rgba(248,113,113,0.35);
@@ -335,62 +326,57 @@ function StyleGlobals() {
         --accent:#22d3ee;          /* cyan */
         --accent-tint:rgba(34,211,238,0.14);
       }
-      /* on SUPPRIME le thème clair: pas de @media light */
+      /* pas de thème clair */
 
-      /* Fond "espace" (dégradés radiaux subtils) */
+      /* Fond "espace" : dégradés radiaux + légère dérive */
       .space-bg{
         background:
-          radial-gradient(120% 120% at 30% 10%, rgba(34,211,238,0.10) 0%, rgba(34,211,238,0.04) 28%, transparent 48%),
-          radial-gradient(100% 100% at 70% 15%, rgba(16,185,129,0.10) 0%, rgba(16,185,129,0.04) 30%, transparent 55%),
+          radial-gradient(120% 120% at 22% 0%, rgba(34,211,238,0.12) 0%, rgba(34,211,238,0.05) 30%, transparent 60%),
+          radial-gradient(110% 110% at 80% -10%, rgba(99,102,241,0.14) 0%, rgba(99,102,241,0.05) 28%, transparent 60%),
+          radial-gradient(100% 120% at 50% 120%, rgba(16,185,129,0.10) 0%, rgba(16,185,129,0.04) 40%, transparent 70%),
           var(--bg);
+        background-attachment: fixed;
+        background-size: 160% 160%, 160% 160%, 160% 160%, auto;
+        animation: spaceDrift 48s ease-in-out infinite;
+      }
+      @keyframes spaceDrift{
+        0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
+        50%  { background-position: 10% 5%, 95% 8%, 48% 96%, 0 0; }
+        100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
       }
 
       /* Apparition des messages */
-      @keyframes fadeUp {
-        from { opacity:0; transform: translateY(6px); }
-        to   { opacity:1; transform: translateY(0); }
-      }
+      @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
       .msg-appear { animation: fadeUp .28s ease-out both; }
       .animate-fadeUp { animation: fadeUp .28s ease-out both; }
 
       /* Indicateur ( … ) */
-      @keyframes dots {
-        0% { opacity: .2; }
-        20% { opacity: 1; }
-        100% { opacity: .2; }
-      }
-      .typing-dots { letter-spacing: .25em; display: inline-block; animation: dots 1.2s ease-in-out infinite; }
+      @keyframes dots { 0%{opacity:.2;} 20%{opacity:1;} 100%{opacity:.2;} }
+      .typing-dots { letter-spacing:.25em; display:inline-block; animation:dots 1.2s ease-in-out infinite; }
 
       /* Pulsation micro */
       @keyframes micPulse {
-        0%   { box-shadow: 0 0 0 0 rgba(34,211,238,0.25); transform: scale(1); }
-        70%  { box-shadow: 0 0 0 10px rgba(34,211,238,0); transform: scale(1.02); }
-        100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); transform: scale(1); }
+        0%   { box-shadow:0 0 0 0 rgba(34,211,238,0.25); transform:scale(1); }
+        70%  { box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
+        100% { box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
       /* ====== Skin OCR ====== */
       .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
       .ocr-skin input[type="file"]{
-        position: absolute !important;
-        inset: auto !important;
-        left: -10000px !important;
-        width: 1px !important;
-        height: 1px !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        display: none !important;
+        position:absolute !important; inset:auto !important; left:-10000px !important;
+        width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; display:none !important;
       }
-      .ocr-skin input[type="file"]::file-selector-button { display: none !important; }
-      .ocr-skin input[type="file"]::-webkit-file-upload-button { display: none !important; }
+      .ocr-skin input[type="file"]::file-selector-button,
       .ocr-skin input[type="file"] + *,
       .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small { display: none !important; }
+      .ocr-skin input[type="file"] ~ small { display:none !important; }
       .ocr-skin .truncate,
       .ocr-skin [class*="file-name"],
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] { display: none !important; }
+      .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-}
+            }
