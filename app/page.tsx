@@ -31,7 +31,7 @@ function RgpdBanner() {
           </p>
           <button
             onClick={accept}
-            className="px-3 py-2 rounded-xl bg-[var(--fg)] text-white font-medium"
+            className="px-3 py-2 rounded-xl bg-[var(--panel)] text-white font-medium"
           >
             D’accord
           </button>
@@ -145,10 +145,10 @@ export default function Page() {
         }
         setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
+        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toLocaleString() }, ...h]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toLocaleString() }, ...h]);
     } finally {
       setLoading(false);
     }
@@ -167,8 +167,8 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo centré (halo doux) ===== */}
-      <div className="mb-6 flex justify-center">
+      {/* ===== Logo ===== */}
+      <div className="mt-2 mb-2 flex justify-center">
         <Image
           src="/brand/oneboardingai-logo.png"
           alt="OneBoarding AI"
@@ -178,6 +178,16 @@ export default function Page() {
           className="h-44 w-44 md:h-56 md:w-56 drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
         />
       </div>
+
+      {/* ===== Titre gradient ===== */}
+      <h1 className="mb-3 text-[36px] md:text-[44px] font-extrabold leading-none tracking-tight title-glow">
+        <span className="bg-gradient-to-r from-[#1E40AF] via-[#2563EB] to-[#3ABEF9] bg-clip-text text-transparent">
+          OneBoarding
+        </span>
+        <span className="ml-2 bg-gradient-to-r from-[#3ABEF9] to-[#06B6D4] bg-clip-text text-transparent">
+          AI
+        </span>
+      </h1>
 
       {/* ===== Barre : input + OK ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
@@ -296,7 +306,7 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (dégradé aube + halo + animations) =================== */
+/* =================== Styles globaux (dégradé aube + halo + titre) =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
@@ -325,7 +335,7 @@ function StyleGlobals() {
         --accent-tint:rgba(34,211,238,0.18);
       }
 
-      /* Halo centré (sans blur pour éviter toute “découpe”) */
+      /* Halo centré doux */
       .halo{
         position: fixed;
         left: 50%;
@@ -337,6 +347,13 @@ function StyleGlobals() {
         background: radial-gradient(closest-side, rgba(56,189,248,0.30), rgba(56,189,248,0));
       }
       body > * { position: relative; z-index: 1; }
+
+      /* Léger glow sous le titre pour un rendu premium lisible sur fond clair */
+      .title-glow {
+        text-shadow:
+          0 2px 10px rgba(8, 145, 178, 0.25),
+          0 0 1px rgba(0, 0, 0, 0.06);
+      }
 
       @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
       .msg-appear { animation: fadeUp .28s ease-out both; }
@@ -352,7 +369,7 @@ function StyleGlobals() {
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      /* ====== Skin OCR ====== */
+      /* Skin OCR : masquage des UI natives */
       .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
       .ocr-skin input[type="file"]{
         position:absolute !important; left:-10000px !important;
@@ -369,4 +386,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-  }
+}
