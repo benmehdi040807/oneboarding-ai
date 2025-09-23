@@ -2,27 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* === Fond dégradé officiel OneBoarding AI (aube) === */
-html, body {
-  background: linear-gradient(to bottom, #B3E5FC, #E0F7FA);
+/* === Dégradé ciel à l’aube : plein écran, toutes couches === */
+:root { --bg: transparent; } /* empêche les bg-[var(--bg)] de remettre du sombre */
+
+html,
+body,
+#__next,
+body > div:first-child {
+  background: linear-gradient(to bottom, #B3E5FC, #E0F7FA) !important;
+  background-attachment: fixed !important;
   color: #fff;
   overflow-x: hidden;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
 }
 
-/* --- Contre-attaque : certains styles locaux remettaient un fond sombre.
-   On neutralise la variable et on force la classe .space-bg au même dégradé. --- */
-:root { --bg: transparent; }
-
-/* Priorité ++ grâce à !important pour gagner contre le style injecté dans page.tsx */
+/* Si une classe locale .space-bg existe, on lui fait hériter le même fond */
 .space-bg {
-  background: linear-gradient(to bottom, #B3E5FC, #E0F7FA) !important;
+  background: inherit !important;
   background-attachment: fixed !important;
 }
 
-/* === Animation fade-in (inchangée) === */
+/* Fade-in existant */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
