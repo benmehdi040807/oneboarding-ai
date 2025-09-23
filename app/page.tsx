@@ -166,16 +166,18 @@ export default function Page() {
     <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] bg-[var(--bg)] space-bg flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
 
-      {/* ===== Logo centré (plus grand + halo) ===== */}
+      {/* ===== Logo centré (XXL + halo/aurora) ===== */}
       <div className="mb-6 flex justify-center">
-        <Image
-          src="/brand/oneboardingai-logo.png"
-          alt="OneBoarding AI"
-          width={256}
-          height={256}
-          priority
-          className="h-40 w-40 md:h-48 md:w-48 drop-shadow-[0_0_26px_rgba(34,211,238,0.35)]"
-        />
+        <div className="logo-aurora">
+          <Image
+            src="/brand/oneboardingai-logo.png"
+            alt="OneBoarding AI"
+            width={320}
+            height={320}
+            priority
+            className="h-48 w-48 md:h-64 md:w-64 logo-glow"
+          />
+        </div>
       </div>
 
       {/* ===== Barre : input + OK ===== */}
@@ -328,21 +330,80 @@ function StyleGlobals() {
       }
       /* pas de thème clair */
 
-      /* Fond "espace" : dégradés radiaux + légère dérive */
+      /* Fond "espace" enrichi : nébuleuses animées + étoiles + vignette */
       .space-bg{
+        position: relative;
         background:
-          radial-gradient(120% 120% at 22% 0%, rgba(34,211,238,0.12) 0%, rgba(34,211,238,0.05) 30%, transparent 60%),
-          radial-gradient(110% 110% at 80% -10%, rgba(99,102,241,0.14) 0%, rgba(99,102,241,0.05) 28%, transparent 60%),
-          radial-gradient(100% 120% at 50% 120%, rgba(16,185,129,0.10) 0%, rgba(16,185,129,0.04) 40%, transparent 70%),
+          radial-gradient(120% 120% at 22% 0%, rgba(34,211,238,0.14) 0%, rgba(34,211,238,0.06) 30%, transparent 60%),
+          radial-gradient(110% 110% at 80% -10%, rgba(99,102,241,0.16) 0%, rgba(99,102,241,0.06) 28%, transparent 60%),
+          radial-gradient(100% 120% at 50% 120%, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.05) 40%, transparent 70%),
           var(--bg);
         background-attachment: fixed;
         background-size: 160% 160%, 160% 160%, 160% 160%, auto;
         animation: spaceDrift 48s ease-in-out infinite;
       }
+      .space-bg::before{
+        /* vignette douce pour focus center */
+        content:"";
+        position: fixed; inset:0; pointer-events:none;
+        background: radial-gradient(120% 120% at 50% -10%, transparent 60%, rgba(0,0,0,0.35) 100%);
+        z-index: -1;
+      }
+      .space-bg::after{
+        /* étoiles fines (3 couches, twinkle léger) */
+        content:"";
+        position: fixed; inset:0; pointer-events:none;
+        background:
+          radial-gradient(#ffffff 1px, transparent 1.5px) 0 0/3px 3px,
+          radial-gradient(#9be7ff 1px, transparent 1.5px) 20px 40px/4px 4px,
+          radial-gradient(#a5b4fc 1px, transparent 1.5px) 60px 10px/5px 5px;
+        opacity:.07;
+        animation: starParallax 120s linear infinite;
+        z-index: -1;
+      }
       @keyframes spaceDrift{
         0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
-        50%  { background-position: 10% 5%, 95% 8%, 48% 96%, 0 0; }
+        50%  { background-position: 10% 6%, 95% 10%, 48% 96%, 0 0; }
         100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
+      }
+      @keyframes starParallax{
+        0%   { transform: translate3d(0,0,0); opacity:.07; }
+        50%  { transform: translate3d(-0.5%, -0.5%, 0); opacity:.09; }
+        100% { transform: translate3d(0,0,0); opacity:.07; }
+      }
+
+      /* Halo/Aurora autour du logo */
+      .logo-aurora{ position: relative; }
+      .logo-aurora::before{
+        content:"";
+        position:absolute; inset:-22%;
+        background:
+          radial-gradient(closest-side, rgba(34,211,238,0.55), rgba(34,211,238,0.10) 55%, transparent 70%),
+          radial-gradient(closest-side at 70% 30%, rgba(99,102,241,0.45), transparent 65%);
+        filter: blur(28px);
+        border-radius: 9999px;
+        z-index: -1;
+        animation: auroraPulse 6s ease-in-out infinite alternate;
+      }
+      @keyframes auroraPulse{
+        from{ transform: scale(0.98); opacity:.9; }
+        to  { transform: scale(1.04); opacity:1; }
+      }
+
+      /* Lueur du logo (forte, bi-teinte) */
+      .logo-glow{
+        filter:
+          drop-shadow(0 0 52px rgba(34,211,238,0.75))
+          drop-shadow(0 0 28px rgba(99,102,241,0.50))
+          drop-shadow(0 6px 10px rgba(0,0,0,0.55));
+        transition: filter .25s ease, transform .25s ease;
+      }
+      .logo-glow:hover{
+        filter:
+          drop-shadow(0 0 64px rgba(34,211,238,0.85))
+          drop-shadow(0 0 36px rgba(99,102,241,0.60))
+          drop-shadow(0 8px 14px rgba(0,0,0,0.6));
+        transform: translateY(-1px);
       }
 
       /* Apparition des messages */
@@ -379,4 +440,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-            }
+}
