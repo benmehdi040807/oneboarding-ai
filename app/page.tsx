@@ -68,9 +68,9 @@ export default function Page() {
   const recogRef = useRef<any>(null);
   const baseInputRef = useRef<string>("");
 
-  // Textarea autosize
+  // Textarea autosize + scroll
   const taRef = useRef<HTMLTextAreaElement | null>(null);
-  const MAX_ROWS = 3;
+  const MAX_ROWS = 3; // hauteur max (après, scroll interne)
 
   useEffect(() => {
     const SR: any =
@@ -123,10 +123,12 @@ export default function Page() {
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    // On limite à MAX_ROWS lignes (estimation line-height ~ 24px)
-    const lineHeight = 24;
-    const maxHeight = MAX_ROWS * lineHeight + 12; // +padding
-    ta.style.height = Math.min(ta.scrollHeight, maxHeight) + "px";
+    const lineHeight = 24; // cohérent avec leading-6
+    const maxHeight = MAX_ROWS * lineHeight + 12; // + padding approx.
+    const nextHeight = Math.min(ta.scrollHeight, maxHeight);
+    ta.style.height = nextHeight + "px";
+    // scroll interne si on atteint la hauteur max
+    ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -180,14 +182,14 @@ export default function Page() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center px-6 pt-1 pb-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center px-6 pt-0 pb-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Bloc hero (logo + barre rapprochés et remontés) ===== */}
-      <div className="w-full max-w-md flex flex-col items-center mt-1">
+      {/* ===== Hero compact (logo encore plus haut + écart mini) ===== */}
+      <div className="w-full max-w-md flex flex-col items-center mt-0">
         {/* Logo */}
-        <div className="relative w-48 h-48 md:w-56 md:h-56 -mt-1">
+        <div className="relative w-48 h-48 md:w-56 md:h-56 -mt-3">
           <Image
             src="/brand/oneboardingai-logo.png"
             alt="OneBoarding AI — logo"
@@ -197,8 +199,8 @@ export default function Page() {
           />
         </div>
 
-        {/* Barre : textarea auto-grow + OK */}
-        <form onSubmit={handleSubmit} className="w-full mt-1 mb-2 z-[1]">
+        {/* Barre : textarea auto-grow + scroll + OK */}
+        <form onSubmit={handleSubmit} className="w-full mt-0.5 mb-2 z-[1]">
           <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
             <textarea
               ref={taRef}
@@ -318,7 +320,7 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (dégradé + halo + micro-animations) =================== */
+/* =================== Styles globaux (dégradé + halo compact) =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
@@ -350,9 +352,9 @@ function StyleGlobals() {
       .halo{
         position: fixed;
         left: 50%;
-        top: 56px; /* encore un cran plus haut */
+        top: 40px;              /* plus haut */
         transform: translateX(-50%) translateZ(0);
-        width: 26rem; height: 26rem; /* un peu plus compact pour libérer l'espace */
+        width: 24rem; height: 24rem;  /* plus compact */
         z-index: 0;
         pointer-events: none;
         background: radial-gradient(closest-side, rgba(56,189,248,0.22), rgba(56,189,248,0));
@@ -390,4 +392,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-}
+      }
