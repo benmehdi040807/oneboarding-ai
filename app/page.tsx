@@ -127,7 +127,6 @@ export default function Page() {
     const maxHeight = MAX_ROWS * lineHeight + 12; // + padding approx.
     const nextHeight = Math.min(ta.scrollHeight, maxHeight);
     ta.style.height = nextHeight + "px";
-    // scroll interne si on atteint la hauteur max
     ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
   }
 
@@ -179,6 +178,15 @@ export default function Page() {
     if (!container) return;
     const input = container.querySelector('input[type="file"]') as HTMLInputElement | null;
     input?.click();
+  }
+
+  // Effacer historique (+ localStorage) avec confirmation
+  function clearHistory() {
+    const ok = window.confirm("Effacer tout l’historique de cette conversation ?");
+    if (!ok) return;
+    setHistory([]);
+    try { localStorage.removeItem("oneboarding.history"); } catch {}
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -275,7 +283,7 @@ export default function Page() {
       )}
 
       {/* Historique */}
-      <div className="w-full max-w-md space-y-3 pb-28 z-[1]">
+      <div className="w-full max-w-md space-y-3 pb-40 z-[1]">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]">
@@ -314,6 +322,22 @@ export default function Page() {
           </div>
         ))}
       </div>
+
+      {/* ===== Bouton effacer l'historique (affiché seulement si contenu) ===== */}
+      {history.length > 0 && (
+        <div className="fixed inset-x-0 bottom-4 z-40 pointer-events-none">
+          <div className="mx-auto max-w-md px-6">
+            <button
+              onClick={clearHistory}
+              className="pointer-events-auto w-full py-3 rounded-2xl font-semibold text-white
+                         bg-gradient-to-r from-rose-500 to-red-500 shadow-lg
+                         hover:brightness-110 active:scale-[.99] transition"
+            >
+              Effacer l’historique
+            </button>
+          </div>
+        </div>
+      )}
 
       <RgpdBanner />
     </div>
