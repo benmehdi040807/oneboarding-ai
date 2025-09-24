@@ -167,29 +167,20 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo recadré (pictogramme uniquement) ===== */}
-      <div className="mb-1 flex justify-center">
-        {/* conteneur: carré, overflow hidden */}
-        <div className="relative h-36 w-36 md:h-48 md:w-48 overflow-hidden">
+      {/* ===== Logo (PNG avec titre) — centré, descendu, x1.5 ===== */}
+      <div className="mt-2 mb-2 flex justify-center">
+        <div className="relative h-36 w-36 md:h-48 md:w-48 overflow-visible scale-150 origin-top">
           <Image
             src="/brand/oneboardingai-logo.png"
-            alt="OneBoarding AI — logomark"
+            alt="OneBoarding AI — logo"
             fill
             priority
-            className="object-contain -translate-y-6 md:-translate-y-8 drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
+            className="object-contain drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
           />
         </div>
       </div>
-
-      {/* ===== Titre gradient ===== */}
-      <h1 className="mb-3 text-[36px] md:text-[44px] font-extrabold leading-none tracking-tight title-glow">
-        <span className="bg-gradient-to-r from-[#1E40AF] via-[#2563EB] to-[#3ABEF9] bg-clip-text text-transparent">
-          OneBoarding
-        </span>
-        <span className="ml-2 bg-gradient-to-r from-[#3ABEF9] to-[#06B6D4] bg-clip-text text-transparent">
-          AI
-        </span>
-      </h1>
+      {/* H1 caché pour SEO/Accessibilité (pour éviter tout doublon visuel) */}
+      <h1 className="sr-only">OneBoarding AI</h1>
 
       {/* ===== Barre : input + OK ===== */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
@@ -308,7 +299,7 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (dégradé aube + halo + titre) =================== */
+/* =================== Styles globaux (dégradé aube + halo) =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
@@ -337,7 +328,6 @@ function StyleGlobals() {
         --accent-tint:rgba(34,211,238,0.18);
       }
 
-      /* Halo centré doux */
       .halo{
         position: fixed;
         left: 50%;
@@ -349,13 +339,6 @@ function StyleGlobals() {
         background: radial-gradient(closest-side, rgba(56,189,248,0.30), rgba(56,189,248,0));
       }
       body > * { position: relative; z-index: 1; }
-
-      /* Léger glow sous le titre pour un rendu premium lisible sur fond clair */
-      .title-glow {
-        text-shadow:
-          0 2px 10px rgba(8, 145, 178, 0.25),
-          0 0 1px rgba(0, 0, 0, 0.06);
-      }
 
       @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
       .msg-appear { animation: fadeUp .28s ease-out both; }
@@ -371,7 +354,7 @@ function StyleGlobals() {
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      /* Skin OCR : masquage des UI natives */
+      /* Skin OCR */
       .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
       .ocr-skin input[type="file"]{
         position:absolute !important; left:-10000px !important;
@@ -388,4 +371,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-}
+  }
