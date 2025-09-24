@@ -167,19 +167,19 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo (PNG avec titre) — centré, descendu, x1.5 ===== */}
-      <div className="mt-2 mb-2 flex justify-center">
-        <div className="relative h-36 w-36 md:h-48 md:w-48 overflow-visible scale-150 origin-top">
-          <Image
-            src="/brand/oneboardingai-logo.png"
-            alt="OneBoarding AI — logo"
-            fill
-            priority
-            className="object-contain drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
-          />
-        </div>
+      {/* ===== Logo (PNG avec titre) — tailles explicites + espacement ===== */}
+      <div className="mt-1 mb-8 md:mb-10 flex justify-center">
+        <Image
+          src="/brand/oneboardingai-logo.png"
+          alt="OneBoarding AI — logo"
+          // taille logique (évite tout rognage/scale)
+          width={520}
+          height={220}
+          priority
+          className="h-auto w-[72vw] max-w-[420px] md:max-w-[520px] drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
+        />
       </div>
-      {/* H1 caché pour SEO/Accessibilité (pour éviter tout doublon visuel) */}
+      {/* H1 caché pour accessibilité/SEO (pas de doublon visuel) */}
       <h1 className="sr-only">OneBoarding AI</h1>
 
       {/* ===== Barre : input + OK ===== */}
@@ -229,9 +229,9 @@ export default function Page() {
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
           >
             <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
-              <path d="M19 10.5a7 7 0 01-14 0" />
-              <path d="M12 21v-3" />
+            <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
+            <path d="M19 10.5a7 7 0 01-14 0" />
+            <path d="M12 21v-3" />
             </svg>
           </button>
         </div>
@@ -371,4 +371,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-  }
+}
