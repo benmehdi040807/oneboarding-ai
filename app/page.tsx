@@ -163,28 +163,26 @@ export default function Page() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="page-wrap fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo (PNG avec titre) — tailles explicites + espacement ===== */}
-      <div className="mt-1 mb-8 md:mb-10 flex justify-center">
+      {/* ===== Logo (PNG avec titre) — serré en haut, proche de la barre ===== */}
+      <div className="mt-2 mb-4 md:mb-5 flex justify-center">
         <Image
           src="/brand/oneboardingai-logo.png"
           alt="OneBoarding AI — logo"
-          // taille logique (évite tout rognage/scale)
           width={520}
           height={220}
           priority
-          className="h-auto w-[72vw] max-w-[420px] md:max-w-[520px] drop-shadow-[0_0_42px_rgba(56,189,248,0.35)]"
+          className="h-auto w-[68vw] max-w-[400px] md:max-w-[520px] drop-shadow-[0_0_42px_rgba(56,189,248,0.35)] block"
         />
       </div>
-      {/* H1 caché pour accessibilité/SEO (pas de doublon visuel) */}
       <h1 className="sr-only">OneBoarding AI</h1>
 
       {/* ===== Barre : input + OK ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
-        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-1 z-[1]">
+        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.22)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <input
             type="text"
             placeholder="Votre question…"
@@ -229,9 +227,9 @@ export default function Page() {
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
           >
             <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
-            <path d="M19 10.5a7 7 0 01-14 0" />
-            <path d="M12 21v-3" />
+              <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
+              <path d="M19 10.5a7 7 0 01-14 0" />
+              <path d="M12 21v-3" />
             </svg>
           </button>
         </div>
@@ -239,7 +237,7 @@ export default function Page() {
 
       {/* Tiroir OCR */}
       {showOcr && (
-        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[1]">
+        <div ref={ocrContainerRef} className="w-full max-w-md mb-5 animate-fadeUp ocr-skin z-[1]">
           <div className="mb-3 flex gap-2">
             <button
               type="button"
@@ -254,7 +252,7 @@ export default function Page() {
       )}
 
       {/* Historique */}
-      <div className="w-full max-w-md space-y-3 pb-28 z-[1]">
+      <div className="w-full max-w-md space-y-3 pb-24 z-[1]">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]">
@@ -299,7 +297,7 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (dégradé aube + halo) =================== */
+/* =================== Styles globaux =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
@@ -328,15 +326,22 @@ function StyleGlobals() {
         --accent-tint:rgba(34,211,238,0.18);
       }
 
+      /* Paddings intelligents haut/bas (tiennent compte du notch iOS) */
+      .page-wrap{
+        padding-left: 16px; padding-right: 16px;
+        padding-top: max(6px, env(safe-area-inset-top));
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+      }
+
       .halo{
         position: fixed;
         left: 50%;
-        top: 110px;
+        top: 84px; /* plus haut pour réduire la zone vide supérieure */
         transform: translateX(-50%) translateZ(0);
-        width: 36rem; height: 36rem;
+        width: 30rem; height: 30rem;
         z-index: 0;
         pointer-events: none;
-        background: radial-gradient(closest-side, rgba(56,189,248,0.30), rgba(56,189,248,0));
+        background: radial-gradient(closest-side, rgba(56,189,248,0.28), rgba(56,189,248,0));
       }
       body > * { position: relative; z-index: 1; }
 
@@ -371,4 +376,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-}
+      }
