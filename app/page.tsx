@@ -77,12 +77,24 @@ function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onCancel} />
-      <div ref={dialogRef} className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl">
+      <div
+        ref={dialogRef}
+        className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
+      >
         <h2 className="text-lg font-semibold mb-2">{title}</h2>
-        {description ? <p className="text-sm opacity-80 mb-4">{description}</p> : null}
+        {description ? <p className="text-sm opacity-90 mb-4">{description}</p> : null}
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onCancel} className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"> {cancelLabel} </button>
-          <button onClick={onConfirm} data-autofocus="true" className="px-4 py-2 rounded-xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            data-autofocus="true"
+            className="px-4 py-2 rounded-xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
+          >
             {confirmLabel}
           </button>
         </div>
@@ -112,7 +124,7 @@ export default function Page() {
   const [ocrText, setOcrText] = useState("");
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // 🎙️ Micro (final only)
+  // 🎙️ Micro
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
@@ -181,7 +193,7 @@ export default function Page() {
     e.preventDefault();
     const q = input.trim();
     const hasOcr = Boolean(ocrText.trim());
-    if (!q && !hasOcr) return;     // ✅ validation simple
+    if (!q && !hasOcr) return;
     if (loading) return;
 
     const now = new Date().toISOString();
@@ -217,7 +229,7 @@ export default function Page() {
     }
   }
 
-  // Déclenche le file input caché à l’intérieur d’OcrUploader
+  // Déclenche file input d’OcrUploader
   function triggerHiddenFileInput() {
     const container = ocrContainerRef.current;
     if (!container) return;
@@ -237,21 +249,21 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo (pictogramme) — plus haut & gap réduit ===== */}
-      <div className="mb-0 -mt-3 flex justify-center">
+      {/* ===== Logo (pictogramme) — remis à la hauteur précédente ===== */}
+      <div className="mb-1 -mt-1 flex justify-center">
         <div className="relative h-32 w-32 md:h-44 md:w-44 overflow-hidden">
           <Image
             src="/brand/oneboardingai-logo.png"
             alt="OneBoarding AI — logomark"
             fill
             priority
-            className="object-contain -translate-y-7 md:-translate-y-8 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
+            className="object-contain -translate-y-5 md:-translate-y-6 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
           />
         </div>
       </div>
 
       {/* ===== Barre : textarea auto + OK ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md -mt-1 mb-2 z-[1]">
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
         <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <textarea
             ref={taRef}
@@ -378,7 +390,7 @@ export default function Page() {
       <ConfirmDialog
         open={showClearModal}
         title="Effacer l’historique ?"
-        description="Cette action est irréversible. Pensez à sauvegarder ce qui vous est utile avant d’effacer."
+        description="Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible. Pensez à sauvegarder ce qui vous est utile avant d’effacer."
         confirmLabel="Effacer"
         cancelLabel="Annuler"
         onConfirm={clearHistory}
@@ -425,7 +437,7 @@ function StyleGlobals() {
       .halo{
         position: fixed;
         left: 50%;
-        top: 92px;
+        top: 96px;
         transform: translateX(-50%) translateZ(0);
         width: 34rem; height: 34rem;
         z-index: 0;
@@ -464,4 +476,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-            }
+  }
