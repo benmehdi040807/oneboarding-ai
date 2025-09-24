@@ -249,7 +249,7 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo (pictogramme) — remis à la hauteur précédente ===== */}
+      {/* ===== Logo (pictogramme) — redescendu légèrement ===== */}
       <div className="mb-1 -mt-1 flex justify-center">
         <div className="relative h-32 w-32 md:h-44 md:w-44 overflow-hidden">
           <Image
@@ -257,7 +257,7 @@ export default function Page() {
             alt="OneBoarding AI — logomark"
             fill
             priority
-            className="object-contain -translate-y-5 md:-translate-y-6 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
+            className="object-contain -translate-y-3 md:-translate-y-4 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
           />
         </div>
       </div>
@@ -476,4 +476,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-  }
+}
