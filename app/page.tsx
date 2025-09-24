@@ -61,16 +61,13 @@ function ConfirmDialog({
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  // Focus auto sur le bouton danger à l’ouverture
   useEffect(() => {
     if (open) {
       const btn = dialogRef.current?.querySelector<HTMLButtonElement>(
         "button[data-autofocus='true']"
       );
       btn?.focus();
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onCancel();
-      };
+      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }
@@ -78,43 +75,14 @@ function ConfirmDialog({
 
   if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-[60] grid place-items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-title"
-      aria-describedby="confirm-desc"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-        onClick={onCancel}
-      />
-      {/* Card */}
-      <div
-        ref={dialogRef}
-        className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl"
-      >
-        <h2 id="confirm-title" className="text-lg font-semibold mb-2">
-          {title}
-        </h2>
-        {description ? (
-          <p id="confirm-desc" className="text-sm opacity-80 mb-4">
-            {description}
-          </p>
-        ) : null}
+    <div className="fixed inset-0 z-[60] grid place-items-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onCancel} />
+      <div ref={dialogRef} className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl">
+        <h2 className="text-lg font-semibold mb-2">{title}</h2>
+        {description ? <p className="text-sm opacity-80 mb-4">{description}</p> : null}
         <div className="flex items-center justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            data-autofocus="true"
-            className="px-4 py-2 rounded-xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
-          >
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"> {cancelLabel} </button>
+          <button onClick={onConfirm} data-autofocus="true" className="px-4 py-2 rounded-xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]">
             {confirmLabel}
           </button>
         </div>
@@ -153,15 +121,13 @@ export default function Page() {
   // 🧹 Modal Effacer
   const [showClearModal, setShowClearModal] = useState(false);
 
-  // Textarea auto-expansion (jusqu’à 3 lignes) + scroll interne
+  // Textarea auto-expansion + scroll
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    const max = 3; // lignes max visibles
-    const lineHeight = 24; // approx
-    const maxHeight = max * lineHeight + 16; // padding vertical
+    const max = 3, lineHeight = 24, maxHeight = max * lineHeight + 16;
     ta.style.height = Math.min(ta.scrollHeight, maxHeight) + "px";
     ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [input]);
@@ -215,7 +181,7 @@ export default function Page() {
     e.preventDefault();
     const q = input.trim();
     const hasOcr = Boolean(ocrText.trim());
-    if ((!q && !hasOcr) return;
+    if (!q && !hasOcr) return;     // ✅ correction ici
     if (loading) return;
 
     const now = new Date().toISOString();
@@ -239,9 +205,7 @@ export default function Page() {
       if (!res.ok || !data?.ok) {
         const raw = String(data?.error || `HTTP ${res.status}`);
         let msg = `Erreur: ${raw}`;
-        if (raw.includes("GROQ_API_KEY")) {
-          msg = "Service temporairement indisponible. (Configuration serveur requise)";
-        }
+        if (raw.includes("GROQ_API_KEY")) msg = "Service temporairement indisponible. (Configuration serveur requise)";
         setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
         setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
@@ -273,7 +237,7 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo (pictogramme) resserré au-dessus de la barre ===== */}
+      {/* ===== Logo (pictogramme) ===== */}
       <div className="mb-1 -mt-1 flex justify-center">
         <div className="relative h-32 w-32 md:h-44 md:w-44 overflow-hidden">
           <Image
@@ -363,9 +327,7 @@ export default function Page() {
       <div className="w-full max-w-md space-y-3 pb-40 z-[1]">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
-            <p className="text-[var(--fg)]">
-              <span className="typing-dots" aria-live="polite" aria-label="L’IA écrit">•••</span>
-            </p>
+            <p className="text-[var(--fg)]"><span className="typing-dots" aria-live="polite">•••</span></p>
             <p className="text-xs opacity-70 mt-4">IA • {new Date().toLocaleString()}</p>
           </div>
         )}
@@ -400,7 +362,7 @@ export default function Page() {
         ))}
       </div>
 
-      {/* ===== Bouton danger effacer historique (affiché si historique présent) ===== */}
+      {/* Bouton danger effacer historique */}
       {history.length > 0 && (
         <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
           <button
@@ -428,7 +390,7 @@ export default function Page() {
   );
 }
 
-/* =================== Styles globaux (dégradé aube + halo + titre + modal) =================== */
+/* =================== Styles globaux =================== */
 function StyleGlobals() {
   return (
     <style jsx global>{`
@@ -456,11 +418,10 @@ function StyleGlobals() {
         --accent:#22d3ee;
         --accent-tint:rgba(34,211,238,0.18);
 
-        --danger:#ef4444;            /* rouge danger */
-        --danger-strong:#dc2626;     /* hover rouge */
+        --danger:#ef4444;
+        --danger-strong:#dc2626;
       }
 
-      /* Halo centré doux */
       .halo{
         position: fixed;
         left: 50%;
@@ -473,7 +434,6 @@ function StyleGlobals() {
       }
       body > * { position: relative; z-index: 1; }
 
-      /* Animations UI */
       @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
       .msg-appear { animation: fadeUp .28s ease-out both; }
       .animate-fadeUp { animation: fadeUp .28s ease-out both; }
@@ -488,7 +448,6 @@ function StyleGlobals() {
       }
       .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      /* Skin OCR : masquage des UI natives */
       .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
       .ocr-skin input[type="file"]{
         position:absolute !important; left:-10000px !important;
@@ -505,4 +464,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-      }
+    }
