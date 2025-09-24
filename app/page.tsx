@@ -181,7 +181,7 @@ export default function Page() {
     e.preventDefault();
     const q = input.trim();
     const hasOcr = Boolean(ocrText.trim());
-    if (!q && !hasOcr) return;     // ✅ correction ici
+    if (!q && !hasOcr) return;     // ✅ validation simple
     if (loading) return;
 
     const now = new Date().toISOString();
@@ -237,21 +237,21 @@ export default function Page() {
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* ===== Logo (pictogramme) ===== */}
-      <div className="mb-1 -mt-1 flex justify-center">
+      {/* ===== Logo (pictogramme) — plus haut & gap réduit ===== */}
+      <div className="mb-0 -mt-3 flex justify-center">
         <div className="relative h-32 w-32 md:h-44 md:w-44 overflow-hidden">
           <Image
             src="/brand/oneboardingai-logo.png"
             alt="OneBoarding AI — logomark"
             fill
             priority
-            className="object-contain -translate-y-5 md:-translate-y-6 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
+            className="object-contain -translate-y-7 md:-translate-y-8 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
           />
         </div>
       </div>
 
       {/* ===== Barre : textarea auto + OK ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
+      <form onSubmit={handleSubmit} className="w-full max-w-md -mt-1 mb-2 z-[1]">
         <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <textarea
             ref={taRef}
@@ -425,7 +425,7 @@ function StyleGlobals() {
       .halo{
         position: fixed;
         left: 50%;
-        top: 96px;
+        top: 92px;
         transform: translateX(-50%) translateZ(0);
         width: 34rem; height: 34rem;
         z-index: 0;
@@ -464,4 +464,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-    }
+            }
