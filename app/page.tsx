@@ -10,9 +10,7 @@ type Lang = "fr" | "en" | "ar";
 
 type LegalContent = {
   title: string;
-  // Option 1: contenu HTML complet (utilisé pour FR)
-  html?: string;
-  // Option 2: contenu synthétique (fallback EN/AR)
+  html?: string; // Contenu HTML complet (FR)
   preamble?: { h: string; p: string };
   cgu?: { h: string; li: string[] };
   privacy?: { h: string; li: string[] };
@@ -133,7 +131,7 @@ const legalCopy: Record<Lang, LegalContent> = {
   <p class="opacity-90">Un changelog discret indiquera les futures évolutions (ex. monétisation).</p>
 </section>
 
-<p class="text-xs opacity-70 mt-4">En acceptant, vous reconnaissez avoir lu ces informations. Les règles d’ordre public du pays de l’utilisateur restent applicables en toute hypothèse.</p>
+<p class="text-xs opacity-70 mt-4">En acceptant, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public du pays de l’utilisateur demeurent applicables de plein droit.</p>
     `,
     btn: {
       later: "Plus tard",
@@ -143,7 +141,7 @@ const legalCopy: Record<Lang, LegalContent> = {
     },
   },
 
-  /* ========== EN : synthèse (placeholder, prêt à étoffer) ========== */
+  /* ========== EN : synthèse (placeholder, prêt à étoffer avec ta VF) ========== */
   en: {
     title: "Manifest / Terms / Privacy",
     preamble: {
@@ -178,7 +176,7 @@ const legalCopy: Record<Lang, LegalContent> = {
     },
   },
 
-  /* ========== AR : synthèse (placeholder, prêt à étoffer) ========== */
+  /* ========== AR : synthèse (placeholder, prêt à étoffer avec ta VF) ========== */
   ar: {
     title: "البيان / الشروط / الخصوصية",
     preamble: {
@@ -262,7 +260,7 @@ function LegalModal({
     <div className="fixed inset-0 z-[70] grid place-items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
       <div
-        className="relative mx-4 w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-white shadow-xl"
+        className="legal-modal relative mx-4 w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-white shadow-xl"
         dir={lang === "ar" ? "rtl" : "ltr"}
       >
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
@@ -1012,6 +1010,10 @@ function StyleGlobals() {
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
       .ocr-skin [class*="name"] { display:none !important; }
+
+      /* Sélection lisible à l’intérieur du modal légal (évite le texte "invisible" sélectionné) */
+      .legal-modal *::selection { background: rgba(255,255,255,0.28); color: #fff; }
+      .legal-modal *::-moz-selection { background: rgba(255,255,255,0.28); color: #fff; }
     `}</style>
   );
-}
+    }
