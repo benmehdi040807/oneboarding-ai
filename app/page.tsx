@@ -88,8 +88,15 @@ function LegalModal({
             <ul className="list-disc pl-5 space-y-1.5 opacity-90">
               <li>Stockage local sur votre appareil (historique, consentements).</li>
               <li>
-                Les requêtes IA transitent par des prestataires techniques, aux seules fins de
-                fonctionnement ; aucune vente de données.
+                Les requêtes IA transitent par des prestataires techniques agissant comme{" "}
+                <strong>sous-traitants</strong> ; <strong>vos données personnelles ne sont ni vendues ni
+                partagées à des fins publicitaires</strong>. <strong>Toute monétisation éventuelle
+                concernera l’accès au service</strong> (abonnements, crédits, offres){" "}
+                <strong>et non la cession de vos données personnelles</strong>.
+              </li>
+              <li>
+                Nous pouvons utiliser des <strong>mesures agrégées et anonymisées</strong> (statistiques
+                d’usage) pour améliorer le service, sans identifier les utilisateurs.
               </li>
               <li>Vous pouvez effacer vos données locales depuis l’interface (bouton dédié).</li>
             </ul>
@@ -764,4 +771,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-}
+          }
