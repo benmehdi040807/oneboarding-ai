@@ -8,14 +8,17 @@ import OcrUploader from "@/components/OcrUploader";
 /* =================== i18n minimal pour le modal légal =================== */
 type Lang = "fr" | "en" | "ar";
 
-const legalCopy: Record<Lang, {
-  title: string;
-  preamble: { h: string; p: string; };
-  cgu: { h: string; li: string[]; };
-  privacy: { h: string; li: string[]; };
-  footer: string;
-  btn: { later: string; accept: string; close: string; readAndAccept: string; };
-}> = {
+const legalCopy: Record<
+  Lang,
+  {
+    title: string;
+    preamble: { h: string; p: string };
+    cgu: { h: string; li: string[] };
+    privacy: { h: string; li: string[] };
+    footer: string;
+    btn: { later: string; accept: string; close: string; readAndAccept: string };
+  }
+> = {
   fr: {
     title: "Informations légales",
     preamble: {
@@ -42,7 +45,12 @@ const legalCopy: Record<Lang, {
     },
     footer:
       "En acceptant, vous reconnaissez avoir lu ces informations. Les règles d’ordre public du pays de l’utilisateur restent applicables en toute hypothèse.",
-    btn: { later: "Plus tard", accept: "J’accepte", close: "Fermer", readAndAccept: "Lire & accepter" },
+    btn: {
+      later: "Plus tard",
+      accept: "J’accepte",
+      close: "Fermer",
+      readAndAccept: "Lire & accepter",
+    },
   },
 
   en: {
@@ -71,14 +79,19 @@ const legalCopy: Record<Lang, {
     },
     footer:
       "By accepting, you acknowledge that you have read this information. Mandatory public-order rules of the user’s country remain applicable in all cases.",
-    btn: { later: "Later", accept: "I accept", close: "Close", readAndAccept: "Read & accept" },
+    btn: {
+      later: "Later",
+      accept: "I accept",
+      close: "Close",
+      readAndAccept: "Read & accept",
+    },
   },
 
   ar: {
     title: "معلومات قانونية",
     preamble: {
       h: "تمهيد",
-      p: `منصّة OneBoarding AI هي منصّة ذكاء اصطناعي تفاعلية ينشرها بنمهدي محمد رضا. تُمكّن من الحصول على معلومات تعليمية وعملية — بما في ذلك عبر وحدة OCR. الاستخدام حاليًا مجاني؛ وقد يتم إشعار المستخدم بأي تغييرات مستقبلية.`,
+      p: `منصّة OneBoarding AI هي منصّة ذكاء اصطناعي تفاعلية ينشرها <strong>بنمهدي محمد رضى</strong>. تُمكّن من الحصول على معلومات تعليمية وعملية — بما في ذلك عبر وحدة OCR. الاستخدام حاليًا مجاني؛ وقد يتم إشعار المستخدم بأي تغييرات مستقبلية.`,
     },
     cgu: {
       h: "شروط الاستخدام",
@@ -100,7 +113,12 @@ const legalCopy: Record<Lang, {
     },
     footer:
       "بقبولك، فإنك تقر بأنك قرأت هذه المعلومات. وتظل قواعد النظام العام في بلد المستخدم قابلة للتطبيق في جميع الأحوال.",
-    btn: { later: "لاحقًا", accept: "أوافق", close: "إغلاق", readAndAccept: "قراءة والموافقة" },
+    btn: {
+      later: "لاحقًا",
+      accept: "أوافق",
+      close: "إغلاق",
+      readAndAccept: "قراءة والموافقة",
+    },
   },
 };
 
@@ -118,7 +136,11 @@ function LegalModal({
   const [canAccept, setCanAccept] = useState(false);
   const LANG_KEY = "oneboarding.legalLang";
   const [lang, setLang] = useState<Lang>(() => {
-    try { return (localStorage.getItem(LANG_KEY) as Lang) || "fr"; } catch { return "fr"; }
+    try {
+      return (localStorage.getItem(LANG_KEY) as Lang) || "fr";
+    } catch {
+      return "fr";
+    }
   });
 
   useEffect(() => {
@@ -136,11 +158,12 @@ function LegalModal({
 
   const setLangPersist = (l: Lang) => {
     setLang(l);
-    try { localStorage.setItem(LANG_KEY, l); } catch {}
+    try {
+      localStorage.setItem(LANG_KEY, l);
+    } catch {}
   };
 
   if (!open) return null;
-
   const t = legalCopy[lang];
 
   return (
@@ -153,21 +176,34 @@ function LegalModal({
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">{t.title}</h2>
 
-          {/* Boutons langue placés à côté du titre, comme demandé */}
+          {/* Sélecteur de langue FR / EN / AR, à l’emplacement demandé */}
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setLangPersist("ar")}
-              className={`px-2.5 py-1 rounded-lg text-sm ${lang === "ar" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"}`}
-              title="العربية"
+              onClick={() => setLangPersist("fr")}
+              className={`px-2.5 py-1 rounded-lg text-sm ${
+                lang === "fr" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"
+              }`}
+              title="Français"
             >
-              AR
+              FR
             </button>
             <button
               onClick={() => setLangPersist("en")}
-              className={`px-2.5 py-1 rounded-lg text-sm ${lang === "en" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"}`}
+              className={`px-2.5 py-1 rounded-lg text-sm ${
+                lang === "en" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"
+              }`}
               title="English"
             >
               EN
+            </button>
+            <button
+              onClick={() => setLangPersist("ar")}
+              className={`px-2.5 py-1 rounded-lg text-sm ${
+                lang === "ar" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"
+              }`}
+              title="العربية"
+            >
+              AR
             </button>
           </div>
 
@@ -184,14 +220,20 @@ function LegalModal({
           {/* Préambule */}
           <section>
             <h3 className="font-semibold mb-1.5">{t.preamble.h}</h3>
-            <p className="opacity-90">{t.preamble.p}</p>
+            {/* ATTENTION: le texte AR contient <strong> ; on l’autorise ici */}
+            <p
+              className="opacity-90"
+              dangerouslySetInnerHTML={{ __html: t.preamble.p }}
+            />
           </section>
 
           {/* CGU */}
           <section>
             <h3 className="font-semibold mb-1.5">{t.cgu.h}</h3>
             <ul className="list-disc pl-5 space-y-1.5 opacity-90">
-              {t.cgu.li.map((li, i) => <li key={i}>{li}</li>)}
+              {t.cgu.li.map((li, i) => (
+                <li key={i}>{li}</li>
+              ))}
             </ul>
           </section>
 
@@ -199,7 +241,9 @@ function LegalModal({
           <section>
             <h3 className="font-semibold mb-1.5">{t.privacy.h}</h3>
             <ul className="list-disc pl-5 space-y-1.5 opacity-90">
-              {t.privacy.li.map((li, i) => <li key={i}>{li}</li>)}
+              {t.privacy.li.map((li, i) => (
+                <li key={i}>{li}</li>
+              ))}
             </ul>
           </section>
 
@@ -219,7 +263,13 @@ function LegalModal({
             className={`px-4 py-2 rounded-xl text-white transition ${
               canAccept ? "bg-[var(--accent)] hover:brightness-110" : "bg-white/10 cursor-not-allowed"
             }`}
-            title={canAccept ? (lang === "ar" ? "اقرأ للأسفل ثم وافق" : "Scroll to the end to enable") : undefined}
+            title={
+              canAccept
+                ? lang === "ar"
+                  ? "مرر إلى الأسفل للتفعيل"
+                  : "Scroll to the end to enable"
+                : undefined
+            }
           >
             {t.btn.accept}
           </button>
@@ -244,7 +294,9 @@ function RgpdBanner() {
   }, []);
 
   const accept = () => {
-    try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+    try {
+      localStorage.setItem(CONSENT_KEY, "1");
+    } catch {}
     setOpenModal(false);
     setShow(false);
   };
@@ -303,9 +355,13 @@ function ConfirmDialog({
 
   useEffect(() => {
     if (open) {
-      const btn = dialogRef.current?.querySelector<HTMLButtonElement>("button[data-autofocus='true']");
+      const btn = dialogRef.current?.querySelector<HTMLButtonElement>(
+        "button[data-autofocus='true']"
+      );
       btn?.focus();
-      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onCancel();
+      };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }
@@ -348,7 +404,9 @@ const cleanText = (s: string) =>
   s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try { navigator.clipboard.writeText(text); } catch {}
+  try {
+    navigator.clipboard.writeText(text);
+  } catch {}
 }
 
 /* =================== Page =================== */
@@ -377,7 +435,9 @@ export default function Page() {
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    const max = 3, lineHeight = 24, maxHeight = max * lineHeight + 16;
+    const max = 3,
+      lineHeight = 24,
+      maxHeight = max * lineHeight + 16;
     ta.style.height = Math.min(ta.scrollHeight, maxHeight) + "px";
     ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [input]);
@@ -395,14 +455,22 @@ export default function Page() {
     r.interimResults = false;
     r.maxAlternatives = 1;
 
-    r.onstart = () => { baseInputRef.current = input; setListening(true); };
+    r.onstart = () => {
+      baseInputRef.current = input;
+      setListening(true);
+    };
     r.onresult = (e: any) => {
       let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
+      for (let i = e.resultIndex; i < e.results.length; i++)
+        final += " " + e.results[i][0].transcript;
       setInput(cleanText([baseInputRef.current, final].join(" ")));
     };
     const stopUI = () => setListening(false);
-    r.onend = stopUI; r.onspeechend = stopUI; r.onaudioend = stopUI; r.onnomatch = stopUI; r.onerror = stopUI;
+    r.onend = stopUI;
+    r.onspeechend = stopUI;
+    r.onaudioend = stopUI;
+    r.onnomatch = stopUI;
+    r.onerror = stopUI;
 
     recogRef.current = r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,19 +479,43 @@ export default function Page() {
   function toggleMic() {
     const r = recogRef.current;
     if (!r) return;
-    if (!listening) { try { r.start(); } catch {} return; }
-    try { r.stop(); } catch {}
-    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 600);
+    if (!listening) {
+      try {
+        r.start();
+      } catch {}
+      return;
+    }
+    try {
+      r.stop();
+    } catch {}
+    setTimeout(() => {
+      if (listening) {
+        try {
+          r.abort?.();
+        } catch {}
+        setListening(false);
+      }
+    }, 600);
   }
 
   // historique persist
-  useEffect(() => { try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {} }, []);
-  useEffect(() => { try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {} }, [history]);
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("oneboarding.history");
+      if (s) setHistory(JSON.parse(s));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("oneboarding.history", JSON.stringify(history));
+    } catch {}
+  }, [history]);
 
   // Auto-scroll vers le haut à la fin de génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
-    if (prevLoadingRef.current && !loading) window.scrollTo({ top: 0, behavior: "smooth" });
+    if (prevLoadingRef.current && !loading)
+      window.scrollTo({ top: 0, behavior: "smooth" });
     prevLoadingRef.current = loading;
   }, [loading]);
 
@@ -435,14 +527,18 @@ export default function Page() {
     if (loading) return;
 
     const now = new Date().toISOString();
-    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown) setHistory(h => [{ role: "user", text: userShown, time: now }, ...h]);
+    const userShown =
+      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+    if (userShown)
+      setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
 
     setInput("");
     setLoading(true);
 
     const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+          q || "(aucune)"
+        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -455,13 +551,31 @@ export default function Page() {
       if (!res.ok || !data?.ok) {
         const raw = String(data?.error || `HTTP ${res.status}`);
         let msg = `Erreur: ${raw}`;
-        if (raw.includes("GROQ_API_KEY")) msg = "Service temporairement indisponible. (Configuration serveur requise)";
-        setHistory(h => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
+        if (raw.includes("GROQ_API_KEY"))
+          msg = "Service temporairement indisponible. (Configuration serveur requise)";
+        setHistory((h) => [
+          { role: "error", text: msg, time: new Date().toISOString() },
+          ...h,
+        ]);
       } else {
-        setHistory(h => [{ role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() }, ...h]);
+        setHistory((h) => [
+          {
+            role: "assistant",
+            text: String(data.text || "Réponse vide."),
+            time: new Date().toISOString(),
+          },
+          ...h,
+        ]);
       }
     } catch (err: any) {
-      setHistory(h => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      setHistory((h) => [
+        {
+          role: "error",
+          text: `Erreur: ${err?.message || "réseau"}`,
+          time: new Date().toISOString(),
+        },
+        ...h,
+      ]);
     } finally {
       setLoading(false);
     }
@@ -471,14 +585,18 @@ export default function Page() {
   function triggerHiddenFileInput() {
     const container = ocrContainerRef.current;
     if (!container) return;
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement | null;
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement | null;
     input?.click();
   }
 
   // Effacement de l’historique (après confirmation)
   function clearHistory() {
     setHistory([]);
-    try { localStorage.removeItem("oneboarding.history"); } catch {}
+    try {
+      localStorage.removeItem("oneboarding.history");
+    } catch {}
     setShowClearModal(false);
   }
 
@@ -526,13 +644,21 @@ export default function Page() {
         <div className="mt-3 flex gap-3">
           <button
             type="button"
-            onClick={() => setShowOcr(v => !v)}
+            onClick={() => setShowOcr((v) => !v)}
             className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
             title="Joindre un document (OCR)"
             aria-label="Joindre un document"
           >
-            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78"/>
+            <svg
+              className="h-6 w-6 text-[var(--fg)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
             </svg>
           </button>
 
@@ -541,14 +667,26 @@ export default function Page() {
             disabled={!speechSupported}
             onClick={toggleMic}
             className={`h-12 w-12 rounded-xl border grid place-items-center transition
-              ${listening
-                ? "border-[var(--accent)] bg-[color:var(--accent-tint)] mic-pulse"
-                : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"}
+              ${
+                listening
+                  ? "border-[var(--accent)] bg-[color:var(--accent-tint)] mic-pulse"
+                  : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"
+              }
               disabled:opacity-50`}
-            aria-label={speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"}
+            aria-label={
+              speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"
+            }
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
           >
-            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="h-6 w-6 text-[var(--fg)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
               <path d="M19 10.5a7 7 0 01-14 0" />
               <path d="M12 21v-3" />
@@ -577,7 +715,11 @@ export default function Page() {
       <div className="w-full max-w-md space-y-3 pb-40 z-[1]">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
-            <p className="text-[var(--fg)]"><span className="typing-dots" aria-live="polite">•••</span></p>
+            <p className="text-[var(--fg)]">
+              <span className="typing-dots" aria-live="polite">
+                •••
+              </span>
+            </p>
             <p className="text-xs opacity-70 mt-4">IA • {new Date().toLocaleString()}</p>
           </div>
         )}
@@ -586,11 +728,12 @@ export default function Page() {
           <div
             key={idx}
             className={`msg-appear rounded-xl border p-3 relative
-              ${item.role === "user"
-                ? "border-[var(--border)] bg-[var(--user-bg)]"
-                : item.role === "assistant"
-                ? "border-[var(--assistant-border)] bg-[var(--assistant-bg)]"
-                : "border-[var(--error-border)] bg-[var(--error-bg)]"
+              ${
+                item.role === "user"
+                  ? "border-[var(--border)] bg-[var(--user-bg)]"
+                  : item.role === "assistant"
+                  ? "border-[var(--assistant-border)] bg-[var(--assistant-bg)]"
+                  : "border-[var(--error-border)] bg-[var(--error-bg)]"
               }`}
           >
             <p className="whitespace-pre-wrap">{item.text}</p>
@@ -645,74 +788,135 @@ export default function Page() {
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      html, body, #__next {
+      html,
+      body,
+      #__next {
         min-height: 100dvh;
         width: 100%;
-        margin: 0; padding: 0;
+        margin: 0;
+        padding: 0;
         color: var(--fg);
-        background: linear-gradient(180deg, #B3E5FC 0%, #E0F7FA 100%) fixed !important;
+        background: linear-gradient(180deg, #b3e5fc 0%, #e0f7fa 100%) fixed !important;
       }
 
-      :root{
-        --fg:#0B1B2B;
-        --panel:rgba(12,16,28,0.86);
-        --panel-strong:rgba(12,16,28,0.92);
-        --panel-stronger:rgba(12,16,28,0.98);
-        --user-bg:rgba(255,255,255,0.55);
-        --assistant-bg:rgba(255,255,255,0.38);
-        --assistant-border:rgba(11,27,43,0.18);
-        --error-bg:rgba(220,38,38,0.10);
-        --error-border:rgba(220,38,38,0.35);
-        --chip-bg:rgba(255,255,255,0.60);
-        --chip-hover:rgba(255,255,255,0.78);
-        --border:rgba(11,27,43,0.12);
-        --accent:#22d3ee;
-        --accent-tint:rgba(34,211,238,0.18);
+      :root {
+        --fg: #0b1b2b;
+        --panel: rgba(12, 16, 28, 0.86);
+        --panel-strong: rgba(12, 16, 28, 0.92);
+        --panel-stronger: rgba(12, 16, 28, 0.98);
+        --user-bg: rgba(255, 255, 255, 0.55);
+        --assistant-bg: rgba(255, 255, 255, 0.38);
+        --assistant-border: rgba(11, 27, 43, 0.18);
+        --error-bg: rgba(220, 38, 38, 0.1);
+        --error-border: rgba(220, 38, 38, 0.35);
+        --chip-bg: rgba(255, 255, 255, 0.6);
+        --chip-hover: rgba(255, 255, 255, 0.78);
+        --border: rgba(11, 27, 43, 0.12);
+        --accent: #22d3ee;
+        --accent-tint: rgba(34, 211, 238, 0.18);
 
-        --danger:#ef4444;
-        --danger-strong:#dc2626;
+        --danger: #ef4444;
+        --danger-strong: #dc2626;
       }
 
-      .halo{
+      .halo {
         position: fixed;
         left: 50%;
         top: 96px;
         transform: translateX(-50%) translateZ(0);
-        width: 34rem; height: 34rem;
+        width: 34rem;
+        height: 34rem;
         z-index: 0;
         pointer-events: none;
-        background: radial-gradient(closest-side, rgba(56,189,248,0.28), rgba(56,189,248,0));
+        background: radial-gradient(
+          closest-side,
+          rgba(56, 189, 248, 0.28),
+          rgba(56, 189, 248, 0)
+        );
       }
-      body > * { position: relative; z-index: 1; }
+      body > * {
+        position: relative;
+        z-index: 1;
+      }
 
-      @keyframes fadeUp { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
-      .msg-appear { animation: fadeUp .28s ease-out both; }
-      .animate-fadeUp { animation: fadeUp .28s ease-out both; }
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .msg-appear {
+        animation: fadeUp 0.28s ease-out both;
+      }
+      .animate-fadeUp {
+        animation: fadeUp 0.28s ease-out both;
+      }
 
-      @keyframes dots { 0%{opacity:.2;} 20%{opacity:1;} 100%{opacity:.2;} }
-      .typing-dots { letter-spacing:.25em; display:inline-block; animation:dots 1.2s ease-in-out infinite; }
+      @keyframes dots {
+        0% {
+          opacity: 0.2;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.2;
+        }
+      }
+      .typing-dots {
+        letter-spacing: 0.25em;
+        display: inline-block;
+        animation: dots 1.2s ease-in-out infinite;
+      }
 
       @keyframes micPulse {
-        0%   { box-shadow:0 0 0 0 rgba(34,211,238,0.25); transform:scale(1); }
-        70%  { box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
-        100% { box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
+        0% {
+          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.25);
+          transform: scale(1);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
+          transform: scale(1.02);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+          transform: scale(1);
+        }
       }
-      .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
+      .mic-pulse {
+        animation: micPulse 1.6s ease-out infinite;
+      }
 
-      .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
-      .ocr-skin input[type="file"]{
-        position:absolute !important; left:-10000px !important;
-        width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; display:none !important;
+      .ocr-skin,
+      .ocr-skin * {
+        color: var(--fg) !important;
+      }
+      .ocr-skin input[type="file"] {
+        position: absolute !important;
+        left: -10000px !important;
+        width: 1px !important;
+        height: 1px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        display: none !important;
       }
       .ocr-skin input[type="file"]::file-selector-button,
       .ocr-skin input[type="file"] + *,
       .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small { display:none !important; }
+      .ocr-skin input[type="file"] ~ small {
+        display: none !important;
+      }
       .ocr-skin .truncate,
       .ocr-skin [class*="file-name"],
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] { display:none !important; }
+      .ocr-skin [class*="name"] {
+        display: none !important;
+      }
     `}</style>
   );
-}
+        }
