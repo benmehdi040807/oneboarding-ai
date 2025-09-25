@@ -45,7 +45,6 @@ const legalCopy: Record<Lang, LegalStrings> = {
   <h3 class="section-title">Qui sommes-nous</h3>
   <p>OneBoarding AI est une interface intelligente conçue pour faciliter l’interaction avec l’IA de façon simple, rapide et universelle.<br/>Créé et développé par <strong>Benmehdi Mohamed Rida</strong>.</p>
   <p><strong>Notre mission :</strong> rendre l’intelligence artificielle accessible à tous, dans un cadre clair, élégant et respectueux de la confidentialité.</p>
-  <p><strong>Notre créateur :</strong> OneBoarding AI a été conçu et développé par <strong>Benmehdi Mohamed Rida</strong>.</p>
 </section>
 
 <hr />
@@ -56,7 +55,7 @@ const legalCopy: Record<Lang, LegalStrings> = {
     <li><strong>2025</strong> → Lancement de OneBoarding AI, avec une <strong>mission</strong> : simplifier l’IA.</li>
     <li><strong>2026+</strong> → Déploiement progressif de fonctionnalités avancées.</li>
   </ul>
-  <p class="signature">✍️ Créé par <strong>Benmehdi Mohamed Rida</strong> — une vision unique au service de l’innovation.</p>
+  <p class="signature">✍️ Une vision unique au service de l’innovation.</p>
 </section>
 
 <hr />
@@ -111,7 +110,7 @@ const legalCopy: Record<Lang, LegalStrings> = {
 
 <section>
   <h3 class="section-title">Version & Mise à jour</h3>
-  <p><strong>Version 1.0 — Septembre 2025</strong><br/>Un changelog discret indiquera les futures évolutions (ex. monétisation).</p>
+  <p><strong>Version 1.0 — Septembre 2025</strong><br/>Un changelog discret indiquera les futures évolutions.</p>
 </section>
 `,
   },
@@ -144,7 +143,6 @@ const legalCopy: Record<Lang, LegalStrings> = {
   <h3 class="section-title">About Us</h3>
   <p>OneBoarding AI is a smart interface that makes interacting with AI simple, fast, and universal.<br/>Created and developed by <strong>Benmehdi Mohamed Rida</strong>.</p>
   <p><strong>Our mission:</strong> make AI accessible to everyone in a clear, elegant, and privacy-respecting framework.</p>
-  <p><strong>Our creator:</strong> OneBoarding AI was conceived and developed by <strong>Benmehdi Mohamed Rida</strong>.</p>
 </section>
 
 <hr />
@@ -155,7 +153,7 @@ const legalCopy: Record<Lang, LegalStrings> = {
     <li><strong>2025</strong> → Launch of OneBoarding AI, with a <strong>mission</strong>: simplifying AI.</li>
     <li><strong>2026+</strong> → Progressive rollout of advanced features.</li>
   </ul>
-  <p class="signature">✍️ Created by <strong>Benmehdi Mohamed Rida</strong> — a unique vision in the service of innovation.</p>
+  <p class="signature">✍️ A unique vision in the service of innovation.</p>
 </section>
 
 <hr />
@@ -210,7 +208,7 @@ const legalCopy: Record<Lang, LegalStrings> = {
 
 <section>
   <h3 class="section-title">Version & Updates</h3>
-  <p><strong>Version 1.0 — September 2025</strong><br/>A lightweight changelog will indicate future changes (e.g., monetization).</p>
+  <p><strong>Version 1.0 — September 2025</strong><br/>A lightweight changelog will indicate future changes.</p>
 </section>
 `,
   },
@@ -243,7 +241,6 @@ const legalCopy: Record<Lang, LegalStrings> = {
   <h3 class="section-title">من نحن</h3>
   <p>OneBoarding AI واجهة ذكية تُبسّط التفاعل مع الذكاء الاصطناعي بشكل سهل وسريع وعالمي.<br/>أُنشئت وطُوّرت <strong class="nowrap-ar">من طرف بنمهدي محمد رضى</strong>.</p>
   <p><strong>مهمّتنا:</strong> جعل الذكاء الاصطناعي متاحًا للجميع ضمن إطار واضح وأنيق ويحترم الخصوصية.</p>
-  <p><strong>مُنشِئنا:</strong> صُمّمت وطُوّرت OneBoarding AI <strong class="nowrap-ar">من طرف بنمهدي محمد رضى</strong>.</p>
 </section>
 
 <hr />
@@ -254,7 +251,7 @@ const legalCopy: Record<Lang, LegalStrings> = {
     <li><strong>2025</strong> → إطلاق OneBoarding AI برسالة: تبسيط الذكاء الاصطناعي.</li>
     <li><strong>2026+</strong> → طرح تدريجي لخصائص متقدّمة.</li>
   </ul>
-  <p class="signature">✍️ أُنشئت بواسطة <strong class="nowrap-ar">بنمهدي محمد رضى</strong> — رؤية متفرّدة في خدمة الابتكار.</p>
+  <p class="signature">✍️ رؤية متفرّدة في خدمة الابتكار.</p>
 </section>
 
 <hr />
@@ -309,7 +306,7 @@ const legalCopy: Record<Lang, LegalStrings> = {
 
 <section>
   <h3 class="section-title">الإصدار والتحديث</h3>
-  <p><strong>الإصدار 1.0 — سبتمبر 2025</strong><br/>سيعرض سجلّ تغييرات موجز أي تحديثات مستقبلية (مثل نماذج تحقيق الدخل).</p>
+  <p><strong>الإصدار 1.0 — سبتمبر 2025</strong><br/>سيسجّل سجلّ تغييرات موجز أي تحديثات مستقبلية.</p>
 </section>
 `,
   },
@@ -408,13 +405,17 @@ function LegalModal({
         {/* Contenu compact (HTML injecté) */}
         <div
           ref={boxRef}
-          className="px-5 py-4 max-h-[70vh] overflow-y-auto text-[13.5px] leading-[1.35rem] space-y-5 legal-html"
+          className="px-5 py-4 pb-24 max-h-[70vh] overflow-y-auto text-[13.5px] leading-[1.35rem] space-y-5 legal-html"
           dangerouslySetInnerHTML={{ __html: t.html }}
         />
 
         <div className="px-5 pb-2 text-xs opacity-75">{t.footer}</div>
 
-        <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-3">
+        {/* Barre sticky de boutons, toujours visible et bien droite */}
+        <div
+          className="px-5 py-3 border-t border-white/10 flex items-center justify-end gap-3 sticky bottom-0 bg-[var(--panel)]"
+          style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+        >
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15"
@@ -550,7 +551,7 @@ function ConfirmDialog({
           <button
             onClick={onConfirm}
             data-autofocus="true"
-            className="px-4 py-2 rounded-xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
+            className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
           >
             {confirmLabel}
           </button>
@@ -1022,6 +1023,9 @@ function StyleGlobals() {
         margin: 0.3rem 0 0.3rem 1.2rem;
         opacity: 0.92;
       }
+      [dir="rtl"] .legal-html ul {
+        margin: 0.3rem 1.2rem 0.3rem 0;
+      }
       .legal-html hr {
         border: none;
         border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -1116,4 +1120,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-      }
+}
