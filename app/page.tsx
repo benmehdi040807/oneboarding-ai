@@ -8,211 +8,242 @@ import OcrUploader from "@/components/OcrUploader";
 /* =================== i18n minimal pour le modal légal =================== */
 type Lang = "fr" | "en" | "ar";
 
-type LegalContent = {
+type LegalCopy = {
   title: string;
-  html?: string; // Contenu HTML complet (FR)
-  preamble?: { h: string; p: string };
-  cgu?: { h: string; li: string[] };
-  privacy?: { h: string; li: string[] };
-  footer?: string;
-  btn: { later: string; accept: string; close: string; readAndAccept: string };
+  buttons: { later: string; accept: string; close: string; openCta: string };
+  manifest: { h: string; p: string; bullets: string[]; note: string };
+  about: { h: string; lines: string[] };
+  timeline: { h: string; items: string[]; signature: string };
+  cgu: { h: string; items: string[] };
+  privacy: { h: string; items: string[] };
+  version: { h: string; lines: string[] };
+  footer: string;
 };
 
-const legalCopy: Record<Lang, LegalContent> = {
-  /* ========== FR : version finale fusionnée & harmonisée (HTML) ========== */
+const legalCopy: Record<Lang, LegalCopy> = {
   fr: {
     title: "Manifeste / CGU / Privacy",
-    html: `
-<section>
-  <h3 class="font-semibold mb-1.5">🌍 Manifeste de Confiance – OneBoarding AI</h3>
-  <p class="opacity-90">OneBoarding AI est une plateforme d’intelligence artificielle interactive conçue pour offrir à chaque utilisateur une expérience pédagogique et enrichissante.</p>
-  <ul class="list-disc pl-5 space-y-1.5 opacity-90 mt-2">
-    <li>🛡️ <strong>Clarté et sécurité</strong> : l’utilisateur reste toujours maître de son usage et responsable de ses choix.</li>
-    <li>🌐 <strong>Universalité</strong> : les principes qui gouvernent cette plateforme dépassent les frontières et respectent les règles d’ordre public de chaque pays.</li>
-    <li>⚖️ <strong>Équilibre et responsabilité partagée</strong> : l’éditeur met en œuvre tous les moyens raisonnables pour assurer un service fiable, mais l’utilisateur conserve l’entière responsabilité de l’usage qu’il fait des informations fournies.</li>
-    <li>🤝 <strong>Confiance et transparence</strong> : l’interaction entre l’intelligence artificielle et l’humain repose sur le respect mutuel, la confidentialité et une utilisation de bonne foi.</li>
-  </ul>
-  <p class="opacity-90 mt-2">👉 Ce manifeste n’est pas un simple détail juridique : il est l’esprit fondateur qui inspire nos Conditions Générales d’Utilisation et notre Politique de Confidentialité.</p>
-</section>
-
-<hr class="border-white/10 my-4" />
-
-<section>
-  <h3 class="font-semibold mb-1.5">Qui sommes-nous</h3>
-  <p class="opacity-90">OneBoarding AI est une interface intelligente conçue pour faciliter l’interaction avec l’IA de façon simple, rapide et universelle.</p>
-  <p class="opacity-90">Créé et développé par <strong>Benmehdi Mohamed Rida</strong>.</p>
-  <p class="opacity-90 mt-2"><strong>Notre mission :</strong> rendre l’intelligence artificielle accessible à tous, dans un cadre clair, élégant et respectueux de la confidentialité.</p>
-  <p class="opacity-90"><strong>Notre créateur :</strong> OneBoarding AI a été conçu et développé par <strong>Benmehdi Mohamed Rida</strong>.</p>
-</section>
-
-<hr class="border-white/10 my-4" />
-
-<section>
-  <h3 class="font-semibold mb-1.5">Timeline</h3>
-  <ul class="list-disc pl-5 space-y-1.5 opacity-90">
-    <li><strong>2025</strong> → Lancement de OneBoarding AI, avec une <strong>mission</strong> : simplifier l’IA.</li>
-    <li><strong>2026+</strong> → Déploiement progressif de fonctionnalités avancées.</li>
-  </ul>
-  <p class="opacity-90 mt-2">✍️ Créé par <strong>Benmehdi Mohamed Rida</strong> — une vision unique au service de l’innovation.</p>
-</section>
-
-<hr class="border-white/10 my-4" />
-
-<section>
-  <h3 class="font-semibold mb-1.5">Conditions Générales d’Utilisation (CGU)</h3>
-  <ol class="list-decimal pl-5 space-y-2 opacity-90">
-    <li>
-      <strong>Objet</strong><br/>
-      OneBoarding AI fournit un service d’assistance basé sur l’intelligence artificielle permettant aux utilisateurs de formuler des requêtes et d’obtenir des réponses générées automatiquement (« Service »).
-      Les présentes Conditions Générales d’Utilisation régissent l’accès et l’utilisation du Service par tout utilisateur (« Utilisateur »).
-    </li>
-    <li>
-      <strong>Responsabilité de l’Utilisateur</strong><br/>
-      L’Utilisateur est seul responsable de l’utilisation qu’il fait des informations, recommandations, conseils, analyses ou contenus (« Contenus ») fournis par le Service. Il reconnaît et accepte que :
-      <ul class="list-disc pl-5 mt-1">
-        <li>a) Les Contenus sont générés automatiquement et constituent une aide à la décision. Ils ne sauraient être considérés comme des conseils professionnels personnalisés. L’Utilisateur doit vérifier et, le cas échéant, consulter un professionnel compétent avant toute décision engageante.</li>
-        <li>b) OneBoarding AI et son exploitant ne sauraient être tenus responsables des conséquences directes ou indirectes liées à l’utilisation, l’interprétation, la diffusion ou la mise en œuvre des Contenus (y compris perte de revenus, données, préjudice commercial, ou autre dommage).</li>
-        <li>c) L’Utilisateur s’engage à un usage légal et conforme. Il indemnisera OneBoarding AI de toute action, réclamation, dommage ou frais découlant d’un usage non conforme.</li>
-      </ul>
-    </li>
-    <li>
-      <strong>Indemnisation</strong><br/>
-      L’Utilisateur s’engage à indemniser, défendre et dégager de toute responsabilité OneBoarding AI, ses dirigeants, employés et ayants droit, en cas de réclamations, dommages, pertes ou coûts (y compris honoraires d’avocat raisonnables) liés à :
-      (i) une utilisation non conforme du Service, (ii) la violation des présentes CGU, ou (iii) la violation de droits de tiers.
-    </li>
-    <li>
-      <strong>Limitation de responsabilité</strong><br/>
-      Dans toute la mesure permise par la loi, la responsabilité cumulée de OneBoarding AI envers l’Utilisateur est limitée et ne peut être engagée qu’au titre des règles d’ordre public, dans l’esprit d’agir en bon père de famille.
-      En aucun cas OneBoarding AI ne pourra être tenue responsable des dommages indirects, spéciaux, punitifs ou accessoires (perte de profit, d’exploitation, ou de données).
-    </li>
-    <li>
-      <strong>Exceptions</strong><br/>
-      Ces limitations ne s’appliquent pas lorsqu’elles contreviennent aux droits légaux impératifs reconnus aux consommateurs par la réglementation en vigueur.
-    </li>
-    <li>
-      <strong>Obligations de l’Utilisateur</strong><br/>
-      L’Utilisateur s’engage notamment à :
-      <ul class="list-disc pl-5 mt-1">
-        <li>ne pas soumettre de contenus illicites, diffamatoires ou violant des droits de tiers ;</li>
-        <li>prendre les mesures raisonnables pour sauvegarder ses données ;</li>
-        <li>signaler sans délai tout usage frauduleux ou faille de sécurité constatée.</li>
-      </ul>
-    </li>
-    <li>
-      <strong>Conservation et preuve</strong><br/>
-      OneBoarding AI se réserve le droit de conserver des journaux (logs) relatifs aux interactions (prompts, réponses, horodatage) à des fins de sécurité, d’amélioration du Service, et le cas échéant de preuve en cas de litige.
-      Ces données sont conservées conformément à la Politique de Confidentialité.
-    </li>
-    <li>
-      <strong>Compétence</strong><br/>
-      Juridiction du lieu de résidence de l’éditeur, sous réserve des règles d’ordre public applicables à l’utilisateur.
-    </li>
-  </ol>
-</section>
-
-<hr class="border-white/10 my-4" />
-
-<section>
-  <h3 class="font-semibold mb-1.5">Politique de Confidentialité</h3>
-  <ul class="list-disc pl-5 space-y-1.5 opacity-90">
-    <li><strong>Stockage local</strong> : l’historique et les consentements sont conservés sur votre appareil.</li>
-    <li><strong>Sous-traitants techniques</strong> : les requêtes IA transitent par des prestataires techniques agissant comme sous-traitants ; vos données personnelles ne sont ni vendues ni partagées à des fins publicitaires.</li>
-    <li><strong>Monétisation</strong> : toute monétisation éventuelle concernera l’accès au service (abonnements, crédits, offres) et non la cession de vos données personnelles.</li>
-    <li><strong>Statistiques anonymisées</strong> : nous pouvons utiliser des mesures agrégées et anonymisées (statistiques d’usage) pour améliorer le service, sans identifier les utilisateurs.</li>
-    <li><strong>Effacement</strong> : vous pouvez supprimer vos données locales à tout moment via le bouton prévu à cet effet.</li>
-  </ul>
-</section>
-
-<hr class="border-white/10 my-4" />
-
-<section>
-  <h3 class="font-semibold mb-1.5">Version & Mise à jour</h3>
-  <p class="opacity-90">Version 1.0 — Septembre 2025</p>
-  <p class="opacity-90">Un changelog discret indiquera les futures évolutions (ex. monétisation).</p>
-</section>
-
-<p class="text-xs opacity-70 mt-4">En acceptant, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public du pays de l’utilisateur demeurent applicables de plein droit.</p>
-    `,
-    btn: {
+    buttons: {
       later: "Plus tard",
       accept: "J’accepte",
       close: "Fermer",
-      readAndAccept: "Manifeste / CGU / Privacy",
+      openCta: "Manifeste / CGU / Privacy",
     },
-  },
-
-  /* ========== EN : synthèse (placeholder, prêt à étoffer avec ta VF) ========== */
-  en: {
-    title: "Manifest / Terms / Privacy",
-    preamble: {
-      h: "Preamble",
-      p: `OneBoarding AI is an interactive artificial-intelligence platform published by Benmehdi Mohamed Rida. It provides educational and practical information — including via an OCR module. Use is currently free; future changes may be notified.`,
+    manifest: {
+      h: "🌍 Manifeste de Confiance – OneBoarding AI",
+      p: "OneBoarding AI est une plateforme d’intelligence artificielle interactive conçue pour offrir à chaque utilisateur une expérience pédagogique et enrichissante.",
+      bullets: [
+        "🛡️ Clarté et sécurité : l’utilisateur reste toujours maître de son usage et responsable de ses choix.",
+        "🌐 Universalité : les principes qui gouvernent cette plateforme dépassent les frontières et respectent les règles d’ordre public de chaque pays.",
+        "⚖️ Équilibre et responsabilité partagée : l’éditeur met en œuvre tous les moyens raisonnables pour assurer un service fiable, mais l’utilisateur conserve l’entière responsabilité de l’usage qu’il fait des informations fournies.",
+        "🤝 Confiance et transparence : l’interaction entre l’intelligence artificielle et l’humain repose sur le respect mutuel, la confidentialité et une utilisation de bonne foi."
+      ],
+      note:
+        "👉 Ce manifeste n’est pas un simple détail juridique : il est l’esprit fondateur qui inspire nos Conditions Générales d’Utilisation et notre Politique de Confidentialité."
+    },
+    about: {
+      h: "Qui sommes-nous",
+      lines: [
+        "OneBoarding AI est une interface intelligente conçue pour faciliter l’interaction avec l’IA de façon simple, rapide et universelle.",
+        "Créé et développé par Benmehdi Mohamed Rida.",
+        "Notre mission : rendre l’intelligence artificielle accessible à tous, dans un cadre clair, élégant et respectueux de la confidentialité."
+      ]
+    },
+    timeline: {
+      h: "Timeline",
+      items: [
+        "2025 → Lancement de OneBoarding AI, avec une mission : simplifier l’IA.",
+        "2026+ → Déploiement progressif de fonctionnalités avancées."
+      ],
+      signature:
+        "✍️ Créé par Benmehdi Mohamed Rida — une vision unique au service de l’innovation."
     },
     cgu: {
-      h: "Terms of Use",
-      li: [
-        `Users remain solely responsible for their decisions and actions; AI-generated content is provided “as is”, with no warranty of accuracy or completeness.`,
-        `The publisher may modify, suspend or discontinue the service at any time; no liability is accepted for downtime or indirect losses.`,
-        `Unlawful or abusive uses are prohibited; in case of abuse, access may be restricted.`,
-        `Jurisdiction: courts of the publisher’s place of residence, subject to mandatory public-order rules applicable to the user.`,
-      ],
+      h: "Conditions Générales d’Utilisation (CGU)",
+      items: [
+        "1. Objet — OneBoarding AI fournit un service d’assistance basé sur l’intelligence artificielle permettant aux utilisateurs de formuler des requêtes et d’obtenir des réponses générées automatiquement (« Service »). Les présentes CGU régissent l’accès et l’utilisation du Service par tout utilisateur (« Utilisateur »).",
+        "2. Responsabilité de l’Utilisateur — L’Utilisateur est seul responsable de l’usage qu’il fait des contenus (« Contenus »).",
+        "   a) Les Contenus sont générés automatiquement et constituent une aide à la décision ; ils ne sauraient être considérés comme des conseils professionnels personnalisés. L’Utilisateur doit vérifier et, le cas échéant, consulter un professionnel compétent avant toute décision engageante.",
+        "   b) OneBoarding AI et son exploitant ne sauraient être tenus responsables des conséquences directes ou indirectes liées à l’utilisation, l’interprétation, la diffusion ou la mise en œuvre des Contenus (y compris perte de revenus, de données, préjudice commercial, ou autre dommage).",
+        "   c) L’Utilisateur s’engage à un usage légal et conforme ; il indemnisera OneBoarding AI en cas d’usage non conforme.",
+        "3. Indemnisation — L’Utilisateur s’engage à indemniser, défendre et dégager de toute responsabilité OneBoarding AI, ses dirigeants, employés et ayants droit, pour toute réclamation liée (i) à un usage non conforme, (ii) à une violation des CGU, ou (iii) à une atteinte aux droits de tiers.",
+        "4. Limitation de responsabilité — Dans toute la mesure permise par la loi, la responsabilité cumulée de OneBoarding AI envers l’Utilisateur est limitée et ne peut être engagée qu’au titre des règles d’ordre public, dans l’esprit d’agir en bon père de famille. Aucune responsabilité pour dommages indirects, spéciaux, punitifs ou accessoires (perte de profit, d’exploitation, ou de données).",
+        "5. Exceptions — Les limitations ci-dessus ne s’appliquent pas lorsqu’elles contreviennent aux droits légaux impératifs reconnus aux consommateurs.",
+        "6. Obligations de l’Utilisateur — (i) ne pas soumettre de contenus illicites/diffamatoires/contrefaisants ; (ii) sauvegarder ses données ; (iii) signaler toute faille ou usage frauduleux.",
+        "7. Conservation et preuve — Des journaux (prompts, réponses, horodatage) peuvent être conservés à des fins de sécurité, d’amélioration du Service, et de preuve en cas de litige, conformément à la Politique de Confidentialité.",
+        "Compétence — Juridiction du lieu de résidence de l’éditeur, sous réserve des règles d’ordre public applicables à l’utilisateur."
+      ]
     },
     privacy: {
-      h: "Privacy",
-      li: [
-        `Local storage on your device (history, consents).`,
-        `AI requests are routed through technical providers acting as processors; your personal data is neither sold nor shared for advertising purposes. Any future monetisation will concern access to the service (subscriptions, credits, offers) and not the transfer of your personal data.`,
-        `We may use aggregated and anonymised measures (usage statistics) to improve the service, without identifying users.`,
-        `You can delete your local data from the interface (dedicated button).`,
-      ],
+      h: "Politique de Confidentialité",
+      items: [
+        "• Stockage local : l’historique et les consentements sont conservés sur votre appareil.",
+        "• Sous-traitants techniques : les requêtes IA transitent par des prestataires techniques agissant comme sous-traitants ; vos données personnelles ne sont ni vendues ni partagées à des fins publicitaires.",
+        "• Monétisation : toute monétisation éventuelle concernera l’accès au service (abonnements, crédits, offres) et non la cession de vos données personnelles.",
+        "• Statistiques anonymisées : nous pouvons utiliser des mesures agrégées et anonymisées (statistiques d’usage) pour améliorer le service, sans identifier les utilisateurs.",
+        "• Effacement : vous pouvez supprimer vos données locales à tout moment via le bouton prévu à cet effet."
+      ]
+    },
+    version: {
+      h: "Version & Mise à jour",
+      lines: [
+        "Version 1.0 — Septembre 2025",
+        "Un changelog discret indiquera les futures évolutions (ex. monétisation)."
+      ]
     },
     footer:
-      "By accepting, you acknowledge that you have read this information. Mandatory public-order rules of the user’s country remain applicable in all cases.",
-    btn: {
+      "En acceptant, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public du pays de l’utilisateur demeurent applicables de plein droit."
+  },
+
+  en: {
+    title: "Manifesto / Terms / Privacy",
+    buttons: {
       later: "Later",
       accept: "I accept",
       close: "Close",
-      readAndAccept: "Manifest / Terms / Privacy",
+      openCta: "Manifesto / Terms / Privacy",
     },
-  },
-
-  /* ========== AR : synthèse (placeholder, prêt à étoffer avec ta VF) ========== */
-  ar: {
-    title: "البيان / الشروط / الخصوصية",
-    preamble: {
-      h: "تمهيد",
-      p: `منصّة OneBoarding AI هي منصّة ذكاء اصطناعي تفاعلية ينشرها <strong class="nowrap-ar">بنمهدي محمد رضى</strong>. تُمكّن من الحصول على معلومات تعليمية وعملية — بما في ذلك عبر وحدة OCR. الاستخدام حاليًا مجاني؛ وقد يتم إشعار المستخدم بأي تغييرات مستقبلية.`,
+    manifest: {
+      h: "🌍 Trust Manifesto – OneBoarding AI",
+      p: "OneBoarding AI is an interactive AI platform designed to offer every user a pedagogical and enriching experience.",
+      bullets: [
+        "🛡️ Clarity & safety: the user remains in full control of their usage and responsible for their choices.",
+        "🌐 Universality: the principles governing this platform transcend borders and respect the public-order rules of each country.",
+        "⚖️ Balance & shared responsibility: the publisher uses reasonable efforts to provide a reliable service, while the user retains full responsibility for how information is used.",
+        "🤝 Trust & transparency: human–AI interaction relies on mutual respect, confidentiality and good-faith use."
+      ],
+      note:
+        "👉 This manifesto is not a mere legal detail: it is the founding spirit that guides our Terms of Use and Privacy Policy."
+    },
+    about: {
+      h: "About",
+      lines: [
+        "OneBoarding AI is a smart interface that makes interacting with AI simple, fast and universal.",
+        "Created and developed by Benmehdi Mohamed Rida.",
+        "Our mission: make AI accessible to everyone, within a clear, elegant and privacy-respectful framework."
+      ]
+    },
+    timeline: {
+      h: "Timeline",
+      items: [
+        "2025 → OneBoarding AI launch, with a mission: simplify AI.",
+        "2026+ → Progressive roll-out of advanced features."
+      ],
+      signature:
+        "✍️ Created by Benmehdi Mohamed Rida — a unique vision in the service of innovation."
     },
     cgu: {
-      h: "شروط الاستخدام",
-      li: [
-        `المستخدم هو المسؤول الوحيد عن قراراته وأفعاله؛ ويتم تقديم المحتوى المُولد بالذكاء الاصطناعي "كما هو" دون أي ضمان للدقة أو الاكتمال.`,
-        `يجوز للناشر تعديل الخدمة أو تعليقها أو إيقافها في أي وقت؛ ولا تُحمّل أي مسؤولية عن الانقطاعات أو الخسائر غير المباشرة.`,
-        `يُحظر أي استخدام غير مشروع أو مسيء؛ وفي حال الإساءة يمكن تقييد الوصول.`,
-        `الاختصاص القضائي: محاكم موطن الناشر، مع مراعاة قواعد النظام العام المطبقة على المستخدم.`,
-      ],
+      h: "Terms of Use (ToU)",
+      items: [
+        "1. Purpose — OneBoarding AI provides an AI-based assistance service enabling users to submit queries and receive automatically generated answers (“Service”). These ToU govern access to and use of the Service by any user (“User”).",
+        "2. User Responsibility — The User is solely responsible for their use of the content (“Content”).",
+        "   a) Content is automatically generated and serves as decision support; it is not personalised professional advice. The User must verify and, where appropriate, consult a qualified professional before any binding decision.",
+        "   b) OneBoarding AI and its operator shall not be liable for direct or indirect consequences arising from use, interpretation, sharing or implementation of the Content (including loss of revenue, data, business, or other damage).",
+        "   c) The User commits to lawful and compliant use and shall indemnify OneBoarding AI in case of non-compliant use.",
+        "3. Indemnification — The User agrees to indemnify, defend and hold harmless OneBoarding AI, its officers, employees and successors from any claim arising from (i) non-compliant use, (ii) breach of the ToU, or (iii) infringement of third-party rights.",
+        "4. Liability Cap — To the fullest extent permitted by law, OneBoarding AI’s aggregate liability to the User is limited and can only arise under mandatory public-order rules; no liability for indirect, special, punitive or incidental damages (including lost profits, business or data).",
+        "5. Exceptions — The above limitations do not apply where they would contravene mandatory consumer rights.",
+        "6. User Duties — (i) do not submit unlawful/defamatory/infringing content; (ii) take reasonable steps to back up data; (iii) promptly report any fraud or security incident.",
+        "7. Logs & Evidence — Interaction logs (prompts, answers, timestamps) may be retained for security, service improvement and evidentiary purposes, in line with the Privacy Policy.",
+        "Jurisdiction — Courts of the publisher’s place of residence, subject to public-order rules applicable to the user."
+      ]
     },
     privacy: {
-      h: "الخصوصية",
-      li: [
-        `تخزين محلي على جهازك (السجلّ، الموافقات).`,
-        `طلبات الذكاء الاصطناعي تمر عبر مقدّمي خدمات تقنيين بصفة "معالجين للبيانات"؛ لا تُباع بياناتك الشخصية ولا تُشارك لأغراض إعلانية. وأي تحقيق ربح مستقبلي سيكون متعلقًا بالوصول إلى الخدمة (اشتراكات، أرصدة، عروض) وليس بتنازل عن بياناتك الشخصية.`,
-        `قد نستخدم مقاييس مُجمّعة ومجهولة الهوية (إحصاءات الاستخدام) لتحسين الخدمة دون التعرّف على المستخدمين.`,
-        `يمكنك حذف بياناتك المحلية من داخل الواجهة (زر مخصص).`,
-      ],
+      h: "Privacy Policy",
+      items: [
+        "• Local storage: history and consents are kept on your device.",
+        "• Technical processors: AI requests transit through technical providers acting as processors; your personal data is neither sold nor shared for advertising purposes.",
+        "• Monetisation: any future monetisation will concern access to the service (subscriptions, credits, offers) and not the transfer of your personal data.",
+        "• Anonymous statistics: we may use aggregated, anonymised usage metrics to improve the service without identifying users.",
+        "• Erasure: you can delete your local data at any time via the dedicated button."
+      ]
+    },
+    version: {
+      h: "Version & Updates",
+      lines: [
+        "Version 1.0 — September 2025",
+        "A discreet changelog will indicate future evolutions (e.g., monetisation)."
+      ]
     },
     footer:
-      "بقبولك، فإنك تقر بأنك قرأت هذه المعلومات. وتظل قواعد النظام العام في بلد المستخدم قابلة للتطبيق في جميع الأحوال.",
-    btn: {
+      "By accepting, you acknowledge that you have taken note of this information. The public-order rules of the user’s country remain applicable as of right."
+  },
+
+  ar: {
+    title: "البيان / الشروط / الخصوصية",
+    buttons: {
       later: "لاحقًا",
       accept: "أوافق",
       close: "إغلاق",
-      readAndAccept: "Manifeste / CGU / Privacy",
+      openCta: "البيان / الشروط / الخصوصية",
     },
-  },
+    manifest: {
+      h: "🌍 بيان الثقة – OneBoarding AI",
+      p: "OneBoarding AI منصّة ذكاء اصطناعي تفاعلية تهدف إلى تقديم تجربة تعليمية مُثرية لكل مستخدم.",
+      bullets: [
+        "🛡️ الوضوح والأمان: يظلّ المستخدم دائمًا المتحكّم في استعماله والمسؤول عن اختياراته.",
+        "🌐 العالمية: المبادئ التي تحكم هذه المنصّة تتجاوز الحدود وتحترم قواعد النظام العام في كل بلد.",
+        "⚖️ التوازن والمسؤولية المشتركة: يعتمد الناشر وسائل معقولة لتقديم خدمة موثوقة، بينما يبقى المستخدم مسؤولًا بالكامل عن كيفية استخدام المعلومات.",
+        "🤝 الثقة والشفافية: تقوم العلاقة بين الذكاء الاصطناعي والإنسان على الاحترام المتبادل والسرّية وحسن النية."
+      ],
+      note:
+        "👉 هذا البيان ليس تفصيلًا قانونيًا فحسب؛ بل هو الروح المؤسسة التي تُلهم شروط الاستخدام وسياسة الخصوصية."
+    },
+    about: {
+      h: "من نحن",
+      lines: [
+        "OneBoarding AI واجهة ذكيّة لتيسير التفاعل مع الذكاء الاصطناعي بطريقة بسيطة وسريعة وعالمية.",
+        "صُمّمت وطُوِّرت من طرف <strong class=\"nowrap-ar\">بنمهدي محمد رضى</strong>.",
+        "مهمّتنا: جعل الذكاء الاصطناعي في متناول الجميع ضمن إطار واضح وأنيق ويحترم الخصوصية."
+      ]
+    },
+    timeline: {
+      h: "الخط الزمني",
+      items: [
+        "2025 → إطلاق OneBoarding AI مع مهمّة: تبسيط الذكاء الاصطناعي.",
+        "2026+ → طرح تدريجي لخصائص متقدّمة."
+      ],
+      signature:
+        "✍️ صُمّم من طرف <strong class=\"nowrap-ar\">بنمهدي محمد رضى</strong> — رؤية فريدة في خدمة الابتكار."
+    },
+    cgu: {
+      h: "شروط الاستخدام",
+      items: [
+        "1. الغرض — يوفّر OneBoarding AI خدمة مساعدة قائمة على الذكاء الاصطناعي لطرح الاستفسارات والحصول على ردود مُولّدة آليًا («الخدمة»). تحكم هذه الشروط وصول كل مستخدم («المستخدم») إلى الخدمة واستعمالها.",
+        "2. مسؤولية المستخدم — يتحمّل المستخدم وحده مسؤولية استعمال المحتوى («المحتوى»).",
+        "   أ) يُعدّ المحتوى مساعدة على اتخاذ القرار ولا يُعدّ نصيحة مهنية شخصية. يجب على المستخدم التحقّق واستشارة مختص عند الحاجة قبل أي قرار مُلزِم.",
+        "   ب) لا يتحمّل OneBoarding AI أو مشغّله أي مسؤولية عن النتائج المباشرة أو غير المباشرة لاستعمال أو تفسير أو مشاركة أو تنفيذ المحتوى (بما في ذلك خسارة الأرباح أو البيانات أو الضرر التجاري).",
+        "   ج) يلتزم المستخدم باستعمالٍ قانوني ومتوافق ويعوض المنصّة عن أي استعمال غير متوافق.",
+        "3. التعويض — يلتزم المستخدم بتعويض والدفاع وإبراء ذمة OneBoarding AI وموظّفيه وخلفائه من أي مطالبات ناجمة عن (i) استعمال غير متوافق، (ii) مخالفة الشروط، (iii) انتهاك حقوق الغير.",
+        "4. حدود المسؤولية — في الحدود التي يسمح بها القانون، تُحدّد المسؤولية الإجمالية لـ OneBoarding AI ولا تقوم إلا بموجب قواعد النظام العام؛ ولا مسؤولية عن الأضرار غير المباشرة أو الخاصة أو التأديبية أو العرضية (بما في ذلك فقدان الأرباح أو الأعمال أو البيانات).",
+        "5. الاستثناءات — لا تسري الحدود أعلاه إذا تعارضت مع الحقوق القانونية الواجبة للمستهلكين.",
+        "6. التزامات المستخدم — (1) عدم تقديم محتوى غير مشروع/قدحي/منتهِك للحقوق؛ (2) اتخاذ تدابير معقولة لنسخ البيانات احتياطيًا؛ (3) الإبلاغ فورًا عن أي احتيال أو ثغرة.",
+        "7. الاحتفاظ والإثبات — يجوز الاحتفاظ بسجلات التفاعل (المدخلات، الردود، الطوابع الزمنية) لأغراض الأمان وتحسين الخدمة والإثبات، وفق سياسة الخصوصية.",
+        "الاختصاص — محاكم موطن الناشر، مع مراعاة قواعد النظام العام المطبقة على المستخدم."
+      ]
+    },
+    privacy: {
+      h: "سياسة الخصوصية",
+      items: [
+        "• تخزين محلي: يُحفَظ السجلّ والموافقات على جهازك.",
+        "• معالِجون تقنيون: تمرّ الطلبات عبر مزوّدي خدمات تقنيين بصفتهم «معالِجين للبيانات»؛ لا تُباع بياناتك الشخصية ولا تُشارك لأغراض إعلانية.",
+        "• تحقيق الدخل: أي ربح مستقبلي سيكون متعلقًا بالوصول إلى الخدمة (اشتراكات، أرصدة، عروض) وليس بالتنازل عن بياناتك الشخصية.",
+        "• إحصاءات مُجهّلة: قد نستخدم مقاييس مُجمّعة ومجهولة الهوية لتحسين الخدمة دون التعرّف على المستخدمين.",
+        "• الحذف: يمكنك حذف بياناتك المحلية في أي وقت عبر الزر المخصص."
+      ]
+    },
+    version: {
+      h: "الإصدار والتحديث",
+      lines: [
+        "الإصدار 1.0 — شتنبر/سبتمبر 2025",
+        "سيعرض سجلّ تغييرات مُصغّر التحديثات المستقبلية (مثل تحقيق الدخل)."
+      ]
+    },
+    footer:
+      "بقبولك، فإنك تقرّ بأنك اطّلعت على هذه المعلومات. تظلّ قواعد النظام العام في بلد المستخدم قابلة للتطبيق بحكم القانون."
+  }
 };
-
-/* =================== Modal Légal (Préambule + CGU + Confidentialité) =================== */
+/* =================== Modal Légal (Manifeste + CGU + Privacy + Version) =================== */
 function LegalModal({
   open,
   onAccept,
@@ -224,6 +255,8 @@ function LegalModal({
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [canAccept, setCanAccept] = useState(false);
+
+  // Sélecteur de langue avec persistance locale
   const LANG_KEY = "oneboarding.legalLang";
   const [lang, setLang] = useState<Lang>(() => {
     try {
@@ -232,7 +265,14 @@ function LegalModal({
       return "fr";
     }
   });
+  const setLangPersist = (l: Lang) => {
+    setLang(l);
+    try {
+      localStorage.setItem(LANG_KEY, l);
+    } catch {}
+  };
 
+  // Activation du bouton "J'accepte" seulement quand on a scrollé tout en bas
   useEffect(() => {
     if (!open) return;
     const el = boxRef.current;
@@ -246,27 +286,29 @@ function LegalModal({
     return () => el.removeEventListener("scroll", onScroll);
   }, [open]);
 
-  const setLangPersist = (l: Lang) => {
-    setLang(l);
-    try {
-      localStorage.setItem(LANG_KEY, l);
-    } catch {}
-  };
-
   if (!open) return null;
   const t = legalCopy[lang];
+
+  // Utilitaire pour rendre des lignes qui peuvent contenir un petit HTML (ex: <strong class="nowrap-ar">…</strong>)
+  const Line = ({ text }: { text: string }) => (
+    <p
+      className="opacity-90"
+      dangerouslySetInnerHTML={{ __html: text }}
+    />
+  );
 
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
       <div
-        className="legal-modal relative mx-4 w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-white shadow-xl"
+        className="relative mx-4 w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-white shadow-xl"
         dir={lang === "ar" ? "rtl" : "ltr"}
       >
+        {/* Header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">{t.title}</h2>
 
-          {/* Sélecteur de langue : FR / EN / AR */}
+          {/* Sélecteur de langue */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setLangPersist("fr")}
@@ -298,63 +340,92 @@ function LegalModal({
           </div>
 
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15">
-            {t.btn.close}
+            {t.buttons.close}
           </button>
         </div>
 
-        {/* Contenu compact */}
+        {/* Contenu scrollable */}
         <div
           ref={boxRef}
-          className="px-5 py-4 max-h-[70vh] overflow-y-auto text-[13.5px] leading-[1.35rem] space-y-5"
+          className="px-5 py-4 max-h-[70vh] overflow-y-auto text-[13.5px] leading-[1.35rem] space-y-6"
         >
-          {/* FR : HTML complet ; EN/AR : synthèse */}
-          {t.html ? (
-            <div className="space-y-5" dangerouslySetInnerHTML={{ __html: t.html }} />
-          ) : (
-            <>
-              {t.preamble && (
-                <section>
-                  <h3 className="font-semibold mb-1.5">{t.preamble.h}</h3>
-                  <p
-                    className="opacity-90"
-                    dangerouslySetInnerHTML={{ __html: t.preamble.p }}
-                  />
-                </section>
-              )}
+          {/* Manifeste */}
+          <section>
+            <h3 className="font-semibold mb-1.5">{t.manifest.h}</h3>
+            <Line text={t.manifest.p} />
+            <ul className="list-disc pl-5 space-y-1.5 opacity-90 mt-2">
+              {t.manifest.bullets.map((li, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: li }} />
+              ))}
+            </ul>
+            <p className="mt-2 opacity-90">{t.manifest.note}</p>
+          </section>
 
-              {t.cgu && (
-                <section>
-                  <h3 className="font-semibold mb-1.5">{t.cgu.h}</h3>
-                  <ul className="list-disc pl-5 space-y-1.5 opacity-90">
-                    {t.cgu.li.map((li, i) => (
-                      <li key={i}>{li}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+          {/* Qui sommes-nous / About */}
+          <section>
+            <h3 className="font-semibold mb-1.5">{t.about.h}</h3>
+            <div className="space-y-1.5">
+              {t.about.lines.map((line, i) => (
+                <Line key={i} text={line} />
+              ))}
+            </div>
+          </section>
 
-              {t.privacy && (
-                <section>
-                  <h3 className="font-semibold mb-1.5">{t.privacy.h}</h3>
-                  <ul className="list-disc pl-5 space-y-1.5 opacity-90">
-                    {t.privacy.li.map((li, i) => (
-                      <li key={i}>{li}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+          {/* Timeline */}
+          <section>
+            <h3 className="font-semibold mb-1.5">{t.timeline.h}</h3>
+            <ul className="list-disc pl-5 space-y-1.5 opacity-90">
+              {t.timeline.items.map((li, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: li }} />
+              ))}
+            </ul>
+            <p
+              className="mt-2 opacity-90"
+              dangerouslySetInnerHTML={{ __html: t.timeline.signature }}
+            />
+          </section>
 
-              {t.footer && <p className="text-xs opacity-70">{t.footer}</p>}
-            </>
-          )}
+          {/* CGU */}
+          <section>
+            <h3 className="font-semibold mb-1.5">{t.cgu.h}</h3>
+            <ul className="list-disc pl-5 space-y-1.5 opacity-90">
+              {t.cgu.items.map((li, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: li }} />
+              ))}
+            </ul>
+          </section>
+
+          {/* Privacy */}
+          <section>
+            <h3 className="font-semibold mb-1.5">{t.privacy.h}</h3>
+            <ul className="list-disc pl-5 space-y-1.5 opacity-90">
+              {t.privacy.items.map((li, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: li }} />
+              ))}
+            </ul>
+          </section>
+
+          {/* Version */}
+          <section>
+            <h3 className="font-semibold mb-1.5">{t.version.h}</h3>
+            <div className="space-y-1.5 opacity-90">
+              {t.version.lines.map((line, i) => (
+                <Line key={i} text={line} />
+              ))}
+            </div>
+          </section>
+
+          {/* Footer légal */}
+          <p className="text-xs opacity-70">{t.footer}</p>
         </div>
 
+        {/* Barre d’actions */}
         <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15"
           >
-            {t.btn.later}
+            {t.buttons.later}
           </button>
           <button
             onClick={onAccept}
@@ -364,15 +435,14 @@ function LegalModal({
             }`}
             title={canAccept ? undefined : "Faites défiler jusqu’en bas pour activer"}
           >
-            {t.btn.accept}
+            {t.buttons.accept}
           </button>
         </div>
       </div>
     </div>
   );
 }
-
-/* =================== Bandeau RGPD (modal “Manifeste / CGU / Privacy”) =================== */
+/* =================== Bandeau RGPD (Manifeste / CGU / Privacy) =================== */
 function RgpdBanner() {
   const CONSENT_KEY = "oneboarding.legalAccepted";
   const [show, setShow] = useState(false);
@@ -497,412 +567,6 @@ function ConfirmDialog({
   );
 }
 
-/* =================== Types & utils =================== */
-type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
-
-const cleanText = (s: string) =>
-  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
-
-function copyToClipboard(text: string) {
-  try {
-    navigator.clipboard.writeText(text);
-  } catch {}
-}
-
-/* =================== Page =================== */
-export default function Page() {
-  const [input, setInput] = useState("");
-  const [history, setHistory] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // OCR
-  const [showOcr, setShowOcr] = useState(false);
-  const [ocrText, setOcrText] = useState("");
-  const ocrContainerRef = useRef<HTMLDivElement | null>(null);
-
-  // 🎙️ Micro
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recogRef = useRef<any>(null);
-  const baseInputRef = useRef<string>("");
-
-  // 🧹 Modal Effacer
-  const [showClearModal, setShowClearModal] = useState(false);
-
-  // Décalage du bouton "Effacer l’historique" quand le bandeau légal est visible
-  const CONSENT_KEY = "oneboarding.legalAccepted";
-  const [liftForBanner, setLiftForBanner] = useState(false);
-  useEffect(() => {
-    try {
-      setLiftForBanner(localStorage.getItem(CONSENT_KEY) !== "1");
-    } catch {
-      setLiftForBanner(true);
-    }
-    const onBannerHidden = () => setLiftForBanner(false);
-    window.addEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
-    return () =>
-      window.removeEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
-  }, []);
-
-  // Textarea auto-expansion + scroll
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    const max = 3,
-      lineHeight = 24,
-      maxHeight = max * lineHeight + 16;
-    ta.style.height = Math.min(ta.scrollHeight, maxHeight) + "px";
-    ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [input]);
-
-  useEffect(() => {
-    const SR: any =
-      (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
-      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
-    if (!SR) return;
-
-    setSpeechSupported(true);
-    const r = new SR();
-    r.lang = "fr-FR";
-    r.continuous = true;
-    r.interimResults = false;
-    r.maxAlternatives = 1;
-
-    r.onstart = () => {
-      baseInputRef.current = input;
-      setListening(true);
-    };
-    r.onresult = (e: any) => {
-      let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++)
-        final += " " + e.results[i][0].transcript;
-      setInput(cleanText([baseInputRef.current, final].join(" ")));
-    };
-    const stopUI = () => setListening(false);
-    r.onend = stopUI;
-    r.onspeechend = stopUI;
-    r.onaudioend = stopUI;
-    r.onnomatch = stopUI;
-    r.onerror = stopUI;
-
-    recogRef.current = r;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function toggleMic() {
-    const r = recogRef.current;
-    if (!r) return;
-    if (!listening) {
-      try {
-        r.start();
-      } catch {}
-      return;
-    }
-    try {
-      r.stop();
-    } catch {}
-    setTimeout(() => {
-      if (listening) {
-        try {
-          r.abort?.();
-        } catch {}
-        setListening(false);
-      }
-    }, 600);
-  }
-
-  // historique persist
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem("oneboarding.history");
-      if (s) setHistory(JSON.parse(s));
-    } catch {}
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch {}
-  }, [history]);
-
-  // Auto-scroll vers le haut à la fin de génération
-  const prevLoadingRef = useRef(false);
-  useEffect(() => {
-    if (prevLoadingRef.current && !loading)
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    prevLoadingRef.current = loading;
-  }, [loading]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const q = input.trim();
-    const hasOcr = Boolean(ocrText.trim());
-    if (!q && !hasOcr) return;
-    if (loading) return;
-
-    const now = new Date().toISOString();
-    const userShown =
-      q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown)
-      setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
-
-    setInput("");
-    setLoading(true);
-
-    const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
-          q || "(aucune)"
-        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
-      : q;
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: composedPrompt }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        const raw = String(data?.error || `HTTP ${res.status}`);
-        let msg = `Erreur: ${raw}`;
-        if (raw.includes("GROQ_API_KEY"))
-          msg = "Service temporairement indisponible. (Configuration serveur requise)";
-        setHistory((h) => [
-          { role: "error", text: msg, time: new Date().toISOString() },
-          ...h,
-        ]);
-      } else {
-        setHistory((h) => [
-          {
-            role: "assistant",
-            text: String(data.text || "Réponse vide."),
-            time: new Date().toISOString(),
-          },
-          ...h,
-        ]);
-      }
-    } catch (err: any) {
-      setHistory((h) => [
-        {
-          role: "error",
-          text: `Erreur: ${err?.message || "réseau"}`,
-          time: new Date().toISOString(),
-        },
-        ...h,
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Déclenche file input d’OcrUploader
-  function triggerHiddenFileInput() {
-    const container = ocrContainerRef.current;
-    if (!container) return;
-    const input = container.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement | null;
-    input?.click();
-  }
-
-  // Effacement de l’historique (après confirmation)
-  function clearHistory() {
-    setHistory([]);
-    try {
-      localStorage.removeItem("oneboarding.history");
-    } catch {}
-    setShowClearModal(false);
-  }
-
-  return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
-      <StyleGlobals />
-      <div className="halo" aria-hidden />
-
-      {/* ===== Logo (pictogramme) — redescendu légèrement ===== */}
-      <div className="mb-1 -mt-1 flex justify-center">
-        <div className="relative h-32 w-32 md:h-44 md:w-44 overflow-hidden">
-          <Image
-            src="/brand/oneboardingai-logo.png"
-            alt="OneBoarding AI — logomark"
-            fill
-            priority
-            className="object-contain -translate-y-3 md:-translate-y-4 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
-          />
-        </div>
-      </div>
-
-      {/* ===== Barre : textarea auto + OK ===== */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
-        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
-          <textarea
-            ref={taRef}
-            placeholder="Votre question…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 min-w-0 px-4 py-3 text-white bg-[var(--panel)] outline-none resize-none leading-6"
-            rows={1}
-            style={{ maxHeight: 96 }}
-          />
-          <div className="w-px bg-[var(--border)]" aria-hidden />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-5 md:px-6 font-medium bg-[var(--panel-strong)] text-white hover:bg-[var(--panel-stronger)] transition disabled:opacity-60"
-          >
-            {loading ? "…" : "OK"}
-          </button>
-        </div>
-
-        {/* rangée d’actions sous la barre */}
-        <div className="mt-3 flex gap-3">
-          <button
-            type="button"
-            onClick={() => setShowOcr((v) => !v)}
-            className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
-            title="Joindre un document (OCR)"
-            aria-label="Joindre un document"
-          >
-            <svg
-              className="h-6 w-6 text-[var(--fg)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            disabled={!speechSupported}
-            onClick={toggleMic}
-            className={`h-12 w-12 rounded-xl border grid place-items-center transition
-              ${
-                listening
-                  ? "border-[var(--accent)] bg-[color:var(--accent-tint)] mic-pulse"
-                  : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"
-              }
-              disabled:opacity-50`}
-            aria-label={
-              speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"
-            }
-            title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
-          >
-            <svg
-              className="h-6 w-6 text-[var(--fg)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
-              <path d="M19 10.5a7 7 0 01-14 0" />
-              <path d="M12 21v-3" />
-            </svg>
-          </button>
-        </div>
-      </form>
-
-      {/* Tiroir OCR */}
-      {showOcr && (
-        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[1]">
-          <div className="mb-3 flex gap-2">
-            <button
-              type="button"
-              onClick={triggerHiddenFileInput}
-              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium"
-            >
-              Charger 1 fichier
-            </button>
-          </div>
-          <OcrUploader onText={(t) => setOcrText(t)} onPreview={() => {}} />
-        </div>
-      )}
-
-      {/* Historique */}
-      <div className="w-full max-w-md space-y-3 pb-40 z-[1]">
-        {loading && (
-          <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
-            <p className="text-[var(--fg)]">
-              <span className="typing-dots" aria-live="polite">
-                •••
-              </span>
-            </p>
-            <p className="text-xs opacity-70 mt-4">IA • {new Date().toLocaleString()}</p>
-          </div>
-        )}
-
-        {history.map((item, idx) => (
-          <div
-            key={idx}
-            className={`msg-appear rounded-xl border p-3 relative
-              ${
-                item.role === "user"
-                  ? "border-[var(--border)] bg-[var(--user-bg)]"
-                  : item.role === "assistant"
-                  ? "border-[var(--assistant-border)] bg-[var(--assistant-bg)]"
-                  : "border-[var(--error-border)] bg-[var(--error-bg)]"
-              }`}
-          >
-            <p className="whitespace-pre-wrap">{item.text}</p>
-
-            {item.role === "assistant" && (
-              <button
-                onClick={() => copyToClipboard(item.text)}
-                className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] border border-[var(--border)]"
-              >
-                Copier
-              </button>
-            )}
-
-            <p className="text-xs opacity-70 mt-6">
-              {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
-              {new Date(item.time).toLocaleString()}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Bouton danger effacer historique (remonté si bandeau légal visible) */}
-      {history.length > 0 && (
-        <div
-          className={`fixed inset-x-0 z-[55] flex justify-center pointer-events-none ${
-            liftForBanner ? "bottom-28" : "bottom-6"
-          }`}
-        >
-          <button
-            onClick={() => setShowClearModal(true)}
-            className="pointer-events-auto px-5 py-3 rounded-2xl bg-[var(--danger)] hover:bg-[var(--danger-strong)] text-white font-semibold shadow-lg"
-          >
-            Effacer l’historique
-          </button>
-        </div>
-      )}
-
-      {/* Modal Effacer */}
-      <ConfirmDialog
-        open={showClearModal}
-        title="Effacer l’historique ?"
-        description="Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible. Pensez à sauvegarder ce qui vous est utile avant d’effacer."
-        confirmLabel="Effacer"
-        cancelLabel="Annuler"
-        onConfirm={clearHistory}
-        onCancel={() => setShowClearModal(false)}
-      />
-
-      {/* Bandeau RGPD / Légal */}
-      <RgpdBanner />
-    </div>
-  );
-}
-
 /* =================== Styles globaux =================== */
 function StyleGlobals() {
   return (
@@ -933,11 +597,11 @@ function StyleGlobals() {
         --border: rgba(11, 27, 43, 0.12);
         --accent: #22d3ee;
         --accent-tint: rgba(34, 211, 238, 0.18);
-
         --danger: #ef4444;
         --danger-strong: #dc2626;
       }
 
+      /* ✅ Halo visuel */
       .halo {
         position: fixed;
         left: 50%;
@@ -958,8 +622,16 @@ function StyleGlobals() {
         z-index: 1;
       }
 
-      /* empêche la césure du nom arabe */
-      .nowrap-ar { white-space: nowrap; }
+      /* ✅ Empêche la césure du nom arabe */
+      .nowrap-ar {
+        white-space: nowrap;
+      }
+
+      /* ✅ Sélection lisible */
+      ::selection {
+        background: rgba(34, 211, 238, 0.35);
+        color: #0b1b2b;
+      }
 
       @keyframes fadeUp {
         from {
@@ -979,9 +651,15 @@ function StyleGlobals() {
       }
 
       @keyframes dots {
-        0% { opacity: 0.2; }
-        20% { opacity: 1; }
-        100% { opacity: 0.2; }
+        0% {
+          opacity: 0.2;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.2;
+        }
       }
       .typing-dots {
         letter-spacing: 0.25em;
@@ -990,30 +668,49 @@ function StyleGlobals() {
       }
 
       @keyframes micPulse {
-        0%   { box-shadow:0 0 0 0 rgba(34,211,238,0.25); transform:scale(1); }
-        70%  { box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
-        100% { box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
+        0% {
+          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.25);
+          transform: scale(1);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
+          transform: scale(1.02);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+          transform: scale(1);
+        }
       }
-      .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
+      .mic-pulse {
+        animation: micPulse 1.6s ease-out infinite;
+      }
 
-      .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
-      .ocr-skin input[type="file"]{
-        position:absolute !important; left:-10000px !important;
-        width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; display:none !important;
+      .ocr-skin,
+      .ocr-skin * {
+        color: var(--fg) !important;
+      }
+      .ocr-skin input[type="file"] {
+        position: absolute !important;
+        left: -10000px !important;
+        width: 1px !important;
+        height: 1px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        display: none !important;
       }
       .ocr-skin input[type="file"]::file-selector-button,
       .ocr-skin input[type="file"] + *,
       .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small { display:none !important; }
+      .ocr-skin input[type="file"] ~ small {
+        display: none !important;
+      }
       .ocr-skin .truncate,
       .ocr-skin [class*="file-name"],
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] { display:none !important; }
-
-      /* Sélection lisible à l’intérieur du modal légal (évite le texte "invisible" sélectionné) */
-      .legal-modal *::selection { background: rgba(255,255,255,0.28); color: #fff; }
-      .legal-modal *::-moz-selection { background: rgba(255,255,255,0.28); color: #fff; }
+      .ocr-skin [class*="name"] {
+        display: none !important;
+      }
     `}</style>
   );
-    }
+}
