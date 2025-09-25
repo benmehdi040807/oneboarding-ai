@@ -91,7 +91,8 @@ const legalCopy: Record<
     title: "معلومات قانونية",
     preamble: {
       h: "تمهيد",
-      p: `منصّة OneBoarding AI هي منصّة ذكاء اصطناعي تفاعلية ينشرها <strong>بنمهدي محمد رضى</strong>. تُمكّن من الحصول على معلومات تعليمية وعملية — بما في ذلك عبر وحدة OCR. الاستخدام حاليًا مجاني؛ وقد يتم إشعار المستخدم بأي تغييرات مستقبلية.`,
+      // Nom en arabe rendu insécable via span.nowrap-ar
+      p: `منصّة OneBoarding AI هي منصّة ذكاء اصطناعي تفاعلية ينشرها <strong class="nowrap-ar">بنمهدي محمد رضى</strong>. تُمكّن من الحصول على معلومات تعليمية وعملية — بما في ذلك عبر وحدة OCR. الاستخدام حاليًا مجاني؛ وقد يتم إشعار المستخدم بأي تغييرات مستقبلية.`,
     },
     cgu: {
       h: "شروط الاستخدام",
@@ -176,7 +177,7 @@ function LegalModal({
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">{t.title}</h2>
 
-          {/* Sélecteur de langue FR / EN / AR, à l’emplacement demandé */}
+          {/* Sélecteur de langue : FR / EN / AR */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setLangPersist("fr")}
@@ -220,11 +221,8 @@ function LegalModal({
           {/* Préambule */}
           <section>
             <h3 className="font-semibold mb-1.5">{t.preamble.h}</h3>
-            {/* ATTENTION: le texte AR contient <strong> ; on l’autorise ici */}
-            <p
-              className="opacity-90"
-              dangerouslySetInnerHTML={{ __html: t.preamble.p }}
-            />
+            {/* le texte AR contient <strong> ; rendu autorisé */}
+            <p className="opacity-90" dangerouslySetInnerHTML={{ __html: t.preamble.p }} />
           </section>
 
           {/* CGU */}
@@ -263,13 +261,7 @@ function LegalModal({
             className={`px-4 py-2 rounded-xl text-white transition ${
               canAccept ? "bg-[var(--accent)] hover:brightness-110" : "bg-white/10 cursor-not-allowed"
             }`}
-            title={
-              canAccept
-                ? lang === "ar"
-                  ? "مرر إلى الأسفل للتفعيل"
-                  : "Scroll to the end to enable"
-                : undefined
-            }
+            title={canAccept ? undefined : "Faites défiler jusqu’en bas pour activer"}
           >
             {t.btn.accept}
           </button>
@@ -293,12 +285,20 @@ function RgpdBanner() {
     }
   }, []);
 
+  const hideAndNotify = () => {
+    setOpenModal(false);
+    setShow(false);
+    // Notifie la page pour ajuster l’offset du bouton « Effacer l’historique »
+    try {
+      window.dispatchEvent(new CustomEvent("oneboarding:legalBannerHidden"));
+    } catch {}
+  };
+
   const accept = () => {
     try {
       localStorage.setItem(CONSENT_KEY, "1");
     } catch {}
-    setOpenModal(false);
-    setShow(false);
+    hideAndNotify();
   };
 
   if (!show) return null;
@@ -317,7 +317,7 @@ function RgpdBanner() {
                 Lire & accepter
               </button>
               <button
-                onClick={() => setShow(false)}
+                onClick={hideAndNotify}
                 className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)]"
                 title="Masquer et décider plus tard"
               >
@@ -428,6 +428,21 @@ export default function Page() {
 
   // 🧹 Modal Effacer
   const [showClearModal, setShowClearModal] = useState(false);
+
+  // Décalage du bouton "Effacer l’historique" quand le bandeau légal est visible
+  const CONSENT_KEY = "oneboarding.legalAccepted";
+  const [liftForBanner, setLiftForBanner] = useState(false);
+  useEffect(() => {
+    // Au chargement, si pas d’acceptation -> le bandeau s’affiche, on relève le bouton
+    try {
+      setLiftForBanner(localStorage.getItem(CONSENT_KEY) !== "1");
+    } catch {
+      setLiftForBanner(true);
+    }
+    const onBannerHidden = () => setLiftForBanner(false);
+    window.addEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
+    return () => window.removeEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
+  }, []);
 
   // Textarea auto-expansion + scroll
   const taRef = useRef<HTMLTextAreaElement | null>(null);
@@ -755,9 +770,13 @@ export default function Page() {
         ))}
       </div>
 
-      {/* Bouton danger effacer historique */}
+      {/* Bouton danger effacer historique (remonté si bandeau légal visible) */}
       {history.length > 0 && (
-        <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
+        <div
+          className={`fixed inset-x-0 z-[55] flex justify-center pointer-events-none ${
+            liftForBanner ? "bottom-28" : "bottom-6"
+          }`}
+        >
           <button
             onClick={() => setShowClearModal(true)}
             className="pointer-events-auto px-5 py-3 rounded-2xl bg-[var(--danger)] hover:bg-[var(--danger-strong)] text-white font-semibold shadow-lg"
@@ -839,6 +858,9 @@ function StyleGlobals() {
         z-index: 1;
       }
 
+      /* empêche la césure du nom arabe */
+      .nowrap-ar { white-space: nowrap; }
+
       @keyframes fadeUp {
         from {
           opacity: 0;
@@ -857,15 +879,9 @@ function StyleGlobals() {
       }
 
       @keyframes dots {
-        0% {
-          opacity: 0.2;
-        }
-        20% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0.2;
-        }
+        0% { opacity: 0.2; }
+        20% { opacity: 1; }
+        100% { opacity: 0.2; }
       }
       .typing-dots {
         letter-spacing: 0.25em;
@@ -874,49 +890,26 @@ function StyleGlobals() {
       }
 
       @keyframes micPulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.25);
-          transform: scale(1);
-        }
-        70% {
-          box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
-          transform: scale(1.02);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
-          transform: scale(1);
-        }
+        0%   { box-shadow:0 0 0 0 rgba(34,211,238,0.25); transform:scale(1); }
+        70%  { box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
+        100% { box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
       }
-      .mic-pulse {
-        animation: micPulse 1.6s ease-out infinite;
-      }
+      .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      .ocr-skin,
-      .ocr-skin * {
-        color: var(--fg) !important;
-      }
-      .ocr-skin input[type="file"] {
-        position: absolute !important;
-        left: -10000px !important;
-        width: 1px !important;
-        height: 1px !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        display: none !important;
+      .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
+      .ocr-skin input[type="file"]{
+        position:absolute !important; left:-10000px !important;
+        width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; display:none !important;
       }
       .ocr-skin input[type="file"]::file-selector-button,
       .ocr-skin input[type="file"] + *,
       .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small {
-        display: none !important;
-      }
+      .ocr-skin input[type="file"] ~ small { display:none !important; }
       .ocr-skin .truncate,
       .ocr-skin [class*="file-name"],
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] {
-        display: none !important;
-      }
+      .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-        }
+            }
