@@ -457,21 +457,27 @@ function LegalModal({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setLangPersist("fr")}
-              className={`px-2.5 py-1 rounded-lg text-sm ${lang === "fr" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"}`}
+              className={`px-2.5 py-1 rounded-lg text-sm ${
+                lang === "fr" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"
+              }`}
               title="Français"
             >
               FR
             </button>
             <button
               onClick={() => setLangPersist("en")}
-              className={`px-2.5 py-1 rounded-lg text-sm ${lang === "en" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"}`}
+              className={`px-2.5 py-1 rounded-lg text-sm ${
+                lang === "en" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"
+              }`}
               title="English"
             >
               EN
             </button>
             <button
               onClick={() => setLangPersist("ar")}
-              className={`px-2.5 py-1 rounded-lg text-sm ${lang === "ar" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"}`}
+              className={`px-2.5 py-1 rounded-lg text-sm ${
+                lang === "ar" ? "bg-white/20" : "bg-white/10 hover:bg-white/15"
+              }`}
               title="العربية"
             >
               AR
@@ -484,7 +490,10 @@ function LegalModal({
         </div>
 
         {/* Contenu scrollable */}
-        <div ref={boxRef} className="px-5 py-4 max-h-[68vh] overflow-y-auto text-[13.5px] leading-[1.35rem] space-y-4">
+        <div
+          ref={boxRef}
+          className="px-5 py-4 max-h-[68vh] overflow-y-auto text-[13.5px] leading-[1.35rem] space-y-4"
+        >
           {t.sections.map((s, i) => {
             if (s.kind === "hr") return <hr key={i} className="border-white/10 my-2" />;
             if (s.kind === "h2")
@@ -519,7 +528,7 @@ function LegalModal({
           <div className="h-4" />
         </div>
 
-        {/* Barre sticky avec disclaimer + boutons */}
+        {/* Barre sticky */}
         <div
           className="sticky bottom-0 px-5 pt-3 pb-4 border-t border-white/10 bg-[var(--panel)]/95 backdrop-blur shadow-[0_-10px_20px_rgba(0,0,0,0.35)]"
           style={{ borderBottomLeftRadius: "1rem", borderBottomRightRadius: "1rem" }}
@@ -538,7 +547,15 @@ function LegalModal({
               className={`px-4 py-2 rounded-xl text-white transition ${
                 canAccept ? "bg-[var(--accent)] hover:brightness-110" : "bg-white/10 cursor-not-allowed"
               }`}
-              title={canAccept ? undefined : lang === "fr" ? "Faites défiler jusqu’en bas pour activer" : lang === "en" ? "Scroll to the bottom to enable" : "مرّر للنهاية للتفعيل"}
+              title={
+                canAccept
+                  ? undefined
+                  : lang === "fr"
+                  ? "Faites défiler jusqu’en bas pour activer"
+                  : lang === "en"
+                  ? "Scroll to the bottom to enable"
+                  : "مرّر للنهاية للتفعيل"
+              }
             >
               {t.btn.accept}
             </button>
@@ -547,7 +564,7 @@ function LegalModal({
       </div>
     </div>
   );
-}
+      }
 
 /* =================== Bandeau RGPD (ouvre le modal) =================== */
 function RgpdBanner() {
@@ -584,10 +601,13 @@ function RgpdBanner() {
     <>
       <div className="fixed inset-x-0 bottom-0 z-50">
         <div className="mx-auto max-w-xl px-4">
-          <div className="m-3 rounded-2xl border bg-[var(--chip-bg)] border-[var(--border)] backdrop-blur p-3 text-sm text-[var(--fg)]">
+          <div className="m-3 rounded-2xl border bg-[var(--chip-bg)] border-[var(--border)] backdrop-blur p-3 text-sm text-[var(--fg)] shadow-[0_-10px_30px_rgba(0,0,0,0.15)]">
             <p className="mb-2">Vos données restent privées sur cet appareil.</p>
             <div className="flex gap-2">
-              <button onClick={() => setOpenModal(true)} className="px-3 py-2 rounded-xl bg-[var(--panel)] text-white font-medium">
+              <button
+                onClick={() => setOpenModal(true)}
+                className="px-3 py-2 rounded-xl bg-[var(--panel)] text-white font-medium shadow"
+              >
                 Manifeste / CGU / Privacy
               </button>
               <button
@@ -650,13 +670,16 @@ function ConfirmDialog({
         <h2 className="text-lg font-semibold mb-2">{title}</h2>
         {description ? <p className="text-sm opacity-90 mb-4">{description}</p> : null}
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onCancel} className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+          >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             data-autofocus="true"
-            className="px-4 py-2 rounded-xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
+            className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
           >
             {confirmLabel}
           </button>
@@ -669,7 +692,8 @@ function ConfirmDialog({
 /* =================== Types & utils =================== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-const cleanText = (s: string) => s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
+const cleanText = (s: string) =>
+  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
   try {
@@ -708,7 +732,8 @@ export default function Page() {
     }
     const onBannerHidden = () => setLiftForBanner(false);
     window.addEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
-    return () => window.removeEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
+    return () =>
+      window.removeEventListener("oneboarding:legalBannerHidden", onBannerHidden as EventListener);
   }, []);
 
   // Textarea auto-expansion
@@ -724,6 +749,7 @@ export default function Page() {
     ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [input]);
 
+  // SpeechRec init
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
@@ -814,7 +840,9 @@ export default function Page() {
     setLoading(true);
 
     const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${q || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+          q || "(aucune)"
+        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
       : q;
 
     try {
@@ -964,9 +992,7 @@ export default function Page() {
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]">
-              <span className="typing-dots" aria-live="polite">
-                •••
-              </span>
+              <span className="typing-dots" aria-live="polite">•••</span>
             </p>
             <p className="text-xs opacity-70 mt-4">IA • {new Date().toLocaleString()}</p>
           </div>
@@ -1166,6 +1192,21 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] {
         display: none !important;
       }
+
+      /* >>> Anti-troncature en bout de ligne dans le contenu du modal (FR) <<< */
+      .fixed[role="dialog"] .px-5.py-4.max-h\\[68vh\\] {
+        /* ces trois propriétés règlent les césures/retours à la ligne propres */
+        word-break: normal;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+      }
+      .fixed[role="dialog"] .px-5.py-4.max-h\\[68vh\\] p,
+      .fixed[role="dialog"] .px-5.py-4.max-h\\[68vh\\] li {
+        word-break: normal;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+        margin-inline-end: 2px; /* mini marge côté bord droit pour éviter 'morsure' */
+      }
     `}</style>
   );
-}
+    }
