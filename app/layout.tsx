@@ -4,7 +4,32 @@ import "./globals.css";
 
 export const metadata = {
   title: "OneBoarding AI",
-  description: "3 étapes — simple, pro, équipe",
+  description:
+    "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
+  openGraph: {
+    title: "OneBoarding AI",
+    description:
+      "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
+    url: "https://oneboardingai.com",
+    siteName: "OneBoarding AI",
+    images: [
+      {
+        url: "/brand/og-oneboardingai.png", // ✅ L’image que tu as ajoutée
+        width: 1200,
+        height: 630,
+        alt: "OneBoarding AI - Votre IA personnel",
+      },
+    ],
+    locale: "fr_FR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OneBoarding AI",
+    description:
+      "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
+    images: ["/brand/og-oneboardingai.png"], // ✅ Twitter utilisera la même image
+  },
 };
 
 export default function RootLayout({
