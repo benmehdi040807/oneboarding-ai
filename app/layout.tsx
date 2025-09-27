@@ -3,6 +3,10 @@ export const runtime = "nodejs"; // ✅ Force Node.js
 import "./globals.css";
 
 export const metadata = {
+  metadataBase: new URL("https://oneboardingai.com"), // ✅ rend les URLs relatives absolues
+  alternates: {
+    canonical: "https://oneboardingai.com",
+  },
   title: "OneBoarding AI",
   description:
     "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
@@ -14,9 +18,10 @@ export const metadata = {
     siteName: "OneBoarding AI",
     images: [
       {
-        url: "/brand/og-oneboardingai.png", // ✅ L’image que tu as ajoutée
+        // ✅ image OG 1200×628
+        url: "/brand/og-oneboardingai-1200x628.png",
         width: 1200,
-        height: 630,
+        height: 628,
         alt: "OneBoarding AI - Votre IA personnel",
       },
     ],
@@ -28,7 +33,7 @@ export const metadata = {
     title: "OneBoarding AI",
     description:
       "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
-    images: ["/brand/og-oneboardingai.png"], // ✅ Twitter utilisera la même image
+    images: ["/brand/og-oneboardingai-1200x628.png"], // ✅ même visuel pour Twitter
   },
 };
 
@@ -45,6 +50,7 @@ export default function RootLayout({
         {/* Harmonise la barre d'adresse mobile avec le haut du dégradé */}
         <meta name="theme-color" content="#B3E5FC" />
       </head>
+
       {/* IMPORTANT : pas de fond sombre ici */}
       <body className="bg-transparent text-white overflow-x-hidden min-h-dvh antialiased">
         {/* Conteneur central (transparent) */}
