@@ -1,92 +1,96 @@
 // components/RightAuthButtons.tsx
-"use client";
-
 import React, { useEffect, useRef, useState } from "react";
 import SubscribeModal from "./SubscribeModal";
 import LoginModal from "./LoginModal";
 
 export default function RightAuthButtons() {
-  const [showCreateChip, setShowCreateChip] = useState(false);
-  const [showSubscribe, setShowSubscribe] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
 
-  // conteneur "zone droite" pour fermer le chip si on clique ailleurs
-  const clusterRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const plusRef = useRef<HTMLButtonElement | null>(null);
 
+  // Fermer le mini-menu si on clique en dehors
   useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!clusterRef.current) return;
+    if (!actionsOpen) return;
+    const onDocClick = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
-      if (!clusterRef.current.contains(target)) {
-        setShowCreateChip(false);
+      if (!wrapRef.current) return;
+      // Si on clique en dehors de la zone (mini-menu + bouton +)
+      if (!wrapRef.current.contains(target)) {
+        setActionsOpen(false);
       }
-    }
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, []);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("touchstart", onDocClick, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("touchstart", onDocClick);
+    };
+  }, [actionsOpen]);
 
-  // Styles communs
   const iconBtn =
-    "w-14 h-14 rounded-2xl flex items-center justify-center bg-white/8 border border-white/15 backdrop-blur text-xl active:scale-95 transition";
-  const keyBtn =
-    "w-14 h-14 rounded-2xl flex items-center justify-center bg-white/8 border border-white/15 backdrop-blur text-xl active:scale-95 transition";
+    "w-14 h-14 rounded-2xl flex items-center justify-center border text-xl " +
+    "bg-white/70 border-white/30 backdrop-blur-md shadow-sm " +
+    "hover:bg-white/80 active:scale-[0.98] transition";
+
+  const chip =
+    "px-4 h-10 rounded-2xl flex items-center justify-center text-[16px] " +
+    "bg-white/80 border border-white/30 backdrop-blur-md shadow-sm " +
+    "whitespace-nowrap";
 
   return (
     <>
-      {/* Rangée d’actions droite */}
-      <div className="ml-auto relative" ref={clusterRef}>
-        <div className="flex items-center gap-3">
-          {/* PLUS */}
-          <button
-            aria-label="Créer mon espace"
-            className={iconBtn}
-            onClick={(e) => {
-              e.stopPropagation(); // évite fermeture immédiate
-              setShowCreateChip((v) => !v);
-            }}
-            title="Créer mon espace"
-          >
-            +
-          </button>
+      {/* Conteneur droit : position relative pour le popover */}
+      <div className="relative ml-auto flex items-center gap-3" ref={wrapRef}>
+        {/* Bouton + */}
+        <button
+          ref={plusRef}
+          aria-label="Plus d’options"
+          className={iconBtn}
+          onClick={() => setActionsOpen((v) => !v)}
+        >
+          +
+        </button>
 
-          {/* CLÉ */}
-          <button
-            aria-label="Accéder à mon espace"
-            className={keyBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowLogin(true);
-            }}
-            title="Accéder à mon espace"
-          >
-            🔑
-          </button>
-        </div>
+        {/* Bouton clé (login) */}
+        <button
+          aria-label="Accéder à mon espace"
+          className={iconBtn}
+          onClick={() => setLoginOpen(true)}
+        >
+          🔑
+        </button>
 
-        {/* CHIP 'Créer mon espace' — absolu, cliquable, haut z-index */}
-        {showCreateChip && (
-          <button
-            className="absolute top-16 right-0 z-[60] pointer-events-auto select-none
-                       rounded-2xl border border-white/15 bg-white/20 backdrop-blur px-4 py-2
-                       text-base text-white shadow-lg hover:bg-white/25 active:scale-[0.98] transition"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowCreateChip(false);
-              setShowSubscribe(true);
-            }}
+        {/* Mini-menu : n'affecte pas la mise en page (absolute) */}
+        {actionsOpen && (
+          <div
+            className="absolute right-0 top-full mt-3 z-50"
+            // Empêche le clic de remonter jusqu’au document (sinon fermeture immédiate)
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
-            Créer mon espace
-          </button>
+            <button
+              className={chip}
+              onClick={() => {
+                // ouvrir la modale et fermer le mini-menu
+                setSubscribeOpen(true);
+                setActionsOpen(false);
+              }}
+            >
+              Créer mon espace
+            </button>
+          </div>
         )}
       </div>
 
       {/* Modales */}
       <SubscribeModal
-        open={showSubscribe}
-        onClose={() => setShowSubscribe(false)}
-        // après souscription on peut, si tu veux, afficher un toast de bienvenue ici
+        open={subscribeOpen}
+        onClose={() => setSubscribeOpen(false)}
       />
-      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} />
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
   );
 }
