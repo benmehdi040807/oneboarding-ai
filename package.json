@@ -9,11 +9,12 @@
   },
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",
-    "@paypal/paypal-js": "latest",
+    "@paypal/paypal-js": "^2.0.5",
     "@prisma/client": "5.18.0",
     "cookie": "^0.6.0",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.10.58",
+    "lucide-react": "0.263.1",
     "next": "14.2.5",
     "next-auth": "5.0.0-beta.21",
     "react": "18.3.1",
