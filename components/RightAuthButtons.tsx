@@ -1,99 +1,92 @@
+// components/RightAuthButtons.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-
-const SubscribeModal = dynamic(() => import("@/components/SubscribeModal"), { ssr: false });
-const LoginModal = dynamic(() => import("@/components/LoginModal"), { ssr: false });
+import React, { useEffect, useRef, useState } from "react";
+import SubscribeModal from "./SubscribeModal";
+import LoginModal from "./LoginModal";
 
 export default function RightAuthButtons() {
-  const [chipOpen, setChipOpen] = useState(false);
+  const [showCreateChip, setShowCreateChip] = useState(false);
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-  const [session, setSession] = useState<{ authenticated: boolean } | null>(null);
+
+  // conteneur "zone droite" pour fermer le chip si on clique ailleurs
+  const clusterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((j) => setSession(j))
-      .catch(() => setSession({ authenticated: false }));
+    function onDocClick(e: MouseEvent) {
+      if (!clusterRef.current) return;
+      const target = e.target as Node;
+      if (!clusterRef.current.contains(target)) {
+        setShowCreateChip(false);
+      }
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  const baseBtn =
-    "h-12 w-12 rounded-xl border text-xl grid place-items-center transition";
-  const iconBg = "bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] border-[var(--border)]";
-
-  const plusBtn = `${baseBtn} ${iconBg}`;
-  const keyBtn = session?.authenticated
-    ? `${baseBtn} bg-blue-600/90 border-blue-600 text-white`
-    : `${baseBtn} ${iconBg}`;
+  // Styles communs
+  const iconBtn =
+    "w-14 h-14 rounded-2xl flex items-center justify-center bg-white/8 border border-white/15 backdrop-blur text-xl active:scale-95 transition";
+  const keyBtn =
+    "w-14 h-14 rounded-2xl flex items-center justify-center bg-white/8 border border-white/15 backdrop-blur text-xl active:scale-95 transition";
 
   return (
     <>
-      {/* conteneur à droite */}
-      <div className="relative flex items-center gap-3">
-        {/* bouton + */}
-        <div className="relative">
+      {/* Rangée d’actions droite */}
+      <div className="ml-auto relative" ref={clusterRef}>
+        <div className="flex items-center gap-3">
+          {/* PLUS */}
           <button
-            aria-label={isActive ? "Espace actif" : "Créer mon espace"}
-            title={isActive ? "Espace OneBoarding AI actif" : "Créer mon espace"}
-            className={plusBtn}
-            onClick={() => setChipOpen((v) => !v)}
+            aria-label="Créer mon espace"
+            className={iconBtn}
+            onClick={(e) => {
+              e.stopPropagation(); // évite fermeture immédiate
+              setShowCreateChip((v) => !v);
+            }}
+            title="Créer mon espace"
           >
-            {isActive ? "✅" : "➕"}
+            +
           </button>
 
-          {/* chip ABSOLU : ne pousse plus rien dans la mise en page */}
-          {chipOpen && (
-            <button
-              className="absolute right-0 mt-2 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium shadow-sm active:scale-[0.99] transition whitespace-nowrap"
-              onClick={() => {
-                setShowSubscribe(true);
-                // garder le chip visible après l’ouverture ? commente la ligne suivante
-                setChipOpen(false);
-              }}
-            >
-              Créer mon espace
-            </button>
-          )}
+          {/* CLÉ */}
+          <button
+            aria-label="Accéder à mon espace"
+            className={keyBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowLogin(true);
+            }}
+            title="Accéder à mon espace"
+          >
+            🔑
+          </button>
         </div>
 
-        {/* bouton clé */}
-        <button
-          aria-label={session?.authenticated ? "Se déconnecter" : "Accéder à mon espace"}
-          title={session?.authenticated ? "Se déconnecter" : "Accéder à mon espace"}
-          className={keyBtn}
-          onClick={async () => {
-            if (session?.authenticated) {
-              await fetch("/api/auth/session", { method: "DELETE" });
-              setSession({ authenticated: false });
-              return;
-            }
-            setShowLogin(true);
-          }}
-        >
-          🔑
-        </button>
+        {/* CHIP 'Créer mon espace' — absolu, cliquable, haut z-index */}
+        {showCreateChip && (
+          <button
+            className="absolute top-16 right-0 z-[60] pointer-events-auto select-none
+                       rounded-2xl border border-white/15 bg-white/20 backdrop-blur px-4 py-2
+                       text-base text-white shadow-lg hover:bg-white/25 active:scale-[0.98] transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowCreateChip(false);
+              setShowSubscribe(true);
+            }}
+          >
+            Créer mon espace
+          </button>
+        )}
       </div>
 
       {/* Modales */}
       <SubscribeModal
         open={showSubscribe}
         onClose={() => setShowSubscribe(false)}
-        // onCreated={() => { setIsActive(true); setSession({ authenticated: true }); }}
+        // après souscription on peut, si tu veux, afficher un toast de bienvenue ici
       />
-
-      <LoginModal
-        open={showLogin}
-        onClose={() => {
-          setShowLogin(false);
-          fetch("/api/auth/session")
-            .then((r) => r.json())
-            .then((j) => setSession(j))
-            .catch(() => {});
-        }}
-      />
+      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} />
     </>
   );
 }
