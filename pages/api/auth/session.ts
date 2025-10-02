@@ -1,10 +1,10 @@
-// pages/api/auth/session.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { serialize } from "cookie";
-import jwt from "jsonwebtoken";
+import jwt, { type Secret } from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "CHANGE_ME_DEV_SECRET";
+const JWT_SECRET = (process.env.JWT_SECRET || "CHANGE_ME_DEV_SECRET") as Secret;
 
+/** ---- Helpers session ---- */
 function setSessionCookie(res: NextApiResponse, payload: any) {
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
   res.setHeader(
@@ -32,22 +32,33 @@ function clearSessionCookie(res: NextApiResponse) {
   );
 }
 
-// --- OTP TEMP cookie (signé) posé par send-otp ---
+/** ---- Helpers OTP temp ---- */
 function readOtpTemp(req: NextApiRequest) {
   const t = req.cookies?.oba_otp;
   if (!t) return null;
-  try { return jwt.verify(t, JWT_SECRET) as any; } catch { return null; }
+  try {
+    return jwt.verify(t, JWT_SECRET) as any;
+  } catch {
+    return null;
+  }
 }
+
 function clearOtpTemp(res: NextApiResponse) {
   res.setHeader(
     "Set-Cookie",
-    serialize("oba_otp", "", { httpOnly: true, path: "/", maxAge: -1, sameSite: "lax", secure: process.env.NODE_ENV === "production" })
+    serialize("oba_otp", "", {
+      httpOnly: true,
+      path: "/",
+      maxAge: -1,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    })
   );
 }
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  /** GET /api/auth/session → état de session */
   if (req.method === "GET") {
-    // → état session
     try {
       const token = req.cookies?.oba_session;
       if (!token) return res.status(200).json({ authenticated: false });
@@ -65,24 +76,28 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
   }
 
+  /** POST /api/auth/session → vérifie OTP et crée la session */
   if (req.method === "POST") {
-    // → vérifie OTP + crée session
     const { phone, otp, firstName, lastName } = req.body || {};
     if (!phone || !otp) return res.status(400).json({ error: "phone+otp required" });
 
     const temp = readOtpTemp(req);
-    if (!temp || temp.phone !== phone || temp.otp !== otp || Date.now() > temp.exp) {
+    if (!temp || temp.phone !== phone || temp.otp !== otp) {
       return res.status(401).json({ error: "wrong or expired otp" });
     }
 
-    // OK → créer session
-    setSessionCookie(res, { sub: phone, firstName: firstName || null, lastName: lastName || null });
+    setSessionCookie(res, {
+      sub: phone,
+      firstName: firstName || null,
+      lastName: lastName || null,
+    });
     clearOtpTemp(res);
+
     return res.status(200).json({ ok: true });
   }
 
+  /** DELETE /api/auth/session → logout */
   if (req.method === "DELETE") {
-    // → logout
     clearSessionCookie(res);
     return res.status(200).json({ ok: true });
   }
