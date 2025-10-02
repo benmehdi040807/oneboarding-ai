@@ -8,13 +8,17 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@paypal/checkout-server-sdk": "^1.0.3",
+    "@paypal/paypal-js": "^9.0.0",
     "@prisma/client": "5.18.0",
     "cookie": "^0.6.0",
     "jsonwebtoken": "^9.0.2",
+    "libphonenumber-js": "^1.10.58",
     "next": "14.2.5",
     "next-auth": "5.0.0-beta.21",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-phone-number-input": "^3.3.10",
     "stripe": "14.25.0",
     "tesseract.js": "5.1.0"
   },
