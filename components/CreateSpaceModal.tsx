@@ -37,7 +37,7 @@ export default function CreateSpaceModal({ open, onClose, onCreated }: Props) {
   async function verifyOtp() {
     try {
       setLoading(true);
-      const r = await fetch("/api/auth/verify-otp", {
+      const r = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, otp, firstName, lastName }),
