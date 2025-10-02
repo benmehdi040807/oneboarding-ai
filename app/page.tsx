@@ -719,7 +719,6 @@ export default function Page() {
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
   // 🎙️ Micro
-  thead;
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
