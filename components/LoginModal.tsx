@@ -32,7 +32,7 @@ export default function LoginModal({ open, onClose }: Props) {
   async function verifyOtp() {
     try {
       setLoading(true);
-      const r = await fetch("/api/auth/verify-otp", {
+      const r = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // prénom/nom facultatifs en login
