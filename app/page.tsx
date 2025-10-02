@@ -2,8 +2,15 @@
 export const runtime = "nodejs";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
+
+// ➜ import dynamique des boutons de droite (➕ / 🔑)
+const RightAuthButtons = dynamic(
+  () => import("@/components/RightAuthButtons"),
+  { ssr: false }
+);
 
 /* =================== i18n pour le modal légal =================== */
 type Lang = "fr" | "en" | "ar";
@@ -370,7 +377,6 @@ const legalCopy: Record<Lang, Copy> = {
         text:
           "يجوز لـ OneBoarding AI الاحتفاظ بسجلات (المطالبات، الردود، الطوابع الزمنية) لأغراض الأمان وتحسين الخدمة وعند الاقتضاء كبيّنة، وذلك وفق سياسة الخصوصية.",
       },
-
       { kind: "hr" },
       { kind: "h2", text: "سياسة الخصوصية" },
       {
@@ -564,7 +570,7 @@ function LegalModal({
       </div>
     </div>
   );
-      }
+}
 
 /* =================== Bandeau RGPD (ouvre le modal) =================== */
 function RgpdBanner() {
@@ -713,6 +719,7 @@ export default function Page() {
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
   // 🎙️ Micro
+  thead;
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recogRef = useRef<any>(null);
@@ -930,8 +937,9 @@ export default function Page() {
           </button>
         </div>
 
-        {/* actions sous la barre */}
-        <div className="mt-3 flex gap-3">
+        {/* actions sous la barre : 2 à gauche + 2 à droite (miroir) */}
+        <div className="mt-3 flex gap-3 items-center">
+          {/* GAUCHE — 📎 OCR */}
           <button
             type="button"
             onClick={() => setShowOcr((v) => !v)}
@@ -952,6 +960,7 @@ export default function Page() {
             </svg>
           </button>
 
+          {/* GAUCHE — 🎤 Micro */}
           <button
             type="button"
             disabled={!speechSupported}
@@ -968,6 +977,11 @@ export default function Page() {
               <path d="M12 21v-3" />
             </svg>
           </button>
+
+          {/* DROITE — miroir, collé à droite */}
+          <div className="ml-auto">
+            <RightAuthButtons />
+          </div>
         </div>
       </form>
 
@@ -1195,7 +1209,6 @@ function StyleGlobals() {
 
       /* >>> Anti-troncature en bout de ligne dans le contenu du modal (FR) <<< */
       .fixed[role="dialog"] .px-5.py-4.max-h\\[68vh\\] {
-        /* ces trois propriétés règlent les césures/retours à la ligne propres */
         word-break: normal;
         overflow-wrap: anywhere;
         hyphens: auto;
@@ -1205,8 +1218,8 @@ function StyleGlobals() {
         word-break: normal;
         overflow-wrap: anywhere;
         hyphens: auto;
-        margin-inline-end: 2px; /* mini marge côté bord droit pour éviter 'morsure' */
+        margin-inline-end: 2px;
       }
     `}</style>
   );
-    }
+        }
