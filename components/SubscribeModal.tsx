@@ -3,20 +3,14 @@
 import { useEffect } from "react";
 import PhoneField from "./PhoneField";
 
-type Props = {
-  open: boolean;
-  onClose: () => void;
-};
+type Props = { open: boolean; onClose: () => void };
 
 export default function SubscribeModal({ open, onClose }: Props) {
-  // Empêche le scroll de fond quand le modal est ouvert
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
   if (!open) return null;
@@ -25,9 +19,10 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
-      onClick={onClose} // clic sur l’overlay -> ferme
+      className="fixed inset-0 z-[60] bg-black/35 backdrop-blur-sm"
+      onClick={onClose}               // clic extérieur -> ferme
     >
+      {/* Bottom sheet translucide, comme validé */}
       <div
         onClick={stop}
         className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:bottom-8
@@ -37,7 +32,6 @@ export default function SubscribeModal({ open, onClose }: Props) {
         <div className="flex items-center justify-between p-4">
           <h3 className="text-xl font-semibold">Créer mon espace</h3>
           <button
-            type="button"
             onClick={onClose}
             className="px-3 py-1 rounded-xl bg-black/5 hover:bg-black/10 active:bg-black/15"
           >
@@ -47,17 +41,14 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
         <div className="p-4 pt-0 space-y-3">
           <input
-            type="text"
-            placeholder="Nom"
+            type="text" placeholder="Nom"
             className="w-full h-12 rounded-2xl px-4 bg-white/80 border border-black/10"
           />
           <input
-            type="text"
-            placeholder="Prénom"
+            type="text" placeholder="Prénom"
             className="w-full h-12 rounded-2xl px-4 bg-white/80 border border-black/10"
           />
 
-          {/* Téléphone */}
           <PhoneField />
 
           <p className="text-xs text-black/60">
