@@ -1,98 +1,93 @@
-"use client";
-
-import React, { useMemo, useState } from "react";
+// components/SubscribeModal.tsx
+import React, { useEffect } from "react";
 import PhoneField from "./PhoneField";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCreated?: () => void;
 };
 
-export default function SubscribeModal({ open, onClose, onCreated }: Props) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName]   = useState("");
-  const [phone, setPhone]         = useState(""); // E.164 (+212...)
-  const [loading, setLoading]     = useState(false);
-
-  const canSubmit = useMemo(
-    () => !!lastName && !!firstName && phone.startsWith("+"),
-    [lastName, firstName, phone]
-  );
+export default function SubscribeModal({ open, onClose }: Props) {
+  useEffect(() => {
+    if (!open) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* background flou/translucide */}
-      <div className="absolute inset-0 backdrop-blur-md bg-black/40" />
+    <div className="fixed inset-0 z-50">
+      {/* overlay cliquable */}
+      <button
+        aria-label="Fermer"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
 
-      {/* feuille en bas (mobile) / carte (desktop) */}
-      <div className="relative w-full sm:w-[540px] rounded-t-3xl sm:rounded-3xl bg-white/10 border border-white/15 text-white shadow-2xl">
-        {/* header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-white/10">
-          <div className="mx-auto sm:mx-0 h-1.5 w-16 sm:hidden rounded-full bg-white/25" />
-          <h3 className="text-lg font-semibold">Créer mon espace</h3>
+      {/* bottom-sheet mobile first */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="absolute bottom-0 left-0 right-0 mx-auto max-w-xl
+                   rounded-t-3xl bg-white/95 backdrop-blur-md shadow-2xl
+                   border border-white/40 p-4 pb-6"
+        style={{ transform: "translateZ(0)" }}
+      >
+        {/* poignée */}
+        <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-black/10" />
+
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">Créer mon espace</h2>
           <button
-            className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 hover:bg-white/15"
             onClick={onClose}
+            className="px-3 py-1 rounded-xl bg-black/5 border border-black/10"
           >
             Fermer
           </button>
         </div>
 
-        {/* contenu */}
-        <div className="px-5 sm:px-6 py-5 space-y-4">
-          {/* Nom puis Prénom */}
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            // Ici : tu déclenches PayPal après validation (à raccorder à ton flow)
+            // … puis, si ok :
+            onClose();
+          }}
+        >
+          {/* Nom puis Prénom (dans cet ordre) */}
           <input
+            required
+            name="lastName"
             placeholder="Nom"
-            className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder-white/40 outline-none"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
+            className="w-full h-11 px-3 rounded-2xl bg-white/80 border border-black/10"
           />
           <input
+            required
+            name="firstName"
             placeholder="Prénom"
-            className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder-white/40 outline-none"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
+            className="w-full h-11 px-3 rounded-2xl bg-white/80 border border-black/10"
           />
 
-          {/* Drapeau + indicatif | Numéro */}
-          <PhoneField value={phone} onChange={setPhone} defaultCountry="MA" />
+          {/* Téléphone : drapeau+indicatif dans la 1re case, numéro dans la 2e */}
+          <PhoneField />
 
-          <p className="text-xs text-white/50">
-            En continuant, vous acceptez le Manifeste, les CGU et la Politique de confidentialité.
+          <p className="text-xs text-black/60">
+            En continuant, vous acceptez le Manifeste, les CGU et la Politique
+            de confidentialité.
           </p>
 
           <button
-            className="w-full rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3 font-semibold disabled:opacity-50"
-            disabled={loading || !canSubmit}
-            onClick={async () => {
-              try {
-                setLoading(true);
-                // 1) créer l’espace + démarrer le flux PayPal (serveur)
-                const r = await fetch("/api/subscribe/start", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ firstName, lastName, phone }),
-                });
-                const j = await r.json();
-                if (j?.approveUrl) {
-                  // redirection PayPal
-                  window.location.href = j.approveUrl;
-                } else {
-                  // fallback : fermer + callback succès
-                  onCreated?.();
-                  onClose();
-                }
-              } finally {
-                setLoading(false);
-              }
-            }}
+            type="submit"
+            className="w-full h-11 rounded-2xl bg-[#253BFF] text-white font-semibold"
           >
             Continuer avec PayPal
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
