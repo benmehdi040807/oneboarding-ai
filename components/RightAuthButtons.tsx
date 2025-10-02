@@ -1,4 +1,3 @@
-// components/RightAuthButtons.tsx
 "use client";
 
 import { useState } from "react";
@@ -10,8 +9,9 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        {/* Bouton PLUS */}
+      {/* Toujours visibles (desktop & mobile), au-dessus des autres layers */}
+      <div className="relative z-40 flex items-center gap-3">
+        {/* PLUS */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -22,7 +22,7 @@ export default function RightAuthButtons() {
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
-        {/* Bouton CLE (inchangé, future auth / OTP) */}
+        {/* CLÉ (future auth) */}
         <button
           type="button"
           aria-label="Accéder à mon espace"
@@ -33,7 +33,7 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Modal d’abonnement */}
+      {/* Modal contrôlé par le parent */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
