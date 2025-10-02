@@ -1,9 +1,10 @@
 // components/RightAuthButtons.tsx
 "use client";
+
 import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
-// Modales (lazy)
+// lazy import des modales
 const SubscribeModal = dynamic(() => import("@/components/SubscribeModal"), { ssr: false });
 const LoginModal = dynamic(() => import("@/components/LoginModal"), { ssr: false });
 
@@ -15,9 +16,12 @@ export default function RightAuthButtons() {
   const [showLogin, setShowLogin] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [session, setSession] = useState<{ authenticated: boolean } | null>(null);
-  const miniRef = useRef<HTMLDivElement | null>(null);
 
-  // Session (peindre la clé)
+  const miniRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const guardUntilTsRef = useRef<number>(0); // ignore outside-clicks jusqu’à ce timestamp
+
+  // peindre la clé si session active
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
@@ -25,24 +29,44 @@ export default function RightAuthButtons() {
       .catch(() => setSession({ authenticated: false }));
   }, []);
 
-  // Fermer au clic extérieur — version mobile-safe
-  useEffect(() => {
-    if (!showMini) return;
-    const onOutside = (e: PointerEvent) => {
-      if (!miniRef.current) return;
-      if (!miniRef.current.contains(e.target as Node)) setShowMini(false);
-    };
-    // pointerdown capte les interactions tactiles + souris
-    document.addEventListener("pointerdown", onOutside, { passive: true });
-    return () => document.removeEventListener("pointerdown", onOutside);
-  }, [showMini]);
-
-  // Fermer si un autre composant demande la fermeture
+  // fermeture si un autre composant “aux” demande à se fermer
   useEffect(() => {
     const close = () => setShowMini(false);
     window.addEventListener(CLOSE_AUX_EVENT, close as EventListener);
     return () => window.removeEventListener(CLOSE_AUX_EVENT, close as EventListener);
   }, []);
+
+  // outside click — activé 120ms après ouverture pour éviter le fantôme du premier tap
+  useEffect(() => {
+    if (!showMini) return;
+
+    const onOutside = (e: MouseEvent | PointerEvent | TouchEvent) => {
+      const now = Date.now();
+      if (now < guardUntilTsRef.current) return;
+
+      const target = e.target as Node | null;
+      if (!target) return;
+
+      // si on tape le déclencheur (le +), ne pas fermer
+      if (triggerRef.current && triggerRef.current.contains(target)) return;
+
+      // si on tape à l’intérieur du chip, ne pas fermer
+      if (miniRef.current && miniRef.current.contains(target)) return;
+
+      setShowMini(false);
+    };
+
+    // activer le parapluie 120ms
+    guardUntilTsRef.current = Date.now() + 120;
+
+    document.addEventListener("pointerdown", onOutside, { passive: true });
+    document.addEventListener("click", onOutside, { passive: true });
+
+    return () => {
+      document.removeEventListener("pointerdown", onOutside);
+      document.removeEventListener("click", onOutside);
+    };
+  }, [showMini]);
 
   const baseBtn =
     "h-12 w-12 rounded-xl border text-xl grid place-items-center transition";
@@ -56,7 +80,15 @@ export default function RightAuthButtons() {
     try {
       window.dispatchEvent(new CustomEvent(CLOSE_AUX_EVENT));
     } catch {}
-    setShowMini((v) => !v);
+    // on ouvre/ferme le chip
+    setShowMini((v) => {
+      const next = !v;
+      if (next) {
+        // remet un parapluie à l’ouverture (au cas où)
+        guardUntilTsRef.current = Date.now() + 120;
+      }
+      return next;
+    });
   }
 
   return (
@@ -65,6 +97,7 @@ export default function RightAuthButtons() {
         <div className="flex items-center gap-3">
           {/* ➕ */}
           <button
+            ref={triggerRef}
             aria-label={isActive ? "Espace actif" : "Créer mon espace"}
             title={isActive ? "Espace OneBoarding AI actif" : "Créer mon espace"}
             className={plusBtn}
@@ -99,14 +132,16 @@ export default function RightAuthButtons() {
             className="absolute right-0 top-[56px] z-[20] animate-[fadeUp_0.18s_ease-out_both]"
           >
             <button
-              // IMPORTANT: empêcher la fermeture extérieure avant onClick sur mobile
+              // BLOQUER toute propagation pour ne pas déclencher l’outside-click
               onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                // 1) ouvrir la modale
+                // ouvrir la modale
                 setShowSubscribe(true);
-                // 2) fermer le chip un poil plus tard (évite les “ghost clicks”)
-                setTimeout(() => setShowMini(false), 80);
+                // fermer le chip juste après (frame suivante)
+                setTimeout(() => setShowMini(false), 60);
               }}
               className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] font-medium shadow-sm active:scale-[0.99] transition whitespace-nowrap"
             >
@@ -120,7 +155,7 @@ export default function RightAuthButtons() {
       <SubscribeModal
         open={showSubscribe}
         onClose={() => setShowSubscribe(false)}
-        // Tu peux passer un onCreated si tu veux basculer ➕ → ✅ et peindre la clé :
+        // Dé-commente si tu veux basculer ➕ → ✅ automatiquement après succès :
         // onCreated={() => { setIsActive(true); setSession({ authenticated: true }); }}
       />
 
@@ -136,4 +171,4 @@ export default function RightAuthButtons() {
       />
     </>
   );
-  }
+}
