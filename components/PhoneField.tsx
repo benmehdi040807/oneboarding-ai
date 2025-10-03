@@ -72,37 +72,45 @@ export default function PhoneField({ value, onChange }: Props) {
       <div className="relative">
         <button
           type="button"
-          onClick={() => setOpen(v => !v)}
-          className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3
-                     text-left text-black flex items-center justify-between"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                     px-4 py-3 text-left text-black flex items-center justify-between"
         >
-          <span className="truncate">{country.num}. {country.name} <span className="ml-1">{country.flag}</span></span>
+          <span className="truncate">
+            {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
+          </span>
           <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
       </div>
 
       {/* 2) Indicatif + Numéro */}
       <div className="grid grid-cols-[auto_1fr] gap-3">
-        <div className="rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-black flex items-center min-w-[82px]" aria-hidden>
+        <div
+          className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                     px-4 py-3 text-black flex items-center min-w-[82px]"
+          aria-hidden
+        >
           {dial}
         </div>
         <input
-          type="tel" inputMode="numeric" placeholder="Numéro (sans 0 initial)"
-          className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3
-                     text-black placeholder-black/60 outline-none"
+          type="tel"
+          inputMode="numeric"
+          placeholder="Numéro (sans 0 initial)"
+          className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                     px-4 py-3 text-black placeholder-white/90 outline-none"
           value={local}
           onChange={(e) => setLocal(e.target.value)}
         />
       </div>
 
-      {/* Liste flottante, indépendante du body (scroll interne fiable up/down) */}
+      {/* 3) Liste flottante (scroll interne fiable) */}
       {open && (
         <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" aria-hidden>
           <div
             onClick={(e) => e.stopPropagation()}
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
                        w-[92vw] max-w-lg rounded-2xl
-                       bg-white/50 backdrop-blur-2xl border border-white/60 shadow-2xl
+                       bg-white/45 backdrop-blur-2xl border border-white/60 shadow-2xl
                        max-h-[60vh] overflow-y-auto
                        touch-pan-y overscroll-contain scroll-smooth divide-y divide-black/10"
             style={{ WebkitOverflowScrolling: "touch" }}
@@ -114,7 +122,10 @@ export default function PhoneField({ value, onChange }: Props) {
                   key={c.num}
                   type="button"
                   ref={selected ? selectedRef : null}
-                  onClick={() => { setCountry(c); setOpen(false); }}
+                  onClick={() => {
+                    setCountry(c);
+                    setOpen(false);
+                  }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
                               ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
                 >
