@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/** ----------------- Bandeau immersif « clone de la barre » ----------------- */
+/** ----------------- Bannière immersive type « mini barre » ----------------- */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -15,26 +15,32 @@ function WelcomeBannerOverBar() {
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
+
   const getOkEl = () => {
     const btns = Array.from(document.querySelectorAll("button"));
-    return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
+    // Sur desktop, le libellé peut varier : on tolère "OK" ou contenu accessible avec aria-label.
+    return (
+      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
+      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
+      null
+    );
   };
 
-  // positionne le host au-dessus, même largeur/hauteur que la barre + OK
+  // Positionne la bannière : mêmes left/width que barre(+OK), mais plus fine et plus transparente
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
     if (!host || !bar) return;
 
-    const ok = getOkEl();
     const barRect = bar.getBoundingClientRect();
+    const ok = getOkEl();
     const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
-    const gapY = 10; // espace vertical entre les deux barres
-    const top = Math.max(8, barRect.top - gapY - barRect.height);
+    const gapY = 8; // espace vertical entre les deux barres
+    const width = Math.max(180, rightEdge - barRect.left);
+    const height = Math.round(barRect.height * 0.6); // ~60% de la hauteur de la barre
+    const top = Math.max(8, barRect.top - gapY - height);
     const left = barRect.left;
-    const width = Math.max(180, rightEdge - barRect.left); // même largeur que barre+OK
-    const height = barRect.height;
 
     const br = getComputedStyle(bar).borderRadius || "9999px";
 
@@ -47,8 +53,8 @@ function WelcomeBannerOverBar() {
       z-index: 2147483646;
       display: block;
       pointer-events: none;
+      border-radius: ${br};
     `;
-    host.setAttribute("data-br", br);
   };
 
   useEffect(() => {
@@ -77,8 +83,9 @@ function WelcomeBannerOverBar() {
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
 
-    const t1 = setTimeout(position, 60);
-    const t2 = setTimeout(position, 160);
+    const t1 = setTimeout(position, 40);
+    const t2 = setTimeout(position, 140);
+    const t3 = setTimeout(position, 300);
 
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
@@ -87,26 +94,24 @@ function WelcomeBannerOverBar() {
       window.removeEventListener("scroll", position);
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       host.remove();
     };
   }, []);
 
   if (!mounted || !hostRef.current || !active || !firstName) return null;
 
-  const radius = hostRef.current.getAttribute("data-br") || "9999px";
-
   return createPortal(
     <div
-      className="w-full h-full flex items-center justify-center px-4"
+      className="w-full h-full flex items-center justify-center px-3"
       style={{
-        borderRadius: radius as any,
-        background: "rgba(17, 24, 39, 0.92)", // même esprit que la barre
-        boxShadow: "0 6px 20px rgba(0,0,0,.18)",
+        background: "rgba(17,24,39,0.25)", // très transparent (≈ 25%)
+        boxShadow: "0 10px 24px rgba(0,0,0,.18)",
       }}
     >
       <div className="truncate text-center text-[12px] sm:text-[13px] text-white/95 font-medium">
         {"Bonjour\u00A0" + firstName}
-        {"\u00A0\u25CB\u00A0"}
+        {"\u00A0\u25CB\u00A0" /* ○ */}
         <span className="font-semibold">Espace</span>
         {"\u00A0désormais :\u00A0"}
         <span className="font-bold text-green-400">Actif</span>
@@ -139,25 +144,28 @@ export default function RightAuthButtons() {
     null;
   const getOkEl = () => {
     const btns = Array.from(document.querySelectorAll("button"));
-    return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
+    return (
+      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
+      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
+      null
+    );
   };
 
-  // Positionnement des deux ronds, alignés au bord droit du bouton OK
+  // Positionne les deux boutons sous la barre : bord droit = OK (ou barre si OK introuvable)
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    const ok = getOkEl();
-    if (!host || !bar || !ok) return;
+    if (!host || !bar) return;
 
     const barRect = bar.getBoundingClientRect();
-    const okRect = ok.getBoundingClientRect();
+    const ok = getOkEl();
+    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
     const BTN = 48;
     const BETWEEN = 10;
     const GAP_Y = 10;
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = okRect.right;
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
@@ -171,6 +179,7 @@ export default function RightAuthButtons() {
     `;
   };
 
+  // mount + observers
   useEffect(() => {
     const host = document.createElement("div");
     host.style.display = "none";
@@ -187,9 +196,9 @@ export default function RightAuthButtons() {
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
 
-    const t1 = setTimeout(position, 60);
-    const t2 = setTimeout(position, 160);
-    const t3 = setTimeout(position, 320);
+    const t1 = setTimeout(position, 40);
+    const t2 = setTimeout(position, 140);
+    const t3 = setTimeout(position, 300);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
@@ -208,11 +217,9 @@ export default function RightAuthButtons() {
 
   const onGoldClick = () => {
     if (connected) {
-      // Déconnexion : on garde le profil mais on passe connecté=0
       localStorage.setItem("ob_connected", "0");
       window.dispatchEvent(new Event("ob:connected-changed"));
     } else {
-      // Connexion locale (temporaire, en attendant OTP)
       const p = localStorage.getItem("ob_profile");
       if (p) {
         localStorage.setItem("ob_connected", "1");
