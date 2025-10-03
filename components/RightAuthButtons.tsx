@@ -43,7 +43,6 @@ function WelcomeBannerOverBar() {
     const height = BANNER_H;
     const top = Math.max(8, barRect.top - GAP_Y - height);
     const left = barRect.left;
-    const br = getComputedStyle(bar).borderRadius || "9999px";
 
     host.style.cssText = `
       position: fixed;
@@ -54,7 +53,7 @@ function WelcomeBannerOverBar() {
       z-index: 2147483646;
       display: block;
       pointer-events: none;
-      border-radius: ${br};
+      border-radius: 12px; /* arrondi doux demandé */
     `;
   };
 
@@ -110,8 +109,9 @@ function WelcomeBannerOverBar() {
     <div
       className="w-full h-full flex items-center justify-center px-3"
       style={{
-        background: "rgba(17,24,39,0.12)", // très transparent
+        background: "rgba(17,24,39,0.12)", // transparence élevée
         boxShadow: "0 10px 24px rgba(0,0,0,.14)",
+        borderRadius: 12, // sécurité côté contenu
       }}
     >
       <div className="truncate text-center text-[12px] sm:text-[13px] text-white font-medium">
@@ -119,11 +119,10 @@ function WelcomeBannerOverBar() {
         {"\u00A0\u25CB\u00A0"}
         <span className="font-semibold">Espace</span>
         {"\u00A0désormais :\u00A0"}
-        {/* ACTIF → dégradé bleu→turquoise */}
         <span
           className="font-extrabold"
           style={{
-            background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
+            background: "linear-gradient(90deg,#3b82f6,#06b6d4)", // bleu → turquoise
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}
@@ -181,12 +180,10 @@ export default function RightAuthButtons() {
 
     const totalWidth = 2 * BTN + BETWEEN;
 
-    // Fallback : si rightEdge est trop petit/anormal, utiliser le bord droit de la barre
     if (!Number.isFinite(rightEdge) || rightEdge < barRect.left + totalWidth) {
       rightEdge = barRect.right;
     }
 
-    // Clamp dans l’écran
     const minLeft = 8;
     const maxLeft = Math.max(minLeft, window.innerWidth - totalWidth - 8);
 
@@ -312,4 +309,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-        }
+}
