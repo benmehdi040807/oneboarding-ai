@@ -99,7 +99,6 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // état connecté (pour le dégradé du “O” de droite)
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -108,33 +107,41 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // helpers DOM
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
   const getOkEl = () => {
-    const btns = Array.from(document.querySelectorAll("button"));
-    return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
+    // 1) bouton textuel "OK"
+    const byText = Array.from(document.querySelectorAll("button"))
+      .find((b) => (b.textContent || "").trim() === "OK") as HTMLElement | undefined;
+    if (byText) return byText;
+
+    // 2) un bouton à droite DANS la barre (icône/aria-label sur desktop)
+    const bar = getBarEl();
+    if (!bar) return null;
+    const maybeRightBtn = bar.parentElement?.querySelector("button:last-of-type") as
+      | HTMLElement
+      | null;
+    return maybeRightBtn || null;
   };
 
-  // Positionne les 2 cercles sous la barre : bord droit = bord droit de OK (alignement exact)
+  // Positionne les 2 cercles : alignement sur bord droit du OK,
+  // et FALLBACK propre = bord droit de la barre si OK introuvable (desktop).
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    const ok = getOkEl();
-    if (!host || !bar || !ok) return;
+    if (!host || !bar) return;
 
     const barRect = bar.getBoundingClientRect();
-    const okRect = ok.getBoundingClientRect();
-
-    const BTN = 48;     // diamètre de chaque cercle
-    const BETWEEN = 10; // espace entre les deux
-    const GAP_Y = 10;   // distance sous la barre
+    const ok = getOkEl();
+    const BTN = 48;
+    const BETWEEN = 10;
+    const GAP_Y = 10;
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = okRect.right; // alignement exact sur le bord droit de OK
+    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right; // fallback desktop
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
@@ -148,7 +155,6 @@ export default function RightAuthButtons() {
     `;
   };
 
-  // mount + observers
   useEffect(() => {
     const host = document.createElement("div");
     host.style.display = "none";
@@ -184,13 +190,12 @@ export default function RightAuthButtons() {
     "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
     "flex items-center justify-center backdrop-blur select-none";
 
-  // Dégradés (texte en dégradé avec bg-clip)
+  // Dégradés
   const GRAD_BLUE =
     "bg-gradient-to-r from-[#4F8AF9] via-[#25B6E1] to-[#20DFC8]";
   const GRAD_GOLD =
     "bg-gradient-to-r from-yellow-400 via-yellow-500 to-gray-300";
 
-  // Composant “O” avec dégradé
   const GradientO = ({ gradient, className = "" }: { gradient: string; className?: string }) => (
     <span
       className={`text-xl font-extrabold ${gradient} bg-clip-text text-transparent ${className}`}
@@ -220,9 +225,7 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière immersive au-dessus de la barre */}
       <WelcomeBannerOverBar />
-
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>,
     hostRef.current
