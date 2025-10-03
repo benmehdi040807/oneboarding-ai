@@ -5,16 +5,42 @@ import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
-/** --------- Bandeau “Bienvenue, Prénom” (en haut-droite) --------- */
-function WelcomeBanner() {
-  const [mounted, setMounted] = useState(false);
+/** ----------------- Bandeau immersif au-dessus de la barre ----------------- */
+function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
 
+  const getBarEl = () =>
+    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
+    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
+    null;
+
+  // positionne le host centré sur la barre, juste au-dessus
+  const position = () => {
+    const host = hostRef.current;
+    const bar = getBarEl();
+    if (!host || !bar) return;
+    const r = bar.getBoundingClientRect();
+    const centerX = r.left + r.width / 2;
+    const gapY = 12;
+    const top = Math.max(8, r.top - gapY - 36); // 36 ≈ hauteur du badge
+
+    host.style.cssText = `
+      position: fixed;
+      left: ${centerX}px;
+      top: ${top}px;
+      transform: translateX(-50%);
+      z-index: 2147483646;
+      display: block;
+      pointer-events: none;
+    `;
+  };
+
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.cssText = "position:fixed;top:18px;right:16px;z-index:2147483647;";
+    host.style.display = "none";
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
@@ -26,23 +52,40 @@ function WelcomeBanner() {
       setActive(localStorage.getItem("ob_connected") === "1");
     };
     load();
+
     const onChange = () => load();
     window.addEventListener("ob:connected-changed", onChange);
+
+    const ro = new ResizeObserver(position);
+    const bar = getBarEl();
+    if (bar) ro.observe(bar);
+    window.addEventListener("resize", position, { passive: true });
+    window.addEventListener("scroll", position, { passive: true });
+    const t1 = setTimeout(position, 60);
+    const t2 = setTimeout(position, 160);
+
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
+      ro.disconnect();
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position);
+      clearTimeout(t1);
+      clearTimeout(t2);
       host.remove();
     };
   }, []);
 
+  // si pas connecté ou pas de prénom, pas de bannière
   if (!mounted || !hostRef.current || !active || !firstName) return null;
 
+  const badge =
+    "rounded-2xl bg-white/85 backdrop-blur-md shadow px-4 py-2 text-[15px] " +
+    "text-black/80 flex items-center gap-2 pointer-events-auto";
+
   return createPortal(
-    <div className="rounded-2xl bg-white/80 backdrop-blur-md shadow px-4 py-2 text-[15px] text-black/80 flex flex-col items-end">
-      <div className="font-semibold">Bienvenue, {firstName}</div>
-      <div>
-        Votre espace OneBoarding est désormais{" "}
-        <span className="font-semibold text-green-600">actif</span>.
-      </div>
+    <div className={badge}>
+      <span className="font-semibold">Bonjour, {firstName}</span>
+      <span>— désormais <span className="font-semibold text-green-600">actif</span>.</span>
     </div>,
     hostRef.current
   );
@@ -88,10 +131,10 @@ export default function RightAuthButtons() {
     const BTN = 48;           // diamètre de chaque cercle
     const BETWEEN = 10;       // espace entre les deux
     const GAP_Y = 10;         // distance sous la barre
-    const NUDGE_X = -4;       // petit décalage vers la GAUCHE (symétrie visuelle)
+    const NUDGE_X = -6;       // petit décalage vers la GAUCHE (symétrie fine)
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = okRect.right + NUDGE_X; // bord droit = bord droit du OK (−4 px)
+    const rightEdge = okRect.right + NUDGE_X; // bord droit = bord droit du OK (−6 px)
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
@@ -175,9 +218,11 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      <WelcomeBanner />
+      {/* Bannière immersive au-dessus de la barre */}
+      <WelcomeBannerOverBar />
+
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>,
     hostRef.current
   );
-}
+      }
