@@ -74,7 +74,6 @@ function WelcomeBannerOverBar() {
     };
   }, []);
 
-  // si pas connecté ou pas de prénom, pas de bannière
   if (!mounted || !hostRef.current || !active || !firstName) return null;
 
   const badge =
@@ -100,7 +99,7 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // état connecté (pour la couleur du “O”)
+  // état connecté (pour le dégradé du “O” de droite)
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -171,9 +170,7 @@ export default function RightAuthButtons() {
     const t3 = setTimeout(position, 320);
 
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       ro.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
@@ -187,37 +184,39 @@ export default function RightAuthButtons() {
     "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
     "flex items-center justify-center backdrop-blur select-none";
 
-  // styles “halo” pour O (doré très clair ↔ bleu connecté)
-  const gold = "#FFD451"; // doré clair éclatant
-  const blue = "#1e78ff"; // bleu logo
-  const glowGold = "0 0 10px rgba(255,212,81,.55)";
-  const glowBlue = "0 0 12px rgba(30,120,255,.45)";
+  // Dégradés (texte en dégradé avec bg-clip)
+  const GRAD_BLUE =
+    "bg-gradient-to-r from-[#4F8AF9] via-[#25B6E1] to-[#20DFC8]";
+  const GRAD_GOLD =
+    "bg-gradient-to-r from-yellow-400 via-yellow-500 to-gray-300";
+
+  // Composant “O” avec dégradé
+  const GradientO = ({ gradient, className = "" }: { gradient: string; className?: string }) => (
+    <span
+      className={`text-xl font-extrabold ${gradient} bg-clip-text text-transparent ${className}`}
+      style={{ lineHeight: 1 }}
+      aria-hidden
+    >
+      O
+    </span>
+  );
 
   return createPortal(
     <>
       <div className="flex items-center gap-[10px]">
-        {/* + : ouvre la création d’espace */}
+        {/* O (création) : bleu → turquoise */}
         <button
           type="button"
           aria-label="Créer mon espace"
           onClick={() => setOpenSubscribe(true)}
           className={circle}
         >
-          <span className="text-2xl -mt-[2px] text-black/80">＋</span>
+          <GradientO gradient={GRAD_BLUE} />
         </button>
 
-        {/* O : doré (déconnecté) ⇄ bleu (connecté) avec halo */}
+        {/* O (accès espace) : or → argent si déconnecté, bleu → turquoise si connecté */}
         <button type="button" aria-label="Accéder à mon espace" className={circle}>
-          <span
-            className="text-xl font-extrabold"
-            style={{
-              lineHeight: 1,
-              color: connected ? blue : gold,
-              textShadow: connected ? glowBlue : glowGold,
-            }}
-          >
-            O
-          </span>
+          <GradientO gradient={connected ? GRAD_BLUE : GRAD_GOLD} />
         </button>
       </div>
 
