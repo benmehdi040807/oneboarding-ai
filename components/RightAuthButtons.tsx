@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/** ----------------- Bandeau immersif au-dessus de la barre ----------------- */
+/** ----------------- Bandeau immersif « clone de la barre » ----------------- */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -15,26 +15,40 @@ function WelcomeBannerOverBar() {
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
+  const getOkEl = () => {
+    const btns = Array.from(document.querySelectorAll("button"));
+    return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
+  };
 
-  // positionne le host centré sur la barre, juste au-dessus
+  // positionne le host au-dessus, même largeur/hauteur que la barre + OK
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
     if (!host || !bar) return;
-    const r = bar.getBoundingClientRect();
-    const centerX = r.left + r.width / 2;
-    const gapY = 12;
-    const top = Math.max(8, r.top - gapY - 36); // 36 ≈ hauteur du badge
+
+    const ok = getOkEl();
+    const barRect = bar.getBoundingClientRect();
+    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
+
+    const gapY = 10; // espace vertical entre les deux barres
+    const top = Math.max(8, barRect.top - gapY - barRect.height);
+    const left = barRect.left;
+    const width = Math.max(180, rightEdge - barRect.left); // même largeur que barre+OK
+    const height = barRect.height;
+
+    const br = getComputedStyle(bar).borderRadius || "9999px";
 
     host.style.cssText = `
       position: fixed;
-      left: ${centerX}px;
+      left: ${left}px;
       top: ${top}px;
-      transform: translateX(-50%);
+      width: ${width}px;
+      height: ${height}px;
       z-index: 2147483646;
       display: block;
       pointer-events: none;
     `;
+    host.setAttribute("data-br", br);
   };
 
   useEffect(() => {
@@ -57,9 +71,12 @@ function WelcomeBannerOverBar() {
 
     const ro = new ResizeObserver(position);
     const bar = getBarEl();
+    const ok = getOkEl();
     if (bar) ro.observe(bar);
+    if (ok) ro.observe(ok);
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
+
     const t1 = setTimeout(position, 60);
     const t2 = setTimeout(position, 160);
 
@@ -74,27 +91,26 @@ function WelcomeBannerOverBar() {
     };
   }, []);
 
-  // si pas connecté ou pas de prénom, pas de bannière
   if (!mounted || !hostRef.current || !active || !firstName) return null;
 
-  // badge: pas de coupure de mots + largeur max pour éviter de dépasser l’écran
-  const badge =
-    "rounded-2xl bg-white/85 backdrop-blur-md shadow px-4 py-2 " +
-    "text-[14px] sm:text-[15px] text-black/80 pointer-events-auto " +
-    "max-w-[calc(100vw-32px)] flex items-center gap-2";
+  const radius = hostRef.current.getAttribute("data-br") || "9999px";
 
   return createPortal(
-    <div className={badge}>
-      <span className="font-semibold whitespace-nowrap">
+    <div
+      className="w-full h-full flex items-center justify-center px-4"
+      style={{
+        borderRadius: radius as any,
+        background: "rgba(17, 24, 39, 0.92)", // même esprit que la barre
+        boxShadow: "0 6px 20px rgba(0,0,0,.18)",
+      }}
+    >
+      <div className="truncate text-center text-[12px] sm:text-[13px] text-white/95 font-medium">
         {"Bonjour\u00A0" + firstName}
-      </span>
-      <span className="whitespace-nowrap">
-        {/* \u25CB = “○” — entouré d’espaces insécables */}
         {"\u00A0\u25CB\u00A0"}
         <span className="font-semibold">Espace</span>
         {"\u00A0désormais :\u00A0"}
-        <span className="font-bold text-green-500">Actif</span>
-      </span>
+        <span className="font-bold text-green-400">Actif</span>
+      </div>
     </div>,
     hostRef.current
   );
@@ -107,7 +123,7 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // état connecté (pour la couleur du “O”)
+  // état connecté
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -121,13 +137,12 @@ export default function RightAuthButtons() {
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
-
   const getOkEl = () => {
     const btns = Array.from(document.querySelectorAll("button"));
     return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
   };
 
-  // Positionne les 2 cercles sous la barre : bord droit = bord droit de OK (alignement exact)
+  // Positionnement des deux ronds, alignés au bord droit du bouton OK
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -137,12 +152,12 @@ export default function RightAuthButtons() {
     const barRect = bar.getBoundingClientRect();
     const okRect = ok.getBoundingClientRect();
 
-    const BTN = 48;     // diamètre de chaque cercle
-    const BETWEEN = 10; // espace entre les deux
-    const GAP_Y = 10;   // distance sous la barre
+    const BTN = 48;
+    const BETWEEN = 10;
+    const GAP_Y = 10;
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = okRect.right; // alignement exact sur le bord droit de OK
+    const rightEdge = okRect.right;
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
@@ -156,7 +171,6 @@ export default function RightAuthButtons() {
     `;
   };
 
-  // mount + observers
   useEffect(() => {
     const host = document.createElement("div");
     host.style.display = "none";
@@ -192,16 +206,27 @@ export default function RightAuthButtons() {
     "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
     "flex items-center justify-center backdrop-blur select-none";
 
-  // “O” (doré clair ↔ bleu connecté)
-  const gold = "#FFD451";
-  const blue = "#1e78ff";
-  const glowGold = "0 0 10px rgba(255,212,81,.55)";
-  const glowBlue = "0 0 12px rgba(30,120,255,.45)";
+  const onGoldClick = () => {
+    if (connected) {
+      // Déconnexion : on garde le profil mais on passe connecté=0
+      localStorage.setItem("ob_connected", "0");
+      window.dispatchEvent(new Event("ob:connected-changed"));
+    } else {
+      // Connexion locale (temporaire, en attendant OTP)
+      const p = localStorage.getItem("ob_profile");
+      if (p) {
+        localStorage.setItem("ob_connected", "1");
+        window.dispatchEvent(new Event("ob:connected-changed"));
+      } else {
+        alert("Aucun espace trouvé sur cet appareil.\nCrée ton espace avec le O bleu.");
+      }
+    }
+  };
 
   return createPortal(
     <>
       <div className="flex items-center gap-[10px]">
-        {/* Création d’espace */}
+        {/* Création d’espace (O dégradé bleu→turquoise) */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -221,14 +246,21 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Accès espace (état connecté) */}
-        <button type="button" aria-label="Accéder à mon espace" className={circle}>
+        {/* Connexion / Déconnexion (toujours doré, dédié auth) */}
+        <button
+          type="button"
+          aria-label={connected ? "Se déconnecter" : "Se connecter"}
+          className={circle}
+          onClick={onGoldClick}
+          title={connected ? "Se déconnecter" : "Se connecter"}
+        >
           <span
             className="text-xl font-extrabold"
             style={{
               lineHeight: 1,
-              color: connected ? blue : gold,
-              textShadow: connected ? glowBlue : glowGold,
+              background: "linear-gradient(90deg,#FFD451,#EABE3F,#D9D1C0)", // doré → argenté léger
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
             }}
           >
             O
