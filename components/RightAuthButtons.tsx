@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
-// Petit composant interne : bandeau "Bienvenue, Prénom"
+/** --------- Bandeau “Bienvenue, Prénom” (en haut-droite) --------- */
 function WelcomeBanner() {
   const [mounted, setMounted] = useState(false);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -19,7 +19,6 @@ function WelcomeBanner() {
     hostRef.current = host;
     setMounted(true);
 
-    // lecture profil + écoute des changements
     const load = () => {
       const p = typeof window !== "undefined" ? localStorage.getItem("ob_profile") : null;
       const prof = p ? JSON.parse(p) : null;
@@ -37,12 +36,8 @@ function WelcomeBanner() {
 
   if (!mounted || !hostRef.current || !active || !firstName) return null;
 
-  const card =
-    "rounded-2xl bg-white/80 backdrop-blur-md shadow px-4 py-2 text-[15px] " +
-    "text-black/80 flex flex-col items-end";
-
   return createPortal(
-    <div className={card}>
+    <div className="rounded-2xl bg-white/80 backdrop-blur-md shadow px-4 py-2 text-[15px] text-black/80 flex flex-col items-end">
       <div className="font-semibold">Bienvenue, {firstName}</div>
       <div>
         Votre espace OneBoarding est désormais{" "}
@@ -53,13 +48,14 @@ function WelcomeBanner() {
   );
 }
 
+/** ------------------------- Boutons droits ------------------------ */
 export default function RightAuthButtons() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // lecture de l'état connecté
+  // état connecté (pour la couleur du “O”)
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -68,17 +64,18 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // DOM helpers
+  // helpers DOM
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
+
   const getOkEl = () => {
     const btns = Array.from(document.querySelectorAll("button"));
     return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
   };
 
-  // Positionner les 2 cercles sous la barre, bord droit = bord droit de OK (+ nudger)
+  // Positionne les 2 cercles sous la barre : bord droit = bord droit de OK (léger shift à gauche)
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -88,15 +85,15 @@ export default function RightAuthButtons() {
     const barRect = bar.getBoundingClientRect();
     const okRect = ok.getBoundingClientRect();
 
-    const btn = 48;
-    const between = 10;
-    const gapY = 10;
-    const nudger = 8;
+    const BTN = 48;           // diamètre de chaque cercle
+    const BETWEEN = 10;       // espace entre les deux
+    const GAP_Y = 10;         // distance sous la barre
+    const NUDGE_X = -4;       // petit décalage vers la GAUCHE (symétrie visuelle)
 
-    const total = 2 * btn + between;
-    const right = okRect.right + nudger;
-    const left = right - total;
-    const top = barRect.bottom + gapY;
+    const totalWidth = 2 * BTN + BETWEEN;
+    const rightEdge = okRect.right + NUDGE_X; // bord droit = bord droit du OK (−4 px)
+    const left = rightEdge - totalWidth;
+    const top = barRect.bottom + GAP_Y;
 
     host.style.cssText = `
       position: fixed;
@@ -124,6 +121,7 @@ export default function RightAuthButtons() {
 
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
+
     const t1 = setTimeout(position, 60);
     const t2 = setTimeout(position, 160);
     const t3 = setTimeout(position, 320);
@@ -141,7 +139,13 @@ export default function RightAuthButtons() {
 
   const circle =
     "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
-    "flex items-center justify-center backdrop-blur";
+    "flex items-center justify-center backdrop-blur select-none";
+
+  // styles “halo” pour O (doré très clair ↔ bleu connecté)
+  const gold = "#FFD451";          // doré clair éclatant
+  const blue = "#1e78ff";          // bleu logo
+  const glowGold = "0 0 10px rgba(255,212,81,.55)";
+  const glowBlue = "0 0 12px rgba(30,120,255,.45)";
 
   return createPortal(
     <>
@@ -153,15 +157,18 @@ export default function RightAuthButtons() {
           onClick={() => setOpenSubscribe(true)}
           className={circle}
         >
-          {/* plus “plein” visuellement */}
           <span className="text-2xl -mt-[2px] text-black/80">＋</span>
         </button>
 
-        {/* O : doré si déconnecté, bleu si connecté */}
+        {/* O : doré (déconnecté) ⇄ bleu (connecté) avec halo */}
         <button type="button" aria-label="Accéder à mon espace" className={circle}>
           <span
-            className={`text-xl font-extrabold ${connected ? "text-[#1e78ff]" : "text-[#CFA23A]"}`}
-            style={{ lineHeight: 1 }}
+            className="text-xl font-extrabold"
+            style={{
+              lineHeight: 1,
+              color: connected ? blue : gold,
+              textShadow: connected ? glowBlue : glowGold,
+            }}
           >
             O
           </span>
