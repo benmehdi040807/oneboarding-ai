@@ -1,82 +1,118 @@
-// components/SubscribeModal.tsx
 "use client";
 
-import { useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef } from "react";
 import PhoneField from "./PhoneField";
 
-type Props = { open: boolean; onClose: () => void };
+type Props = {
+  open: boolean;
+  onClose: () => void;
+};
 
 export default function SubscribeModal({ open, onClose }: Props) {
-  // Fermer avec ESC
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  // Empêcher le scroll du body quand le modal est ouvert
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  // Back Android / navigateur : ferme d’abord la liste pays (géré par PhoneField),
+  // puis le modal (nous poussons 1 état d’historique quand il s’ouvre).
+  useEffect(() => {
+    if (!open) return;
+    const state = { oneboardingModal: true };
+    try {
+      window.history.pushState(state, "");
+    } catch {}
+    const onPop = () => {
+      onClose();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, [open, onClose]);
 
   if (!open) return null;
 
-  const modal = (
+  const onClickBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  return (
     <div
-      className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-xl"
-      onClick={onClose} // clic extérieur -> fermeture
+      role="dialog"
+      aria-modal="true"
+      onClick={onClickBackdrop}
+      className="fixed inset-0 z-40 flex items-end sm:items-center justify-center
+                 bg-black/35 backdrop-blur-md"
     >
-      {/* Bottom-sheet ULTRA transparent */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="fixed bottom-[env(safe-area-inset-bottom)] left-0 right-0
-                   md:left-1/2 md:-translate-x-1/2 md:bottom-10
-                   w-full md:max-w-xl rounded-t-3xl md:rounded-3xl
-                   bg-white/40 backdrop-blur-2xl shadow-2xl border border-white/50"
+        ref={dialogRef}
+        className="w-full sm:max-w-lg rounded-3xl
+                   border border-white/30 bg-white/35 backdrop-blur-xl
+                   shadow-xl p-4 sm:p-6 m-0 sm:m-6"
       >
-        <div className="flex items-center justify-between p-4">
-          <h3 className="text-xl font-semibold">Créer mon espace</h3>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-black/90">Créer mon espace</h2>
           <button
             onClick={onClose}
-            className="px-3 py-1 rounded-xl bg-black/5 hover:bg-black/10 active:bg-black/15"
+            className="px-3 py-1 rounded-xl bg-white/60 hover:bg-white/80 text-black/80"
           >
             Fermer
           </button>
         </div>
 
-        <div className="p-4 pt-0 space-y-3">
-          {/* Ligne 1 : Nom */}
+        {/* Formulaire */}
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+          }}
+        >
+          {/* Nom */}
           <input
             type="text"
+            inputMode="text"
+            autoComplete="family-name"
             placeholder="Nom"
-            className="w-full h-12 rounded-2xl px-4 bg-white/75 border border-black/10"
+            className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                       px-4 py-3 text-black placeholder-black/60 outline-none"
           />
-          {/* Ligne 2 : Prénom */}
+
+          {/* Prénom */}
           <input
             type="text"
+            inputMode="text"
+            autoComplete="given-name"
             placeholder="Prénom"
-            className="w-full h-12 rounded-2xl px-4 bg-white/75 border border-black/10"
+            className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                       px-4 py-3 text-black placeholder-black/60 outline-none"
           />
 
-          {/* Lignes 3 & 4 : Pays (Club 33) puis Indicatif + Numéro */}
-          <PhoneField />
+          {/* Téléphone (pays séparé + indicatif + numéro) */}
+          <PhoneField
+            value=""
+            onChange={() => {}}
+          />
 
-          <p className="text-xs text-black/70">
-            Format : <b>+212</b> + numéro national (sans le 0 de tête).
+          <p className="text-sm text-black/70">
+            Format : <span className="font-semibold">+212</span> + numéro national
+            (sans le 0 de tête).
           </p>
 
           <button
-            type="button"
-            className="w-full h-12 rounded-2xl bg-[#5b8df7] text-white font-medium shadow
-                       hover:opacity-95 active:opacity-90"
+            className="w-full rounded-2xl bg-[#3777F6] text-white font-semibold py-4
+                       shadow hover:opacity-95 active:scale-[.99] transition"
           >
             Continuer avec PayPal
           </button>
-
-          {/* marge anti-recouvrement par le bandeau “Privacy” */}
-          <div className="h-8 md:h-0" />
-        </div>
+        </form>
       </div>
     </div>
   );
-
-  // Portal pour garantir la bonne superposition et la capture des clics
-  return createPortal(modal, document.body);
 }
