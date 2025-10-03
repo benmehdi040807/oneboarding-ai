@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Country = { num: number; name: string; dial: string; flag: string };
+
 const COUNTRIES: Country[] = [
   { num: 1, name: "Maroc", flag: "🇲🇦", dial: "212" },
   { num: 2, name: "États-Unis", flag: "🇺🇸", dial: "1" },
@@ -48,8 +49,6 @@ export default function PhoneField({ value, onChange }: Props) {
   const [local, setLocal] = useState<string>("");
   const [open, setOpen] = useState(false);
   const selectedRef = useRef<HTMLButtonElement | null>(null);
-  const pushedRef = useRef(false);
-  const popHandlerRef = useRef<(e: PopStateEvent) => void>();
 
   // Compose E.164
   useEffect(() => {
@@ -58,45 +57,10 @@ export default function PhoneField({ value, onChange }: Props) {
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Back pour la liste : une seule entrée, consommée à la fermeture
-  useEffect(() => {
-    if (!open) return;
-
-    if (!pushedRef.current) {
-      try { window.history.pushState({ obCountry: true }, ""); pushedRef.current = true; } catch {}
-    } else {
-      try { window.history.replaceState({ obCountry: true }, ""); } catch {}
-    }
-
-    const onPop = () => {
-      pushedRef.current = false;
-      setOpen(false);
-    };
-    popHandlerRef.current = onPop;
-    window.addEventListener("popstate", onPop);
-    return () => {
-      if (popHandlerRef.current) window.removeEventListener("popstate", popHandlerRef.current);
-      popHandlerRef.current = undefined;
-    };
-  }, [open]);
-
-  const closeList = () => {
-    if (popHandlerRef.current) {
-      window.removeEventListener("popstate", popHandlerRef.current);
-      popHandlerRef.current = undefined;
-    }
-    if (pushedRef.current) {
-      pushedRef.current = false;
-      try { window.history.back(); } catch {}
-    } else {
-      setOpen(false);
-    }
-  };
-
   // Scroll auto vers l’élément sélectionné
   useEffect(() => {
     if (open && selectedRef.current) {
-      selectedRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+      selectedRef.current.scrollIntoView({ block: "center" });
     }
   }, [open]);
 
@@ -104,7 +68,7 @@ export default function PhoneField({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Pays */}
+      {/* 1) Sélecteur de pays */}
       <div className="relative">
         <button
           type="button"
@@ -117,7 +81,7 @@ export default function PhoneField({ value, onChange }: Props) {
         </button>
       </div>
 
-      {/* Indicatif + numéro */}
+      {/* 2) Indicatif + Numéro */}
       <div className="grid grid-cols-[auto_1fr] gap-3">
         <div className="rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-black flex items-center min-w-[82px]" aria-hidden>
           {dial}
@@ -131,14 +95,16 @@ export default function PhoneField({ value, onChange }: Props) {
         />
       </div>
 
+      {/* Liste flottante, indépendante du body (scroll interne fiable up/down) */}
       {open && (
-        <div onClick={closeList} className="fixed inset-0 z-50" aria-hidden>
+        <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" aria-hidden>
           <div
             onClick={(e) => e.stopPropagation()}
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
-                       w-[92vw] max-w-lg rounded-2xl bg-white/60 backdrop-blur-xl
-                       border border-white/50 shadow-2xl max-h-[60vh] overflow-y-auto
-                       scroll-smooth overscroll-contain touch-pan-y divide-y divide-black/10"
+                       w-[92vw] max-w-lg rounded-2xl
+                       bg-white/50 backdrop-blur-2xl border border-white/60 shadow-2xl
+                       max-h-[60vh] overflow-y-auto
+                       touch-pan-y overscroll-contain scroll-smooth divide-y divide-black/10"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {COUNTRIES.map((c) => {
@@ -148,7 +114,7 @@ export default function PhoneField({ value, onChange }: Props) {
                   key={c.num}
                   type="button"
                   ref={selected ? selectedRef : null}
-                  onClick={() => { setCountry(c); closeList(); }}
+                  onClick={() => { setCountry(c); setOpen(false); }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
                               ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
                 >
@@ -165,4 +131,4 @@ export default function PhoneField({ value, onChange }: Props) {
       )}
     </div>
   );
-   }
+}
