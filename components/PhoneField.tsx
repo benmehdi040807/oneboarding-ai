@@ -1,132 +1,161 @@
-// components/PhoneField.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
 
-type Country = { id: number; code: string; label: string; dial: number; flag: string };
-
-const CLUB_33: Country[] = [
-  { id: 1, code: "MA", label: "Maroc", dial: 212, flag: "🇲🇦" },
-  { id: 2, code: "US", label: "États-Unis", dial: 1, flag: "🇺🇸" },
-  { id: 3, code: "CN", label: "Chine", dial: 86, flag: "🇨🇳" },
-  { id: 4, code: "CA", label: "Canada", dial: 1, flag: "🇨🇦" },
-  { id: 5, code: "JP", label: "Japon", dial: 81, flag: "🇯🇵" },
-  { id: 6, code: "KR", label: "Corée du Sud", dial: 82, flag: "🇰🇷" },
-  { id: 7, code: "IN", label: "Inde", dial: 91, flag: "🇮🇳" },
-  { id: 8, code: "SG", label: "Singapour", dial: 65, flag: "🇸🇬" },
-  { id: 9, code: "AE", label: "Émirats Arabes Unis", dial: 971, flag: "🇦🇪" },
-  { id: 10, code: "SA", label: "Arabie Saoudite", dial: 966, flag: "🇸🇦" },
-  { id: 11, code: "QA", label: "Qatar", dial: 974, flag: "🇶🇦" },
-  { id: 12, code: "KW", label: "Koweït", dial: 965, flag: "🇰🇼" },
-  { id: 13, code: "BH", label: "Bahreïn", dial: 973, flag: "🇧🇭" },
-  { id: 14, code: "OM", label: "Oman", dial: 968, flag: "🇴🇲" },
-  { id: 15, code: "FR", label: "France", dial: 33, flag: "🇫🇷" },
-  { id: 16, code: "BE", label: "Belgique", dial: 32, flag: "🇧🇪" },
-  { id: 17, code: "CH", label: "Suisse", dial: 41, flag: "🇨🇭" },
-  { id: 18, code: "LU", label: "Luxembourg", dial: 352, flag: "🇱🇺" },
-  { id: 19, code: "ES", label: "Espagne", dial: 34, flag: "🇪🇸" },
-  { id: 20, code: "IT", label: "Italie", dial: 39, flag: "🇮🇹" },
-  { id: 21, code: "DE", label: "Allemagne", dial: 49, flag: "🇩🇪" },
-  { id: 22, code: "GB", label: "Royaume-Uni", dial: 44, flag: "🇬🇧" },
-  { id: 23, code: "NL", label: "Pays-Bas", dial: 31, flag: "🇳🇱" },
-  { id: 24, code: "SE", label: "Suède", dial: 46, flag: "🇸🇪" },
-  { id: 25, code: "RU", label: "Russie", dial: 7, flag: "🇷🇺" },
-  { id: 26, code: "DZ", label: "Algérie", dial: 213, flag: "🇩🇿" },
-  { id: 27, code: "TN", label: "Tunisie", dial: 216, flag: "🇹🇳" },
-  { id: 28, code: "EG", label: "Égypte", dial: 20, flag: "🇪🇬" },
-  { id: 29, code: "SN", label: "Sénégal", dial: 221, flag: "🇸🇳" },
-  { id: 30, code: "CI", label: "Côte d’Ivoire", dial: 225, flag: "🇨🇮" },
-  { id: 31, code: "CM", label: "Cameroun", dial: 237, flag: "🇨🇲" },
-  { id: 32, code: "NG", label: "Nigeria", dial: 234, flag: "🇳🇬" },
-  { id: 33, code: "ZA", label: "Afrique du Sud", dial: 27, flag: "🇿🇦" },
+/** Clubs des 33 – ordre validé + numérotation */
+type Country = { num: number; name: string; dial: string; flag: string };
+const COUNTRIES: Country[] = [
+  { num: 1, name: "Maroc", flag: "🇲🇦", dial: "212" },
+  { num: 2, name: "États-Unis", flag: "🇺🇸", dial: "1" },
+  { num: 3, name: "Chine", flag: "🇨🇳", dial: "86" },
+  { num: 4, name: "Canada", flag: "🇨🇦", dial: "1" },
+  { num: 5, name: "Japon", flag: "🇯🇵", dial: "81" },
+  { num: 6, name: "Corée du Sud", flag: "🇰🇷", dial: "82" },
+  { num: 7, name: "Inde", flag: "🇮🇳", dial: "91" },
+  { num: 8, name: "Singapour", flag: "🇸🇬", dial: "65" },
+  { num: 9, name: "Émirats Arabes Unis", flag: "🇦🇪", dial: "971" },
+  { num: 10, name: "Arabie Saoudite", flag: "🇸🇦", dial: "966" },
+  { num: 11, name: "Qatar", flag: "🇶🇦", dial: "974" },
+  { num: 12, name: "Koweït", flag: "🇰🇼", dial: "965" },
+  { num: 13, name: "Bahreïn", flag: "🇧🇭", dial: "973" },
+  { num: 14, name: "Oman", flag: "🇴🇲", dial: "968" },
+  { num: 15, name: "France", flag: "🇫🇷", dial: "33" },
+  { num: 16, name: "Belgique", flag: "🇧🇪", dial: "32" },
+  { num: 17, name: "Suisse", flag: "🇨🇭", dial: "41" },
+  { num: 18, name: "Luxembourg", flag: "🇱🇺", dial: "352" },
+  { num: 19, name: "Espagne", flag: "🇪🇸", dial: "34" },
+  { num: 20, name: "Italie", flag: "🇮🇹", dial: "39" },
+  { num: 21, name: "Allemagne", flag: "🇩🇪", dial: "49" },
+  { num: 22, name: "Royaume-Uni", flag: "🇬🇧", dial: "44" },
+  { num: 23, name: "Pays-Bas", flag: "🇳🇱", dial: "31" },
+  { num: 24, name: "Suède", flag: "🇸🇪", dial: "46" },
+  { num: 25, name: "Russie", flag: "🇷🇺", dial: "7" },
+  { num: 26, name: "Algérie", flag: "🇩🇿", dial: "213" },
+  { num: 27, name: "Tunisie", flag: "🇹🇳", dial: "216" },
+  { num: 28, name: "Égypte", flag: "🇪🇬", dial: "20" },
+  { num: 29, name: "Sénégal", flag: "🇸🇳", dial: "221" },
+  { num: 30, name: "Côte d’Ivoire", flag: "🇨🇮", dial: "225" },
+  { num: 31, name: "Cameroun", flag: "🇨🇲", dial: "237" },
+  { num: 32, name: "Nigeria", flag: "🇳🇬", dial: "234" },
+  { num: 33, name: "Afrique du Sud", flag: "🇿🇦", dial: "27" }
 ];
 
-export default function PhoneField() {
-  const [country, setCountry] = useState<Country>(CLUB_33[0]);
-  const [open, setOpen] = useState(false);
-  const [national, setNational] = useState("");
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+const DEFAULT = COUNTRIES[0]; // Maroc
 
+type Props = {
+  /** Valeur finale en E.164 (+dial+local) – si tu veux la récupérer plus tard */
+  value: string;
+  onChange: (e164: string) => void;
+};
+
+export default function PhoneField({ value, onChange }: Props) {
+  const [country, setCountry] = useState<Country>(DEFAULT);
+  const [local, setLocal] = useState<string>("");
+  const [open, setOpen] = useState(false);
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  // Compose +E164 à chaque saisie
+  useEffect(() => {
+    const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
+    const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
+    onChange(e164);
+  }, [country, local, onChange]);
+
+  // Fermer au clic extérieur
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      if (!wrapperRef.current) return;
-      if (!wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    const onDoc = (e: MouseEvent) => {
+      if (!listRef.current) return;
+      if (!listRef.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown);
-    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  const dialStr = useMemo(() => `+${country.dial}`, [country.dial]);
+  // Back Android pour la liste des pays : on pousse 1 état à l’ouverture, on referme sur popstate
+  useEffect(() => {
+    if (!open) return;
+    try {
+      window.history.pushState({ countryList: true }, "");
+    } catch {}
+    const onPop = () => setOpen(false);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [open]);
+
+  const dial = useMemo(() => `+${country.dial}`, [country]);
 
   return (
-    <div className="w-full space-y-3">
-      {/* Ligne 3 : Sélecteur pays (alignement GAUCHE) */}
-      <div className="relative" ref={wrapperRef}>
+    <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
+      {/* Sélecteur pays (3e ligne dédiée au prestige) */}
+      <div className="relative" ref={listRef}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="w-full h-12 rounded-2xl px-4 bg-white/75 border border-black/10
-                     flex items-center justify-between"
+          className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                     px-4 py-3 text-left text-black flex items-center justify-between"
         >
-          <span className="min-w-0 truncate text-left text-black">
-            {country.id}. {country.label} <span className="ml-1">{country.flag}</span>
+          <span className="truncate">
+            {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
           </span>
-          <ChevronDown className="h-4 w-4 text-black/60" />
+          <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
 
         {open && (
           <div
-            className="absolute z-[70] bottom-[calc(100%+0.5rem)]
-                       w-full rounded-2xl bg-white shadow-xl border border-black/10
-                       max-h-[45vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-14 left-0 right-0 z-50
+                       bg-white/35 backdrop-blur-xl border border-white/40
+                       shadow-2xl rounded-2xl overflow-hidden
+                       max-h-96 overflow-y-auto divide-y divide-black/10"
           >
-            {CLUB_33.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                role="option"
-                aria-selected={c.code === country.code}
-                onClick={() => {
-                  setCountry(c);
-                  setOpen(false);
-                }}
-                className="w-full px-4 py-3 hover:bg-black/5 text-left text-black cursor-pointer"
-              >
-                {/* TOUT à gauche sur UNE ligne */}
-                <span className="truncate">
-                  {c.id}. {c.label} <span className="ml-1">{c.flag}</span>{" "}
-                  <span className="text-black/70">(+{c.dial})</span>
-                </span>
-              </button>
-            ))}
+            {COUNTRIES.map((c) => {
+              const selected = c.num === country.num;
+              return (
+                <button
+                  key={c.num}
+                  type="button"
+                  onClick={() => {
+                    setCountry(c);
+                    setOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 text-left flex items-center gap-2
+                              ${selected ? "bg-white/60" : "hover:bg-white/50"}`}
+                >
+                  <span className="w-6 tabular-nums">{c.num}.</span>
+                  <span className="shrink-0">{c.flag}</span>
+                  <span className="flex-1">{c.name}</span>
+                  {/* Indicatif aligné à gauche comme demandé */}
+                  <span className="tabular-nums">(+{c.dial})</span>
+                  {selected && (
+                    <span aria-hidden className="ml-2">✓</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Ligne 4 : Indicatif auto + numéro */}
-      <div className="flex items-center gap-3">
-        <div className="h-12 rounded-2xl px-4 bg-white/75 border border-black/10 flex items-center shrink-0">
-          <span className="tabular-nums">{dialStr}</span>
-        </div>
-        <input
-          type="tel"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={national}
-          onChange={(e) =>
-            setNational(e.target.value.replace(/[^0-9]/g, "").replace(/^0+/, ""))
-          }
-          placeholder="Numéro (sans 0 initial)"
-          className="flex-1 h-12 rounded-2xl px-4 bg-white/75 border border-black/10 text-black"
-        />
+      {/* Chip indicatif */}
+      <div
+        className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                   px-4 py-3 text-black flex items-center"
+        aria-hidden
+      >
+        {dial}
       </div>
+
+      {/* Numéro local */}
+      <input
+        type="tel"
+        inputMode="numeric"
+        placeholder="Numéro (sans 0 initial)"
+        className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                   px-4 py-3 text-black placeholder-black/60 outline-none"
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+      />
     </div>
   );
 }
