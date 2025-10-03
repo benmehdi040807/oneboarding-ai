@@ -26,8 +26,8 @@ function WelcomeBannerOverBar() {
   };
 
   // ---- Hauteur figée + gap resserré ----
-  const BANNER_H = 27; // px (était 36)
-  const GAP_Y = 6;     // px (était 8)
+  const BANNER_H = 27; // px
+  const GAP_Y = 6;     // px
 
   // Positionne la bannière : mêmes left/width que barre(+OK), mais hauteur fixe
   const position = () => {
@@ -43,7 +43,6 @@ function WelcomeBannerOverBar() {
     const height = BANNER_H;
     const top = Math.max(8, barRect.top - GAP_Y - height);
     const left = barRect.left;
-
     const br = getComputedStyle(bar).borderRadius || "9999px";
 
     host.style.cssText = `
@@ -82,8 +81,13 @@ function WelcomeBannerOverBar() {
     const ok = getOkEl();
     if (bar) ro.observe(bar);
     if (ok) ro.observe(ok);
+
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
+    window.addEventListener("load", position, { once: true });
+
+    const mo = new MutationObserver(() => position());
+    mo.observe(document.body, { childList: true, subtree: true });
 
     const t1 = setTimeout(position, 40);
     const t2 = setTimeout(position, 140);
@@ -92,11 +96,10 @@ function WelcomeBannerOverBar() {
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       host.remove();
     };
   }, []);
@@ -107,17 +110,26 @@ function WelcomeBannerOverBar() {
     <div
       className="w-full h-full flex items-center justify-center px-3"
       style={{
-        // Transparence + légère ombre douce
-        background: "rgba(17,24,39,0.12)", // ~12% d’opacité pour +50% de transparence vs 0.25
+        background: "rgba(17,24,39,0.12)", // très transparent
         boxShadow: "0 10px 24px rgba(0,0,0,.14)",
       }}
     >
-      <div className="truncate text-center text-[12px] sm:text-[13px] text-white/95 font-medium">
+      <div className="truncate text-center text-[12px] sm:text-[13px] text-white font-medium">
         {"Bonjour\u00A0" + firstName}
-        {"\u00A0\u25CB\u00A0" /* ○ */}
+        {"\u00A0\u25CB\u00A0"}
         <span className="font-semibold">Espace</span>
         {"\u00A0désormais :\u00A0"}
-        <span className="font-bold text-green-400">Actif</span>
+        {/* ACTIF → dégradé bleu→turquoise */}
+        <span
+          className="font-extrabold"
+          style={{
+            background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Actif
+        </span>
       </div>
     </div>,
     hostRef.current
@@ -153,6 +165,7 @@ export default function RightAuthButtons() {
     );
   };
 
+  // Positionnement robuste + clamp dans le viewport
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -160,14 +173,26 @@ export default function RightAuthButtons() {
 
     const barRect = bar.getBoundingClientRect();
     const ok = getOkEl();
-    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
+    let rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
     const BTN = 48;
     const BETWEEN = 10;
     const GAP_Y = 10;
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const left = rightEdge - totalWidth;
+
+    // Fallback : si rightEdge est trop petit/anormal, utiliser le bord droit de la barre
+    if (!Number.isFinite(rightEdge) || rightEdge < barRect.left + totalWidth) {
+      rightEdge = barRect.right;
+    }
+
+    // Clamp dans l’écran
+    const minLeft = 8;
+    const maxLeft = Math.max(minLeft, window.innerWidth - totalWidth - 8);
+
+    let left = rightEdge - totalWidth;
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+
     const top = barRect.bottom + GAP_Y;
 
     host.style.cssText = `
@@ -195,6 +220,10 @@ export default function RightAuthButtons() {
 
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
+    window.addEventListener("load", position, { once: true });
+
+    const mo = new MutationObserver(() => position());
+    mo.observe(document.body, { childList: true, subtree: true });
 
     const t1 = setTimeout(position, 40);
     const t2 = setTimeout(position, 140);
@@ -203,6 +232,7 @@ export default function RightAuthButtons() {
     return () => {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
       host.remove();
@@ -253,7 +283,7 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (toujours doré) */}
+        {/* Connexion / Déconnexion (toujours doré, dégradé doux) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -282,4 +312,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-      }
+        }
