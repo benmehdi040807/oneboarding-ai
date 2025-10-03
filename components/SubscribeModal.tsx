@@ -1,17 +1,24 @@
+// components/SubscribeModal.tsx
 "use client";
 
 import { useEffect } from "react";
 import PhoneField from "./PhoneField";
 
-type Props = { open: boolean; onClose: () => void };
+type Props = {
+  open: boolean;
+  onClose: () => void;
+};
 
 export default function SubscribeModal({ open, onClose }: Props) {
+  // Fermer avec ESC
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -19,14 +26,16 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/35 backdrop-blur-sm"
-      onClick={onClose}               // clic extérieur -> ferme
+      className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md"
+      onClick={onClose} // clic overlay -> ferme
     >
-      {/* Bottom sheet translucide, comme validé */}
+      {/* Bottom-sheet translucide, centré mobile, max-xl desktop */}
       <div
         onClick={stop}
-        className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:bottom-8
-                   w-full md:max-w-xl rounded-t-3xl md:rounded-3xl bg-white/90 shadow-xl
+        className="fixed bottom-[env(safe-area-inset-bottom)] left-0 right-0
+                   md:left-1/2 md:-translate-x-1/2 md:bottom-10
+                   w-full md:max-w-xl rounded-t-3xl md:rounded-3xl
+                   bg-white/70 backdrop-blur-xl shadow-xl
                    border border-white/60"
       >
         <div className="flex items-center justify-between p-4">
@@ -41,14 +50,17 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
         <div className="p-4 pt-0 space-y-3">
           <input
-            type="text" placeholder="Nom"
+            type="text"
+            placeholder="Nom"
             className="w-full h-12 rounded-2xl px-4 bg-white/80 border border-black/10"
           />
           <input
-            type="text" placeholder="Prénom"
+            type="text"
+            placeholder="Prénom"
             className="w-full h-12 rounded-2xl px-4 bg-white/80 border border-black/10"
           />
 
+          {/* Téléphone */}
           <PhoneField />
 
           <p className="text-xs text-black/60">
@@ -62,6 +74,9 @@ export default function SubscribeModal({ open, onClose }: Props) {
           >
             Continuer avec PayPal
           </button>
+
+          {/* marge anti-recouvrement avec le bandeau “Privacy” */}
+          <div className="h-8 md:h-0" />
         </div>
       </div>
     </div>
