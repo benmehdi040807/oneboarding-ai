@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-/** Clubs des 33 – ordre validé + numérotation */
 type Country = { num: number; name: string; dial: string; flag: string };
 const COUNTRIES: Country[] = [
   { num: 1, name: "Maroc", flag: "🇲🇦", dial: "212" },
@@ -40,45 +39,26 @@ const COUNTRIES: Country[] = [
   { num: 33, name: "Afrique du Sud", flag: "🇿🇦", dial: "27" }
 ];
 
-const DEFAULT = COUNTRIES[0]; // Maroc
+const DEFAULT = COUNTRIES[0];
 
-type Props = {
-  /** Valeur finale en E.164 (+dial+local) – si tu veux la récupérer plus tard */
-  value: string;
-  onChange: (e164: string) => void;
-};
+type Props = { value: string; onChange: (e164: string) => void };
 
 export default function PhoneField({ value, onChange }: Props) {
   const [country, setCountry] = useState<Country>(DEFAULT);
   const [local, setLocal] = useState<string>("");
   const [open, setOpen] = useState(false);
 
-  const listRef = useRef<HTMLDivElement | null>(null);
-
-  // Compose +E164 à chaque saisie
+  // Compose E.164
   useEffect(() => {
     const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
     const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Fermer au clic extérieur
+  // Back : ferme la liste
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (!listRef.current) return;
-      if (!listRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-
-  // Back Android pour la liste des pays : on pousse 1 état à l’ouverture, on referme sur popstate
-  useEffect(() => {
-    if (!open) return;
-    try {
-      window.history.pushState({ countryList: true }, "");
-    } catch {}
+    try { window.history.pushState({ obCountry: true }, ""); } catch {}
     const onPop = () => setOpen(false);
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -87,9 +67,9 @@ export default function PhoneField({ value, onChange }: Props) {
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
-      {/* Sélecteur pays (3e ligne dédiée au prestige) */}
-      <div className="relative" ref={listRef}>
+    <div className="space-y-3">
+      {/* 3. Pays (ligne à part) */}
+      <div className="relative">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -101,13 +81,42 @@ export default function PhoneField({ value, onChange }: Props) {
           </span>
           <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
+      </div>
 
-        {open && (
+      {/* 4. Indicatif + Numéro (une ligne dédiée) */}
+      <div className="grid grid-cols-[auto_1fr] gap-3">
+        <div
+          className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                     px-4 py-3 text-black flex items-center min-w-[82px]"
+          aria-hidden
+        >
+          {dial}
+        </div>
+        <input
+          type="tel"
+          inputMode="numeric"
+          placeholder="Numéro (sans 0 initial)"
+          className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                     px-4 py-3 text-black placeholder-black/60 outline-none"
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+        />
+      </div>
+
+      {/* Liste des pays – plein largeur mobile, vers le haut, très lisible mais translucide */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-50"
+          aria-hidden
+        >
           <div
-            className="absolute bottom-14 left-0 right-0 z-50
-                       bg-white/35 backdrop-blur-xl border border-white/40
-                       shadow-2xl rounded-2xl overflow-hidden
-                       max-h-96 overflow-y-auto divide-y divide-black/10"
+            onClick={(e) => e.stopPropagation()}
+            className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
+                       w-[92vw] max-w-lg rounded-2xl
+                       bg-white/80 backdrop-blur-xl border border-white/50 shadow-2xl
+                       overflow-hidden max-h-[60vh] overflow-y-auto
+                       divide-y divide-black/10"
           >
             {COUNTRIES.map((c) => {
               const selected = c.num === country.num;
@@ -115,47 +124,21 @@ export default function PhoneField({ value, onChange }: Props) {
                 <button
                   key={c.num}
                   type="button"
-                  onClick={() => {
-                    setCountry(c);
-                    setOpen(false);
-                  }}
+                  onClick={() => { setCountry(c); setOpen(false); }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
-                              ${selected ? "bg-white/60" : "hover:bg-white/50"}`}
+                              ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
                 >
-                  <span className="w-6 tabular-nums">{c.num}.</span>
+                  <span className="w-7 tabular-nums">{c.num}.</span>
                   <span className="shrink-0">{c.flag}</span>
                   <span className="flex-1">{c.name}</span>
-                  {/* Indicatif aligné à gauche comme demandé */}
                   <span className="tabular-nums">(+{c.dial})</span>
-                  {selected && (
-                    <span aria-hidden className="ml-2">✓</span>
-                  )}
+                  {selected && <span aria-hidden className="ml-2">✓</span>}
                 </button>
               );
             })}
           </div>
-        )}
-      </div>
-
-      {/* Chip indicatif */}
-      <div
-        className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                   px-4 py-3 text-black flex items-center"
-        aria-hidden
-      >
-        {dial}
-      </div>
-
-      {/* Numéro local */}
-      <input
-        type="tel"
-        inputMode="numeric"
-        placeholder="Numéro (sans 0 initial)"
-        className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                   px-4 py-3 text-black placeholder-black/60 outline-none"
-        value={local}
-        onChange={(e) => setLocal(e.target.value)}
-      />
+        </div>
+      )}
     </div>
   );
 }
