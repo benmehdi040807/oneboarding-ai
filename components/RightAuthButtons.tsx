@@ -74,18 +74,26 @@ function WelcomeBannerOverBar() {
     };
   }, []);
 
+  // si pas connecté ou pas de prénom, pas de bannière
   if (!mounted || !hostRef.current || !active || !firstName) return null;
 
+  // badge: pas de coupure de mots + largeur max pour éviter de dépasser l’écran
   const badge =
-    "rounded-2xl bg-white/85 backdrop-blur-md shadow px-4 py-2 text-[15px] " +
-    "text-black/80 flex items-center gap-2 pointer-events-auto";
+    "rounded-2xl bg-white/85 backdrop-blur-md shadow px-4 py-2 " +
+    "text-[14px] sm:text-[15px] text-black/80 pointer-events-auto " +
+    "max-w-[calc(100vw-32px)] flex items-center gap-2";
 
   return createPortal(
     <div className={badge}>
-      <span className="font-semibold">Bonjour {firstName}</span>
-      <span>
-        — <span className="font-semibold">Espace</span> désormais :{" "}
-        <span className="font-bold text-green-400">Actif</span>
+      <span className="font-semibold whitespace-nowrap">
+        {"Bonjour\u00A0" + firstName}
+      </span>
+      <span className="whitespace-nowrap">
+        {/* \u25CB = “○” — entouré d’espaces insécables */}
+        {"\u00A0\u25CB\u00A0"}
+        <span className="font-semibold">Espace</span>
+        {"\u00A0désormais :\u00A0"}
+        <span className="font-bold text-green-500">Actif</span>
       </span>
     </div>,
     hostRef.current
@@ -99,6 +107,7 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
+  // état connecté (pour la couleur du “O”)
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -107,41 +116,33 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
+  // helpers DOM
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
   const getOkEl = () => {
-    // 1) bouton textuel "OK"
-    const byText = Array.from(document.querySelectorAll("button"))
-      .find((b) => (b.textContent || "").trim() === "OK") as HTMLElement | undefined;
-    if (byText) return byText;
-
-    // 2) un bouton à droite DANS la barre (icône/aria-label sur desktop)
-    const bar = getBarEl();
-    if (!bar) return null;
-    const maybeRightBtn = bar.parentElement?.querySelector("button:last-of-type") as
-      | HTMLElement
-      | null;
-    return maybeRightBtn || null;
+    const btns = Array.from(document.querySelectorAll("button"));
+    return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
   };
 
-  // Positionne les 2 cercles : alignement sur bord droit du OK,
-  // et FALLBACK propre = bord droit de la barre si OK introuvable (desktop).
+  // Positionne les 2 cercles sous la barre : bord droit = bord droit de OK (alignement exact)
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    if (!host || !bar) return;
+    const ok = getOkEl();
+    if (!host || !bar || !ok) return;
 
     const barRect = bar.getBoundingClientRect();
-    const ok = getOkEl();
-    const BTN = 48;
-    const BETWEEN = 10;
-    const GAP_Y = 10;
+    const okRect = ok.getBoundingClientRect();
+
+    const BTN = 48;     // diamètre de chaque cercle
+    const BETWEEN = 10; // espace entre les deux
+    const GAP_Y = 10;   // distance sous la barre
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right; // fallback desktop
+    const rightEdge = okRect.right; // alignement exact sur le bord droit de OK
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
@@ -155,6 +156,7 @@ export default function RightAuthButtons() {
     `;
   };
 
+  // mount + observers
   useEffect(() => {
     const host = document.createElement("div");
     host.style.display = "none";
@@ -190,44 +192,55 @@ export default function RightAuthButtons() {
     "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
     "flex items-center justify-center backdrop-blur select-none";
 
-  // Dégradés
-  const GRAD_BLUE =
-    "bg-gradient-to-r from-[#4F8AF9] via-[#25B6E1] to-[#20DFC8]";
-  const GRAD_GOLD =
-    "bg-gradient-to-r from-yellow-400 via-yellow-500 to-gray-300";
-
-  const GradientO = ({ gradient, className = "" }: { gradient: string; className?: string }) => (
-    <span
-      className={`text-xl font-extrabold ${gradient} bg-clip-text text-transparent ${className}`}
-      style={{ lineHeight: 1 }}
-      aria-hidden
-    >
-      O
-    </span>
-  );
+  // “O” (doré clair ↔ bleu connecté)
+  const gold = "#FFD451";
+  const blue = "#1e78ff";
+  const glowGold = "0 0 10px rgba(255,212,81,.55)";
+  const glowBlue = "0 0 12px rgba(30,120,255,.45)";
 
   return createPortal(
     <>
       <div className="flex items-center gap-[10px]">
-        {/* O (création) : bleu → turquoise */}
+        {/* Création d’espace */}
         <button
           type="button"
           aria-label="Créer mon espace"
           onClick={() => setOpenSubscribe(true)}
           className={circle}
         >
-          <GradientO gradient={GRAD_BLUE} />
+          <span
+            className="text-xl font-extrabold"
+            style={{
+              lineHeight: 1,
+              background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            O
+          </span>
         </button>
 
-        {/* O (accès espace) : or → argent si déconnecté, bleu → turquoise si connecté */}
+        {/* Accès espace (état connecté) */}
         <button type="button" aria-label="Accéder à mon espace" className={circle}>
-          <GradientO gradient={connected ? GRAD_BLUE : GRAD_GOLD} />
+          <span
+            className="text-xl font-extrabold"
+            style={{
+              lineHeight: 1,
+              color: connected ? blue : gold,
+              textShadow: connected ? glowBlue : glowGold,
+            }}
+          >
+            O
+          </span>
         </button>
       </div>
 
+      {/* Bannière immersive au-dessus de la barre */}
       <WelcomeBannerOverBar />
+
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>,
     hostRef.current
   );
-}
+      }
