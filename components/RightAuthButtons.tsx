@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
 /** ----------------- Bandeau immersif au-dessus de la barre ----------------- */
@@ -85,7 +84,10 @@ function WelcomeBannerOverBar() {
   return createPortal(
     <div className={badge}>
       <span className="font-semibold">Bonjour {firstName}</span>
-      <span>— <span className="font-semibold">Espace</span> désormais : <span className="font-bold text-green-500">Actif</span></span>
+      <span>
+        — <span className="font-semibold">Espace</span> désormais :{" "}
+        <span className="font-bold text-green-400">Actif</span>
+      </span>
     </div>,
     hostRef.current
   );
@@ -128,13 +130,12 @@ export default function RightAuthButtons() {
     const barRect = bar.getBoundingClientRect();
     const okRect = ok.getBoundingClientRect();
 
-    const BTN = 48;           // diamètre de chaque cercle
-    const BETWEEN = 10;       // espace entre les deux
-    const GAP_Y = 10;         // distance sous la barre
-    const NUDGE_X = 0;        // alignement exact (pas de décalage)
+    const BTN = 48;     // diamètre de chaque cercle
+    const BETWEEN = 10; // espace entre les deux
+    const GAP_Y = 10;   // distance sous la barre
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = okRect.right + NUDGE_X; // bord droit = bord droit du OK
+    const rightEdge = okRect.right; // alignement exact sur le bord droit de OK
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
@@ -170,7 +171,9 @@ export default function RightAuthButtons() {
     const t3 = setTimeout(position, 320);
 
     return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
       ro.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
@@ -185,8 +188,8 @@ export default function RightAuthButtons() {
     "flex items-center justify-center backdrop-blur select-none";
 
   // styles “halo” pour O (doré très clair ↔ bleu connecté)
-  const gold = "#FFD451";          // doré clair éclatant
-  const blue = "#1e78ff";          // bleu logo
+  const gold = "#FFD451"; // doré clair éclatant
+  const blue = "#1e78ff"; // bleu logo
   const glowGold = "0 0 10px rgba(255,212,81,.55)";
   const glowBlue = "0 0 12px rgba(30,120,255,.45)";
 
@@ -225,4 +228,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-      }
+}
