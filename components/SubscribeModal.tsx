@@ -17,7 +17,9 @@ export default function SubscribeModal({ open, onClose }: Props) {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   if (!open) return null;
@@ -29,7 +31,6 @@ export default function SubscribeModal({ open, onClose }: Props) {
     setSubmitting(true);
 
     // (ici tu brancheras l’OTP WhatsApp/SMS côté serveur)
-    // — pour la démo : on active directement
     const profile = { firstName, lastName, phone: e164 };
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
@@ -50,7 +51,9 @@ export default function SubscribeModal({ open, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center
                  bg-black/25 backdrop-blur-md"
     >
@@ -72,7 +75,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        <form className="space-y-3" onSubmit={onSubmit}>
+        <form className="space-y-4" onSubmit={onSubmit}>
           <input
             type="text"
             placeholder="Nom"
@@ -94,15 +97,13 @@ export default function SubscribeModal({ open, onClose }: Props) {
           {/* Pays + Indicatif + Numéro */}
           <PhoneField value={e164} onChange={setE164} />
 
-          <p className="text-sm text-black/70">
-            Format : <span className="font-semibold">+212</span> + numéro national (sans le 0 de tête).
-          </p>
-
+          {/* Bouton principal agrandi (sans le paragraphe de format) */}
           <button
             disabled={submitting || !firstName || !lastName || !e164}
-            className="w-full rounded-2xl bg-[#3777F6] text-white font-semibold py-4
+            className="w-full rounded-2xl py-5 text-lg font-semibold text-white
                        shadow hover:opacity-95 active:scale-[.99] transition
-                       disabled:opacity-60 disabled:cursor-not-allowed"
+                       disabled:opacity-60 disabled:cursor-not-allowed
+                       bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
           >
             {submitting ? "Création..." : "Créer mon espace"}
           </button>
