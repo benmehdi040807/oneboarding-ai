@@ -103,15 +103,15 @@ export default function PhoneField({ value, onChange }: Props) {
         />
       </div>
 
-      {/* 3) Liste flottante (scroll interne fiable) */}
+      {/* 3) Liste flottante (opacité renforcée + scroll interne fiable) */}
       {open && (
         <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" aria-hidden>
           <div
             onClick={(e) => e.stopPropagation()}
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
                        w-[92vw] max-w-lg rounded-2xl
-                       bg-white/45 backdrop-blur-2xl border border-white/60 shadow-2xl
-                       max-h-[60vh] overflow-y-auto
+                       bg-white/80 backdrop-blur-2xl border border-white/70 shadow-2xl
+                       max-h:[60vh] max-h-[60vh] overflow-y-auto text-black/90
                        touch-pan-y overscroll-contain scroll-smooth divide-y divide-black/10"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
@@ -127,7 +127,7 @@ export default function PhoneField({ value, onChange }: Props) {
                     setOpen(false);
                   }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
-                              ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
+                              ${selected ? "bg-white/90" : "bg-white/70 active:bg-white/80"}`}
                 >
                   <span className="w-7 tabular-nums">{c.num}.</span>
                   <span className="shrink-0">{c.flag}</span>
@@ -142,4 +142,4 @@ export default function PhoneField({ value, onChange }: Props) {
       )}
     </div>
   );
-}
+      }
