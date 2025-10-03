@@ -49,6 +49,7 @@ export default function PhoneField({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const selectedRef = useRef<HTMLButtonElement | null>(null);
   const pushedRef = useRef(false);
+  const popHandlerRef = useRef<(e: PopStateEvent) => void>();
 
   // Compose E.164
   useEffect(() => {
@@ -57,16 +58,40 @@ export default function PhoneField({ value, onChange }: Props) {
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Back = ferme la liste (pushState protégé)
+  // Back pour la liste : une seule entrée, consommée à la fermeture
   useEffect(() => {
     if (!open) return;
-    const onPop = () => setOpen(false);
+
     if (!pushedRef.current) {
       try { window.history.pushState({ obCountry: true }, ""); pushedRef.current = true; } catch {}
+    } else {
+      try { window.history.replaceState({ obCountry: true }, ""); } catch {}
     }
+
+    const onPop = () => {
+      pushedRef.current = false;
+      setOpen(false);
+    };
+    popHandlerRef.current = onPop;
     window.addEventListener("popstate", onPop);
-    return () => { window.removeEventListener("popstate", onPop); pushedRef.current = false; };
+    return () => {
+      if (popHandlerRef.current) window.removeEventListener("popstate", popHandlerRef.current);
+      popHandlerRef.current = undefined;
+    };
   }, [open]);
+
+  const closeList = () => {
+    if (popHandlerRef.current) {
+      window.removeEventListener("popstate", popHandlerRef.current);
+      popHandlerRef.current = undefined;
+    }
+    if (pushedRef.current) {
+      pushedRef.current = false;
+      try { window.history.back(); } catch {}
+    } else {
+      setOpen(false);
+    }
+  };
 
   // Scroll auto vers l’élément sélectionné
   useEffect(() => {
@@ -107,15 +132,14 @@ export default function PhoneField({ value, onChange }: Props) {
       </div>
 
       {open && (
-        <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" aria-hidden>
+        <div onClick={closeList} className="fixed inset-0 z-50" aria-hidden>
           <div
             onClick={(e) => e.stopPropagation()}
-            // +50% transparence (90 -> 60) + verrou anti P2R + scroll fluide
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
                        w-[92vw] max-w-lg rounded-2xl bg-white/60 backdrop-blur-xl
                        border border-white/50 shadow-2xl max-h-[60vh] overflow-y-auto
                        scroll-smooth overscroll-contain touch-pan-y divide-y divide-black/10"
-            style={{ WebkitOverflowScrolling: "touch" }} // iOS
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             {COUNTRIES.map((c) => {
               const selected = c.num === country.num;
@@ -124,7 +148,7 @@ export default function PhoneField({ value, onChange }: Props) {
                   key={c.num}
                   type="button"
                   ref={selected ? selectedRef : null}
-                  onClick={() => { setCountry(c); setOpen(false); }}
+                  onClick={() => { setCountry(c); closeList(); }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
                               ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
                 >
@@ -141,4 +165,4 @@ export default function PhoneField({ value, onChange }: Props) {
       )}
     </div>
   );
-}
+   }
