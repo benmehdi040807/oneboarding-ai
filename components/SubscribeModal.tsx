@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
 export default function SubscribeModal({ open, onClose }: Props) {
-  // Empêche le scroll du body
+  const pushedRef = useRef(false);
+
+  // Empêche le scroll du body quand le modal est ouvert
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -14,13 +16,26 @@ export default function SubscribeModal({ open, onClose }: Props) {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Gestion du bouton retour (back)
+  // Back : ferme le modal (avec pushState protégé)
   useEffect(() => {
     if (!open) return;
+
     const onPop = () => onClose();
-    window.history.pushState({ obModal: true }, "");
+
+    if (!pushedRef.current) {
+      try {
+        window.history.pushState({ obModal: true }, "");
+        pushedRef.current = true;
+      } catch {
+        // pas bloquant : si le push échoue, on garde le modal fonctionnel
+      }
+    }
+
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      pushedRef.current = false;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -39,10 +54,11 @@ export default function SubscribeModal({ open, onClose }: Props) {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-black/90">Créer mon espace</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-xl bg-white/70 hover:bg-white/90 text-black/80 px-4 py-2 flex items-center justify-center"
+            className="h-9 px-4 rounded-xl bg-white/70 hover:bg-white/90 text-black/80 flex items-center justify-center"
           >
-            ✕
+            ✕ Fermer
           </button>
         </div>
 
@@ -59,6 +75,8 @@ export default function SubscribeModal({ open, onClose }: Props) {
             autoComplete="given-name"
             className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-black placeholder-black/60 outline-none"
           />
+
+          {/* Téléphone : Pays + indicatif + numéro */}
           <PhoneField value="" onChange={() => {}} />
 
           <p className="text-sm text-black/70">
@@ -66,6 +84,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
           </p>
 
           <button
+            type="submit"
             className="w-full rounded-2xl bg-[#3777F6] text-white font-semibold py-4 shadow hover:opacity-95 active:scale-[.99] transition"
           >
             Continuer avec PayPal
