@@ -1,107 +1,84 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, KeyRound } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
 /**
- * Ancrage STRICT aux coordonnées du champ input[placeholder="Votre question…"].
- * - Si l’input n’est pas trouvé, on ne rend rien (pas de fallback).
- * - Z-index élevé (z-50) pour éviter tout souci de superposition/masquage.
- * - Recalcul sur resize/scroll/orientation + ResizeObserver SUR l’input trouvé.
- * - Uniquement ce composant à remplacer. Aucun autre fichier à modifier.
+ * Ancre les deux boutons juste sous la barre "Votre question",
+ * en s’insérant dans le même conteneur (portal).
+ * Aucune dépendance à la barre CGU, pas de calcul de coordonnées.
  */
-
 export default function RightAuthButtons() {
-  const [openSubscribe, setOpenSubscribe] = useState(false);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
 
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const anchorRef = useRef<HTMLInputElement | null>(null);
-  const roRef = useRef<ResizeObserver | null>(null);
-
-  // Styles identiques aux mini-boutons de gauche
-  const mini =
-    "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
-
-  // Mesure stricte : uniquement si on trouve l’input cible
-  const measure = () => {
-    const anchor =
-      anchorRef.current ??
-      document.querySelector<HTMLInputElement>('input[placeholder="Votre question…"]');
-
-    if (!anchor) {
-      // Pas d’input => on cache tout (rien ne se rend).
-      anchorRef.current = null;
-      setPos(null);
-      return;
+  // Sélection robuste de la barre (input/textarea/contenteditable)
+  function findBarEl(): HTMLElement | null {
+    const selectors = [
+      'input[placeholder*="Votre question"]',
+      'textarea[placeholder*="Votre question"]',
+      '[aria-label*="Votre question"]',
+      '[data-placeholder*="Votre question"]',
+      '[role="textbox"]',
+    ];
+    for (const sel of selectors) {
+      const els = Array.from(document.querySelectorAll<HTMLElement>(sel));
+      // on garde un champ "large" (la vraie barre)
+      const cand = els.find((e) => e.getBoundingClientRect().width > 280);
+      if (cand) return cand;
     }
+    return null;
+  }
 
-    anchorRef.current = anchor;
+  // Monte un host dans le même parent que la barre
+  useLayoutEffect(() => {
+    const bar = findBarEl();
+    if (!bar) return;
 
-    const r = anchor.getBoundingClientRect();
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const parent = bar.parentElement as HTMLElement | null;
+    if (!parent) return;
 
-    // Deux boutons (48px chacun) + gap 12px => 108px
-    const groupWidth = 48 + 12 + 48;
-    const gapBelow = 12; // espace vertical sous la barre
+    // force le parent en "relative" si c'est "static" (pour l'absolute de nos boutons)
+    const cs = window.getComputedStyle(parent);
+    if (cs.position === "static") parent.style.position = "relative";
 
-    const top = r.top + scrollY + r.height + gapBelow;
-    const left = r.right + scrollX - groupWidth;
+    // crée l'hôte s'il n'existe pas
+    const host = document.createElement("div");
+    hostRef.current = host;
+    host.style.position = "absolute";
+    host.style.right = "0";     // aligné à droite de la barre
+    host.style.top = "100%";    // juste sous la barre
+    host.style.marginTop = "12px";
+    host.style.zIndex = "30";
 
-    setPos({ top, left });
-  };
-
-  useEffect(() => {
-    // Mesure initiale
-    measure();
-
-    // Observe l’input lui-même (changement de taille/position)
-    if (anchorRef.current) {
-      roRef.current?.disconnect();
-      roRef.current = new ResizeObserver(measure);
-      roRef.current.observe(anchorRef.current);
-    }
-
-    // Events fenêtre
-    const handler = () => measure();
-    window.addEventListener("resize", handler);
-    window.addEventListener("scroll", handler, { passive: true });
-    window.addEventListener("orientationchange", handler);
-
-    // Petits recalculs après layout/polices
-    const t1 = setTimeout(measure, 50);
-    const t2 = setTimeout(measure, 200);
+    parent.appendChild(host);
+    setMountNode(host);
 
     return () => {
-      roRef.current?.disconnect();
-      window.removeEventListener("resize", handler);
-      window.removeEventListener("scroll", handler);
-      window.removeEventListener("orientationchange", handler);
-      clearTimeout(t1);
-      clearTimeout(t2);
+      try {
+        host.remove();
+      } catch {}
+      hostRef.current = null;
+      setMountNode(null);
     };
   }, []);
 
-  // Si pas d’ancrage trouvé, ne rien afficher
-  if (!pos) return null;
+  const mini =
+    "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
 
-  return (
+  // Rien tant que l’hôte n’est pas prêt
+  if (!mountNode) return null;
+
+  return createPortal(
     <>
-      {/* Groupe positionné EXACTEMENT contre la barre (bord droit) */}
-      <div
-        style={{
-          position: "absolute",
-          top: pos.top,
-          left: pos.left,
-          zIndex: 50, // > CGU/badges/etc.
-        }}
-        className="flex items-center gap-3"
-      >
+      <div className="flex items-center gap-3">
         <button
           type="button"
           aria-label="Créer mon espace"
-          onClick={() => setOpenSubscribe(true)}
+          onClick={() => setOpen(true)}
           className={mini}
         >
           <Plus className="h-6 w-6 text-black/80" />
@@ -116,7 +93,8 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
-    </>
+      <SubscribeModal open={open} onClose={() => setOpen(false)} />
+    </>,
+    mountNode
   );
 }
