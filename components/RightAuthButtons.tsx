@@ -18,7 +18,6 @@ function WelcomeBannerOverBar() {
 
   const getOkEl = () => {
     const btns = Array.from(document.querySelectorAll("button"));
-    // Sur desktop, le libellé peut varier : on tolère "OK" ou contenu accessible avec aria-label.
     return (
       (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
       (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
@@ -26,7 +25,10 @@ function WelcomeBannerOverBar() {
     );
   };
 
-  // Positionne la bannière : mêmes left/width que barre(+OK), mais plus fine et plus transparente
+  // ---- Hauteur figée (ne suit plus la hauteur de la barre) ----
+  const BANNER_H = 36; // px — ajustable à 32/40 si tu veux
+
+  // Positionne la bannière : mêmes left/width que barre(+OK), mais hauteur fixe
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -38,7 +40,7 @@ function WelcomeBannerOverBar() {
 
     const gapY = 8; // espace vertical entre les deux barres
     const width = Math.max(180, rightEdge - barRect.left);
-    const height = Math.round(barRect.height * 0.6); // ~60% de la hauteur de la barre
+    const height = BANNER_H; // <-- figé
     const top = Math.max(8, barRect.top - gapY - height);
     const left = barRect.left;
 
@@ -105,7 +107,7 @@ function WelcomeBannerOverBar() {
     <div
       className="w-full h-full flex items-center justify-center px-3"
       style={{
-        background: "rgba(17,24,39,0.25)", // très transparent (≈ 25%)
+        background: "rgba(17,24,39,0.25)", // ~25% d’opacité
         boxShadow: "0 10px 24px rgba(0,0,0,.18)",
       }}
     >
@@ -282,4 +284,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-      }
+        }
