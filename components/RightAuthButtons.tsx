@@ -9,15 +9,12 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      {/* 
-        Mobile/tablette: inline
-        Desktop (lg+): fixé en haut-droite pour éviter tout masquage/overflow
-      */}
+      {/* Ancré à la barre : à droite, centré verticalement */}
       <div
         className="
-          flex items-center gap-3 shrink-0 pointer-events-auto
-          z-30
-          lg:fixed lg:top-24 lg:right-10
+          absolute right-3 top-1/2 -translate-y-1/2
+          flex items-center gap-3
+          pointer-events-auto z-30
         "
       >
         <button
