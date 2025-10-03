@@ -25,8 +25,9 @@ function WelcomeBannerOverBar() {
     );
   };
 
-  // ---- Hauteur figée (ne suit plus la hauteur de la barre) ----
-  const BANNER_H = 36; // px — ajustable à 32/40 si tu veux
+  // ---- Hauteur figée + gap resserré ----
+  const BANNER_H = 27; // px (était 36)
+  const GAP_Y = 6;     // px (était 8)
 
   // Positionne la bannière : mêmes left/width que barre(+OK), mais hauteur fixe
   const position = () => {
@@ -38,10 +39,9 @@ function WelcomeBannerOverBar() {
     const ok = getOkEl();
     const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
-    const gapY = 8; // espace vertical entre les deux barres
     const width = Math.max(180, rightEdge - barRect.left);
-    const height = BANNER_H; // <-- figé
-    const top = Math.max(8, barRect.top - gapY - height);
+    const height = BANNER_H;
+    const top = Math.max(8, barRect.top - GAP_Y - height);
     const left = barRect.left;
 
     const br = getComputedStyle(bar).borderRadius || "9999px";
@@ -107,8 +107,9 @@ function WelcomeBannerOverBar() {
     <div
       className="w-full h-full flex items-center justify-center px-3"
       style={{
-        background: "rgba(17,24,39,0.25)", // ~25% d’opacité
-        boxShadow: "0 10px 24px rgba(0,0,0,.18)",
+        // Transparence + légère ombre douce
+        background: "rgba(17,24,39,0.12)", // ~12% d’opacité pour +50% de transparence vs 0.25
+        boxShadow: "0 10px 24px rgba(0,0,0,.14)",
       }}
     >
       <div className="truncate text-center text-[12px] sm:text-[13px] text-white/95 font-medium">
@@ -130,7 +131,6 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // état connecté
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -139,11 +139,11 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // helpers DOM
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
+
   const getOkEl = () => {
     const btns = Array.from(document.querySelectorAll("button"));
     return (
@@ -153,7 +153,6 @@ export default function RightAuthButtons() {
     );
   };
 
-  // Positionne les deux boutons sous la barre : bord droit = OK (ou barre si OK introuvable)
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -181,7 +180,6 @@ export default function RightAuthButtons() {
     `;
   };
 
-  // mount + observers
   useEffect(() => {
     const host = document.createElement("div");
     host.style.display = "none";
@@ -255,7 +253,7 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (toujours doré, dédié auth) */}
+        {/* Connexion / Déconnexion (toujours doré) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -267,7 +265,7 @@ export default function RightAuthButtons() {
             className="text-xl font-extrabold"
             style={{
               lineHeight: 1,
-              background: "linear-gradient(90deg,#FFD451,#EABE3F,#D9D1C0)", // doré → argenté léger
+              background: "linear-gradient(90deg,#FFD451,#EABE3F,#D9D1C0)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -284,4 +282,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-        }
+      }
