@@ -2,53 +2,57 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, KeyRound } from "lucide-react";
+import { Plus } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
+/**
+ * RENDU
+ * - Deux boutons ronds (➕ et "O" bleu) sous la barre, côté droit.
+ * - Le calcul tient compte du bouton "OK" (si présent).
+ * - Aucun couplage à Page.tsx, pas de dépendance à d'autres composants.
+ */
 export default function RightAuthButtons() {
   const [mounted, setMounted] = useState(false);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [openSubscribe, setOpenSubscribe] = useState(false);
 
-  // Trouve la barre "Votre question"
+  // Trouver la barre + (si possible) le bouton OK
   function findBar(): HTMLElement | null {
-    const sels = [
-      'input[placeholder*="Votre question"]',
-      'textarea[placeholder*="Votre question"]',
-      '[aria-label*="Votre question"]',
-      '[data-placeholder*="Votre question"]',
-      '[role="textbox"]',
-    ];
-    for (const s of sels) {
-      const el = Array.from(document.querySelectorAll<HTMLElement>(s)).find(
-        (e) => e.getBoundingClientRect().width > 280
-      );
-      if (el) return el;
-    }
-    return null;
+    return (
+      document.querySelector('input[placeholder*="Votre question"]') ||
+      document.querySelector('textarea[placeholder*="Votre question"]')
+    );
+  }
+  function findOk(): HTMLButtonElement | null {
+    // cherche un bouton dont le texte visible vaut "OK"
+    const btns = Array.from(document.querySelectorAll("button")) as HTMLButtonElement[];
+    return btns.find((b) => (b.textContent || "").trim() === "OK") || null;
   }
 
-  // Position : sous la barre, bord droit (miroir des icônes de gauche)
+  // Positionner l’hôte (le conteneur des deux boutons)
   const positionHost = () => {
     const host = hostRef.current;
-    if (!host) return;
     const bar = findBar();
-    if (!bar) {
-      host.style.display = "none";
-      return;
-    }
+    if (!host || !bar) return;
+
     const r = bar.getBoundingClientRect();
-    host.style.display = "block";
+    const ok = findOk();
+    const gapY = 10;             // espace vertical sous la barre
+    const gapX = 8;              // marge avec le "OK" ou le bord droit de la barre
+    const totalWidth = 2 * 48 + 12; // 2 boutons (48px) + gap (12px)
+
+    // Bord droit “utile” = bord G du OK (s’il existe) sinon bord D de la barre
+    const rightLimit = ok ? ok.getBoundingClientRect().left : r.right;
+
+    // On cale notre bloc pour que son bord D = rightLimit - gapX
+    const left = rightLimit - gapX - totalWidth;
+    const top = r.bottom + gapY;
+
     host.style.position = "fixed";
-    // Espace vertical sous la barre
-    const gapY = 16;
-    // On aligne le groupe sur le BORD DROIT de la barre,
-    // en utilisant "right" (plus fiable quelles que soient les largeurs)
-    const right = Math.max(0, Math.round(window.innerWidth - r.right));
-    host.style.top = `${Math.round(r.bottom + gapY)}px`;
-    host.style.right = `${right}px`;
-    host.style.left = "auto";
+    host.style.left = `${left}px`;
+    host.style.top = `${top}px`;
     host.style.zIndex = "2147483647";
+    host.style.display = "block";
     host.style.pointerEvents = "auto";
   };
 
@@ -60,55 +64,54 @@ export default function RightAuthButtons() {
     setMounted(true);
 
     const ro = new ResizeObserver(positionHost);
-    const mo = new MutationObserver(positionHost);
     const bar = findBar();
     if (bar) ro.observe(bar);
-    mo.observe(document.body, { subtree: true, childList: true, attributes: true });
 
-    const onScroll = () => positionHost();
-    const onResize = () => positionHost();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
+    window.addEventListener("resize", positionHost);
+    window.addEventListener("scroll", positionHost, { passive: true });
 
-    const t1 = setTimeout(positionHost, 0);
-    const t2 = setTimeout(positionHost, 150);
+    // Plusieurs ticks pour couvrir les transitions/layouts
+    const t1 = setTimeout(positionHost, 60);
+    const t2 = setTimeout(positionHost, 180);
+    const t3 = setTimeout(positionHost, 400);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      try { ro.disconnect(); } catch {}
-      try { mo.disconnect(); } catch {}
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-      try { host.remove(); } catch {}
-      hostRef.current = null;
+      clearTimeout(t3);
+      ro.disconnect();
+      window.removeEventListener("resize", positionHost);
+      window.removeEventListener("scroll", positionHost);
+      host.remove();
     };
   }, []);
 
   if (!mounted || !hostRef.current) return null;
 
-  const btn = "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
+  // Styles communs : ronds, 48x48, rendu premium
+  const circle =
+    "h-12 w-12 rounded-full bg-white/80 hover:bg-white/90 shadow flex items-center justify-center backdrop-blur";
 
   return createPortal(
     <>
       <div className="flex items-center gap-3">
+        {/* ➕ : ouvrir le modal */}
         <button
           type="button"
           aria-label="Créer mon espace"
           onClick={() => setOpenSubscribe(true)}
-          className={btn}
+          className={circle}
         >
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
+        {/* O bleu (OneBoardingAI) – action à définir plus tard */}
         <button
           type="button"
           aria-label="Accéder à mon espace"
-          className={btn}
+          className={circle}
         >
-          <KeyRound className="h-6 w-6 text-amber-500" />
+          <span className="text-blue-600 font-extrabold text-lg leading-none">O</span>
         </button>
       </div>
 
