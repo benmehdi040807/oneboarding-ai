@@ -84,8 +84,8 @@ function WelcomeBannerOverBar() {
 
   return createPortal(
     <div className={badge}>
-      <span className="font-semibold">Bonjour, {firstName}</span>
-      <span>— désormais <span className="font-semibold text-green-600">actif</span>.</span>
+      <span className="font-semibold">Bonjour {firstName}</span>
+      <span>— <span className="font-semibold">Espace</span> désormais : <span className="font-bold text-green-500">Actif</span></span>
     </div>,
     hostRef.current
   );
@@ -118,7 +118,7 @@ export default function RightAuthButtons() {
     return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
   };
 
-  // Positionne les 2 cercles sous la barre : bord droit = bord droit de OK (léger shift à gauche)
+  // Positionne les 2 cercles sous la barre : bord droit = bord droit de OK (alignement exact)
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -131,10 +131,10 @@ export default function RightAuthButtons() {
     const BTN = 48;           // diamètre de chaque cercle
     const BETWEEN = 10;       // espace entre les deux
     const GAP_Y = 10;         // distance sous la barre
-    const NUDGE_X = -6;       // petit décalage vers la GAUCHE (symétrie fine)
+    const NUDGE_X = 0;        // alignement exact (pas de décalage)
 
     const totalWidth = 2 * BTN + BETWEEN;
-    const rightEdge = okRect.right + NUDGE_X; // bord droit = bord droit du OK (−6 px)
+    const rightEdge = okRect.right + NUDGE_X; // bord droit = bord droit du OK
     const left = rightEdge - totalWidth;
     const top = barRect.bottom + GAP_Y;
 
