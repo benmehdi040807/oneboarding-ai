@@ -45,7 +45,8 @@ export default function SubscribeModal({ open, onClose }: Props) {
   // styles : placeholders clairs (blanc/gris) avant saisie
   const baseInput =
     "w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur " +
-    "px-4 py-3 text-black placeholder-white/90 outline-none";
+    "px-4 py-3 text-black placeholder-white/90 outline-none " +
+    "focus:ring-2 focus:ring-[#2E6CF5]/40 focus:border-transparent"; // (micro-ajout visuel)
 
   return (
     <div
@@ -59,8 +60,8 @@ export default function SubscribeModal({ open, onClose }: Props) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-lg rounded-3xl border border-white/50
-                   bg-[rgba(255,255,255,0.28)] backdrop-blur-2xl shadow-xl
+        className="w-full sm:max-w-lg rounded-3xl border border-white/60
+                   bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl
                    p-4 sm:p-6 m-0 sm:m-6"
       >
         <div className="flex items-center justify-between mb-4">
@@ -83,6 +84,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
             className={baseInput}
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
+            autoFocus
           />
 
           <input
@@ -97,7 +99,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
           {/* Pays + Indicatif + Numéro */}
           <PhoneField value={e164} onChange={setE164} />
 
-          {/* Bouton principal agrandi (sans le paragraphe de format) */}
+          {/* Bouton principal agrandi (sans paragraphe de format) */}
           <button
             disabled={submitting || !firstName || !lastName || !e164}
             className="w-full rounded-2xl py-5 text-lg font-semibold text-white
