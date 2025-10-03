@@ -57,29 +57,18 @@ export default function PhoneField({ value, onChange }: Props) {
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Back : ferme la liste si ouverte (pushState protégé)
+  // Back = ferme la liste (pushState protégé)
   useEffect(() => {
     if (!open) return;
-
     const onPop = () => setOpen(false);
-
     if (!pushedRef.current) {
-      try {
-        window.history.pushState({ obCountry: true }, "");
-        pushedRef.current = true;
-      } catch {
-        // ok si ça échoue
-      }
+      try { window.history.pushState({ obCountry: true }, ""); pushedRef.current = true; } catch {}
     }
-
     window.addEventListener("popstate", onPop);
-    return () => {
-      window.removeEventListener("popstate", onPop);
-      pushedRef.current = false;
-    };
+    return () => { window.removeEventListener("popstate", onPop); pushedRef.current = false; };
   }, [open]);
 
-  // Scroll au pays sélectionné à l’ouverture
+  // Scroll auto vers l’élément sélectionné
   useEffect(() => {
     if (open && selectedRef.current) {
       selectedRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -90,33 +79,28 @@ export default function PhoneField({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Ligne “Pays” */}
+      {/* Pays */}
       <div className="relative">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-left text-black flex items-center justify-between"
+          onClick={() => setOpen(v => !v)}
+          className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3
+                     text-left text-black flex items-center justify-between"
         >
-          <span className="truncate">
-            {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
-          </span>
+          <span className="truncate">{country.num}. {country.name} <span className="ml-1">{country.flag}</span></span>
           <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
       </div>
 
-      {/* Indicatif + Numéro */}
+      {/* Indicatif + numéro */}
       <div className="grid grid-cols-[auto_1fr] gap-3">
-        <div
-          className="rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-black flex items-center min-w-[82px]"
-          aria-hidden
-        >
+        <div className="rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-black flex items-center min-w-[82px]" aria-hidden>
           {dial}
         </div>
         <input
-          type="tel"
-          inputMode="numeric"
-          placeholder="Numéro (sans 0 initial)"
-          className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-black placeholder-black/60 outline-none"
+          type="tel" inputMode="numeric" placeholder="Numéro (sans 0 initial)"
+          className="w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3
+                     text-black placeholder-black/60 outline-none"
           value={local}
           onChange={(e) => setLocal(e.target.value)}
         />
@@ -126,9 +110,12 @@ export default function PhoneField({ value, onChange }: Props) {
         <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" aria-hidden>
           <div
             onClick={(e) => e.stopPropagation()}
+            // +50% transparence (90 -> 60) + verrou anti P2R + scroll fluide
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
-                       w-[92vw] max-w-lg rounded-2xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl
-                       max-h-[60vh] overflow-y-auto scroll-smooth divide-y divide-black/10"
+                       w-[92vw] max-w-lg rounded-2xl bg-white/60 backdrop-blur-xl
+                       border border-white/50 shadow-2xl max-h-[60vh] overflow-y-auto
+                       scroll-smooth overscroll-contain touch-pan-y divide-y divide-black/10"
+            style={{ WebkitOverflowScrolling: "touch" }} // iOS
           >
             {COUNTRIES.map((c) => {
               const selected = c.num === country.num;
@@ -138,7 +125,8 @@ export default function PhoneField({ value, onChange }: Props) {
                   type="button"
                   ref={selected ? selectedRef : null}
                   onClick={() => { setCountry(c); setOpen(false); }}
-                  className={`w-full px-4 py-3 text-left flex items-center gap-2 ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
+                  className={`w-full px-4 py-3 text-left flex items-center gap-2
+                              ${selected ? "bg-white/70" : "hover:bg-white/60"}`}
                 >
                   <span className="w-7 tabular-nums">{c.num}.</span>
                   <span className="shrink-0">{c.flag}</span>
