@@ -10,7 +10,7 @@ export default function RightAuthButtons() {
   return (
     <>
       <div className="flex items-center gap-3">
-        {/* Bouton PLUS */}
+        {/* + : même rendu que les boutons de gauche */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -20,7 +20,7 @@ export default function RightAuthButtons() {
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
-        {/* Bouton Clé (placeholder) */}
+        {/* Clé (placeholder) */}
         <button
           type="button"
           aria-label="Accéder à mon espace"
@@ -30,11 +30,7 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Modal d’abonnement (ouverture/fermeture contrôlées ici) */}
-      <SubscribeModal
-        open={openSubscribe}
-        onClose={() => setOpenSubscribe(false)}
-      />
+      <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
 }
