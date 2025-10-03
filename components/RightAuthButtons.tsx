@@ -1,3 +1,4 @@
+// components/RightAuthButtons.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,9 +10,8 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      {/* Toujours visibles (desktop & mobile), au-dessus des autres layers */}
+      {/* Même rendu que les boutons de gauche + z-index pour cliquabilité */}
       <div className="relative z-40 flex items-center gap-3">
-        {/* PLUS */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -22,7 +22,6 @@ export default function RightAuthButtons() {
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
-        {/* CLÉ (future auth) */}
         <button
           type="button"
           aria-label="Accéder à mon espace"
@@ -33,7 +32,6 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Modal contrôlé par le parent */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
