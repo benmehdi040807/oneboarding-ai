@@ -10,7 +10,14 @@ export default function RightAuthButtons() {
   const [mounted, setMounted] = useState(false);
   const [openSubscribe, setOpenSubscribe] = useState(false);
 
-  // Récupère les éléments de référence
+  // --- visuel "O" : doré par défaut, deviendra bleu si "connecté" ---
+  const [connected, setConnected] = useState(false);
+  useEffect(() => {
+    // hook optionnel : si un jour tu passes "connecté", stocke "1" dans localStorage
+    setConnected(typeof window !== "undefined" && localStorage.getItem("ob_connected") === "1");
+  }, []);
+
+  // ---- helpers DOM (aucune hypothèse superflue) ----
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
@@ -21,28 +28,23 @@ export default function RightAuthButtons() {
     return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
   };
 
-  // Positionne sous la barre, bord droit = barre + largeur d’OK
+  // ---- positionnement : sous la barre, à son extrémité droite, OK inclus ----
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    if (!host || !bar) return;
+    const ok = getOkEl();
+    if (!host || !bar || !ok) return; // on ne place que si OK est présent (ton exigence)
 
     const barRect = bar.getBoundingClientRect();
-    const ok = getOkEl();
+    const okRect = ok.getBoundingClientRect();
 
-    // Largeur d’OK : réelle si présent, sinon valeur nominale (56px) intégrée au calcul.
-    const okWidth =
-      ok?.getBoundingClientRect().width ??
-      56; // bouton OK (largeur nominale, inclut padding et coins)
+    const btn = 48;       // diamètre des cercles
+    const between = 10;   // espace entre les deux cercles
+    const gapY = 10;      // espace sous la barre
+    const nudger = 8;     // léger "coup de pouce" vers la droite
 
-    const btn = 48;        // diamètre d’un cercle
-    const gapY = 10;       // écart vertical sous la barre
-    const between = 10;    // espace entre les deux cercles
     const total = 2 * btn + between;
-
-    // Bord droit effectif de la barre (barre + OK)
-    const effectiveRight = barRect.right + okWidth;
-
+    const effectiveRight = okRect.right + nudger; // on part du bord droit de OK
     const left = effectiveRight - total;
     const top = barRect.bottom + gapY;
 
@@ -56,6 +58,7 @@ export default function RightAuthButtons() {
     `;
   };
 
+  // ---- montage + observers ----
   useEffect(() => {
     const host = document.createElement("div");
     host.style.display = "none";
@@ -65,15 +68,16 @@ export default function RightAuthButtons() {
 
     const ro = new ResizeObserver(position);
     const bar = getBarEl();
+    const ok = getOkEl();
     if (bar) ro.observe(bar);
+    if (ok) ro.observe(ok);
 
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
 
-    // quelques ticks pour couvrir le rendu initial
     const t1 = setTimeout(position, 60);
-    const t2 = setTimeout(position, 180);
-    const t3 = setTimeout(position, 360);
+    const t2 = setTimeout(position, 160);
+    const t3 = setTimeout(position, 320);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
@@ -93,7 +97,7 @@ export default function RightAuthButtons() {
   return createPortal(
     <>
       <div className="flex items-center gap-[10px]">
-        {/* + */}
+        {/* + (ouvre la création d’espace) */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -103,12 +107,17 @@ export default function RightAuthButtons() {
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
-        {/* O (OneBoardingAI) — majuscule, gras, dégradé bleu */}
-        <button type="button" aria-label="Accéder à mon espace" className={circle}>
+        {/* O (connexion) : doré par défaut, bleu si connecté */}
+        <button
+          type="button"
+          aria-label="Accéder à mon espace"
+          className={circle}
+        >
           <span
-            className="uppercase font-black text-lg leading-none tracking-tight
-                       bg-gradient-to-br from-[#22C1F1] via-[#15A1EE] to-[#0A84F6]
-                       bg-clip-text text-transparent"
+            className={`text-xl font-extrabold ${
+              connected ? "text-[#1e78ff]" : "text-[#CFA23A]"
+            }`}
+            style={{ lineHeight: 1 }}
           >
             O
           </span>
