@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, KeyRound } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
-/**
- * Ancre les deux boutons juste sous la barre "Votre question",
- * en s’insérant dans le même conteneur (portal).
- * Aucune dépendance à la barre CGU, pas de calcul de coordonnées.
- */
 export default function RightAuthButtons() {
-  const hostRef = useRef<HTMLDivElement | null>(null);
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
-  const [open, setOpen] = useState(false);
+  const [openSubscribe, setOpenSubscribe] = useState(false);
 
-  // Sélection robuste de la barre (input/textarea/contenteditable)
+  // Sélection robuste de la barre "Votre question"
   function findBarEl(): HTMLElement | null {
     const selectors = [
       'input[placeholder*="Votre question"]',
@@ -26,74 +20,73 @@ export default function RightAuthButtons() {
     ];
     for (const sel of selectors) {
       const els = Array.from(document.querySelectorAll<HTMLElement>(sel));
-      // on garde un champ "large" (la vraie barre)
       const cand = els.find((e) => e.getBoundingClientRect().width > 280);
       if (cand) return cand;
     }
     return null;
   }
 
-  // Monte un host dans le même parent que la barre
+  // Monte un host à droite de la barre (dans le même parent)
   useLayoutEffect(() => {
     const bar = findBarEl();
-    if (!bar) return;
+    if (!bar || !bar.parentElement) return;
 
-    const parent = bar.parentElement as HTMLElement | null;
-    if (!parent) return;
+    const parent = bar.parentElement as HTMLElement;
 
-    // force le parent en "relative" si c'est "static" (pour l'absolute de nos boutons)
+    // le parent doit être positionné
     const cs = window.getComputedStyle(parent);
     if (cs.position === "static") parent.style.position = "relative";
 
-    // crée l'hôte s'il n'existe pas
+    // crée l’hôte positionné à droite de la barre
     const host = document.createElement("div");
-    hostRef.current = host;
     host.style.position = "absolute";
-    host.style.right = "0";     // aligné à droite de la barre
-    host.style.top = "100%";    // juste sous la barre
-    host.style.marginTop = "12px";
-    host.style.zIndex = "30";
-
+    host.style.left = "100%";           // collé au bord droit de la barre
+    host.style.marginLeft = "16px";     // petit écart
+    host.style.top = "50%";             // alignement vertical milieu de la barre
+    host.style.transform = "translateY(-50%)";
+    host.style.zIndex = "50";           // au-dessus
     parent.appendChild(host);
     setMountNode(host);
 
     return () => {
-      try {
-        host.remove();
-      } catch {}
-      hostRef.current = null;
+      try { host.remove(); } catch {}
       setMountNode(null);
     };
   }, []);
 
-  const mini =
-    "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
-
-  // Rien tant que l’hôte n’est pas prêt
+  // Tant que l’hôte n’est pas prêt, on ne rend rien (évite un flash)
   if (!mountNode) return null;
+
+  const btnCls =
+    "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
 
   return createPortal(
     <>
       <div className="flex items-center gap-3">
+        {/* + : même rendu que les boutons de gauche */}
         <button
           type="button"
           aria-label="Créer mon espace"
-          onClick={() => setOpen(true)}
-          className={mini}
+          onClick={() => setOpenSubscribe(true)}
+          className={btnCls}
         >
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
+        {/* Clé (placeholder) */}
         <button
           type="button"
           aria-label="Accéder à mon espace"
-          className={mini}
+          className={btnCls}
         >
           <KeyRound className="h-6 w-6 text-amber-500" />
         </button>
       </div>
 
-      <SubscribeModal open={open} onClose={() => setOpen(false)} />
+      <SubscribeModal
+        open={openSubscribe}
+        onClose={() => setOpenSubscribe(false)}
+      />
     </>,
     mountNode
   );
