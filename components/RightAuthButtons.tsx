@@ -1,93 +1,119 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, KeyRound } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
 export default function RightAuthButtons() {
-  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const [openSubscribe, setOpenSubscribe] = useState(false);
 
-  // Sélection robuste de la barre "Votre question"
-  function findBarEl(): HTMLElement | null {
-    const selectors = [
+  // Trouve la barre "Votre question"
+  function findBar(): HTMLElement | null {
+    const sels = [
       'input[placeholder*="Votre question"]',
       'textarea[placeholder*="Votre question"]',
       '[aria-label*="Votre question"]',
       '[data-placeholder*="Votre question"]',
       '[role="textbox"]',
     ];
-    for (const sel of selectors) {
-      const els = Array.from(document.querySelectorAll<HTMLElement>(sel));
-      const cand = els.find((e) => e.getBoundingClientRect().width > 280);
-      if (cand) return cand;
+    for (const s of sels) {
+      const el = Array.from(document.querySelectorAll<HTMLElement>(s)).find(
+        (e) => e.getBoundingClientRect().width > 280
+      );
+      if (el) return el;
     }
     return null;
   }
 
-  // Monte un host à droite de la barre (dans le même parent)
-  useLayoutEffect(() => {
-    const bar = findBarEl();
-    if (!bar || !bar.parentElement) return;
+  // Position : sous la barre, bord droit (miroir des icônes de gauche)
+  const positionHost = () => {
+    const host = hostRef.current;
+    if (!host) return;
+    const bar = findBar();
+    if (!bar) {
+      host.style.display = "none";
+      return;
+    }
+    const r = bar.getBoundingClientRect();
+    host.style.display = "block";
+    host.style.position = "fixed";
+    // Espace vertical sous la barre
+    const gapY = 16;
+    // On aligne le groupe sur le BORD DROIT de la barre,
+    // en utilisant "right" (plus fiable quelles que soient les largeurs)
+    const right = Math.max(0, Math.round(window.innerWidth - r.right));
+    host.style.top = `${Math.round(r.bottom + gapY)}px`;
+    host.style.right = `${right}px`;
+    host.style.left = "auto";
+    host.style.zIndex = "2147483647";
+    host.style.pointerEvents = "auto";
+  };
 
-    const parent = bar.parentElement as HTMLElement;
-
-    // le parent doit être positionné
-    const cs = window.getComputedStyle(parent);
-    if (cs.position === "static") parent.style.position = "relative";
-
-    // crée l’hôte positionné à droite de la barre
+  useEffect(() => {
     const host = document.createElement("div");
-    host.style.position = "absolute";
-    host.style.left = "100%";           // collé au bord droit de la barre
-    host.style.marginLeft = "16px";     // petit écart
-    host.style.top = "50%";             // alignement vertical milieu de la barre
-    host.style.transform = "translateY(-50%)";
-    host.style.zIndex = "50";           // au-dessus
-    parent.appendChild(host);
-    setMountNode(host);
+    host.style.display = "none";
+    hostRef.current = host;
+    document.body.appendChild(host);
+    setMounted(true);
+
+    const ro = new ResizeObserver(positionHost);
+    const mo = new MutationObserver(positionHost);
+    const bar = findBar();
+    if (bar) ro.observe(bar);
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true });
+
+    const onScroll = () => positionHost();
+    const onResize = () => positionHost();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+
+    const t1 = setTimeout(positionHost, 0);
+    const t2 = setTimeout(positionHost, 150);
 
     return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      try { ro.disconnect(); } catch {}
+      try { mo.disconnect(); } catch {}
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
       try { host.remove(); } catch {}
-      setMountNode(null);
+      hostRef.current = null;
     };
   }, []);
 
-  // Tant que l’hôte n’est pas prêt, on ne rend rien (évite un flash)
-  if (!mountNode) return null;
+  if (!mounted || !hostRef.current) return null;
 
-  const btnCls =
-    "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
+  const btn = "h-12 w-12 rounded-2xl bg-white/70 hover:bg-white/80 shadow flex items-center justify-center";
 
   return createPortal(
     <>
       <div className="flex items-center gap-3">
-        {/* + : même rendu que les boutons de gauche */}
         <button
           type="button"
           aria-label="Créer mon espace"
           onClick={() => setOpenSubscribe(true)}
-          className={btnCls}
+          className={btn}
         >
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
-        {/* Clé (placeholder) */}
         <button
           type="button"
           aria-label="Accéder à mon espace"
-          className={btnCls}
+          className={btn}
         >
           <KeyRound className="h-6 w-6 text-amber-500" />
         </button>
       </div>
 
-      <SubscribeModal
-        open={openSubscribe}
-        onClose={() => setOpenSubscribe(false)}
-      />
+      <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>,
-    mountNode
+    hostRef.current
   );
 }
