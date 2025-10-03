@@ -6,49 +6,54 @@ import { Plus } from "lucide-react";
 import SubscribeModal from "./SubscribeModal";
 
 export default function RightAuthButtons() {
-  const [mounted, setMounted] = useState(false);
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [openSubscribe, setOpenSubscribe] = useState(false);
 
-  // ---- helpers: trouver la barre et le bouton OK ----
-  const findBar = () =>
+  // Récupère les éléments de référence
+  const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
-  const findOk = () => {
-    const btns = Array.from(document.querySelectorAll("button")) as HTMLButtonElement[];
-    return btns.find((b) => (b.textContent || "").trim() === "OK") || null;
+  const getOkEl = () => {
+    const btns = Array.from(document.querySelectorAll("button"));
+    return (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) || null;
   };
 
-  // ---- positionnement : bord droit = bord droit du bouton OK (sinon bord droit de la barre) ----
-  const positionHost = () => {
+  // Positionne sous la barre, bord droit = barre + largeur d’OK
+  const position = () => {
     const host = hostRef.current;
-    const bar = findBar();
+    const bar = getBarEl();
     if (!host || !bar) return;
 
-    const r = bar.getBoundingClientRect();
-    const ok = findOk();
-    const okRect = ok?.getBoundingClientRect();
+    const barRect = bar.getBoundingClientRect();
+    const ok = getOkEl();
 
-    const gapY = 10;              // espace vertical sous la barre
-    const gapRight = 8;           // marge visuelle avec l'extrémité droite (OK inclus)
-    const btn = 48;               // diamètre d’un cercle
-    const between = 10;           // espace entre les deux cercles
-    const totalWidth = 2 * btn + between;
+    // Largeur d’OK : réelle si présent, sinon valeur nominale (56px) intégrée au calcul.
+    const okWidth =
+      ok?.getBoundingClientRect().width ??
+      56; // bouton OK (largeur nominale, inclut padding et coins)
 
-    // >>> ICI le changement clé : on prend le BORD DROIT du bouton OK <<<
-    const rightLimit = okRect ? okRect.right : r.right;
+    const btn = 48;        // diamètre d’un cercle
+    const gapY = 10;       // écart vertical sous la barre
+    const between = 10;    // espace entre les deux cercles
+    const total = 2 * btn + between;
 
-    const left = rightLimit - gapRight - totalWidth;
-    const top  = r.bottom + gapY;
+    // Bord droit effectif de la barre (barre + OK)
+    const effectiveRight = barRect.right + okWidth;
 
-    host.style.position = "fixed";
-    host.style.left = `${left}px`;
-    host.style.top = `${top}px`;
-    host.style.zIndex = "2147483647";
-    host.style.display = "block";
-    host.style.pointerEvents = "auto";
+    const left = effectiveRight - total;
+    const top = barRect.bottom + gapY;
+
+    host.style.cssText = `
+      position: fixed;
+      left: ${left}px;
+      top: ${top}px;
+      z-index: 2147483647;
+      display: block;
+      pointer-events: auto;
+    `;
   };
 
   useEffect(() => {
@@ -58,23 +63,23 @@ export default function RightAuthButtons() {
     document.body.appendChild(host);
     setMounted(true);
 
-    const ro = new ResizeObserver(positionHost);
-    const bar = findBar();
+    const ro = new ResizeObserver(position);
+    const bar = getBarEl();
     if (bar) ro.observe(bar);
 
-    window.addEventListener("resize", positionHost);
-    window.addEventListener("scroll", positionHost, { passive: true });
+    window.addEventListener("resize", position, { passive: true });
+    window.addEventListener("scroll", position, { passive: true });
 
-    // ticks pour couvrir transitions / fonts
-    const t1 = setTimeout(positionHost, 60);
-    const t2 = setTimeout(positionHost, 180);
-    const t3 = setTimeout(positionHost, 380);
+    // quelques ticks pour couvrir le rendu initial
+    const t1 = setTimeout(position, 60);
+    const t2 = setTimeout(position, 180);
+    const t3 = setTimeout(position, 360);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       ro.disconnect();
-      window.removeEventListener("resize", positionHost);
-      window.removeEventListener("scroll", positionHost);
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position);
       host.remove();
     };
   }, []);
@@ -88,7 +93,7 @@ export default function RightAuthButtons() {
   return createPortal(
     <>
       <div className="flex items-center gap-[10px]">
-        {/* ➕ */}
+        {/* + */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -98,14 +103,10 @@ export default function RightAuthButtons() {
           <Plus className="h-6 w-6 text-black/80" />
         </button>
 
-        {/* O (OneBoardingAI) en dégradé bleu proche du logo */}
-        <button
-          type="button"
-          aria-label="Accéder à mon espace"
-          className={circle}
-        >
+        {/* O (OneBoardingAI) — majuscule, gras, dégradé bleu */}
+        <button type="button" aria-label="Accéder à mon espace" className={circle}>
           <span
-            className="font-extrabold text-lg leading-none
+            className="uppercase font-black text-lg leading-none tracking-tight
                        bg-gradient-to-br from-[#22C1F1] via-[#15A1EE] to-[#0A84F6]
                        bg-clip-text text-transparent"
           >
@@ -118,4 +119,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-          }
+}
