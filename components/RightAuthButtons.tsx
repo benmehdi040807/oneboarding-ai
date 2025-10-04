@@ -54,16 +54,21 @@ function WelcomeBannerOverBar() {
         setFirstName(prof?.firstName ?? null);
         setActive(localStorage.getItem("ob_connected") === "1");
       } catch {}
-      // positionne immédiatement
+      // positionne immédiatement + petits rattrapages
       recompute();
       setTimeout(recompute, 50);
       setTimeout(recompute, 200);
+      setTimeout(recompute, 400);
     };
     load();
 
     const onChange = () => load();
     window.addEventListener("ob:connected-changed", onChange);
     window.addEventListener("ob:profile-changed", onChange);
+
+    // “poll” court en secours après création
+    const tPoll1 = setTimeout(load, 300);
+    const tPoll2 = setTimeout(load, 800);
 
     const ro = new ResizeObserver(recompute);
     const bar = getBarEl();
@@ -83,6 +88,7 @@ function WelcomeBannerOverBar() {
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
+      clearTimeout(tPoll1); clearTimeout(tPoll2);
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", recompute);
@@ -102,7 +108,7 @@ function WelcomeBannerOverBar() {
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 60, // assez haut mais sous les gros modaux
+        zIndex: 60,
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -218,4 +224,4 @@ export default function RightAuthButtons() {
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
-            }
+}
