@@ -53,131 +53,121 @@ export default function PhoneField({ value, onChange }: Props) {
   const selectedRef = useRef<HTMLButtonElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Compose en E.164
+  // Compose E.164
   useEffect(() => {
     const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
     const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Lock body & bloquer les gestes globaux quand la liste est ouverte
+  // Lock body SANS bloquer le scroll interne (Android OK)
   useEffect(() => {
     if (!open) return;
-    const prevOverflow = document.body.style.overflow;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
-    const prevent = (e: TouchEvent) => e.preventDefault();
-    document.addEventListener("touchmove", prevent, { passive: false });
-
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.removeEventListener("touchmove", prevent);
+      document.body.style.overflow = prev;
     };
   }, [open]);
 
-  // À l'ouverture : reset scroll + centrer l’élément sélectionné
+  // Centrer l’option sélectionnée à l’ouverture
   useEffect(() => {
     if (!open) return;
-    if (listRef.current) listRef.current.scrollTop = 0;
     if (selectedRef.current) selectedRef.current.scrollIntoView({ block: "nearest" });
   }, [open]);
 
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
-  // ---------- UI ----------
-  const selector = (
-    <div className="space-y-3">
-      {/* Sélecteur */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                     px-4 py-3 text-left text-black flex items-center justify-between"
-        >
-          <span className="truncate">
-            {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
-          </span>
-          <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
-        </button>
-      </div>
-
-      {/* Indicatif + numéro */}
-      <div className="grid grid-cols-[auto_1fr] gap-3">
-        <div
-          className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                     px-4 py-3 text-black flex items-center min-w-[82px]"
-          aria-hidden
-        >
-          {dial}
-        </div>
-        <input
-          type="tel"
-          inputMode="numeric"
-          placeholder="Numéro (sans 0 initial)"
-          className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                     px-4 py-3 text-black placeholder-white/90 outline-none"
-          value={local}
-          onChange={(e) => setLocal(e.target.value)}
-        />
-      </div>
-    </div>
-  );
-
-  const overlay =
-    open &&
-    createPortal(
-      <div
-        className="fixed inset-0 z-[2147483646] bg-black/30"
-        style={{ overscrollBehavior: "contain", touchAction: "none" }}
-        onClick={() => setOpen(false)}
-        aria-hidden
-      >
-        <div
-          ref={listRef}
-          onClick={(e) => e.stopPropagation()}
-          className="fixed left-1/2 -translate-x-1/2 w-[92vw] max-w-lg
-                     rounded-2xl bg-white shadow-2xl border border-black/10
-                     overflow-y-auto text-black divide-y divide-black/10"
-          style={{
-            top: "12vh",
-            bottom: "24vh", // espace pour ne PAS recouvrir la bannière RGPD
-            WebkitOverflowScrolling: "touch",
-            overscrollBehavior: "contain",
-            touchAction: "pan-y",
-          }}
-        >
-          {COUNTRIES.map((c) => {
-            const selected = c.num === country.num;
-            return (
-              <button
-                key={c.num}
-                type="button"
-                ref={selected ? selectedRef : null}
-                onClick={() => {
-                  setCountry(c);
-                  setOpen(false);
-                }}
-                className={`w-full px-4 py-3 text-left flex items-center gap-2
-                            ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
-              >
-                <span className="w-7 tabular-nums">{c.num}.</span>
-                <span className="shrink-0">{c.flag}</span>
-                <span className="flex-1">{c.name}</span>
-                <span className="tabular-nums">(+{c.dial})</span>
-                {selected && <span aria-hidden className="ml-2">✓</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>,
-      document.body
-    );
-
   return (
     <>
-      {selector}
-      {overlay}
+      {/* Sélecteur */}
+      <div className="space-y-3">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                       px-4 py-3 text-left text-black flex items-center justify-between"
+          >
+            <span className="truncate">
+              {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
+            </span>
+            <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
+          </button>
+        </div>
+
+        {/* Indicatif + numéro */}
+        <div className="grid grid-cols-[auto_1fr] gap-3">
+          <div
+            className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                       px-4 py-3 text-black flex items-center min-w-[82px]"
+            aria-hidden
+          >
+            {dial}
+          </div>
+          <input
+            type="tel"
+            inputMode="numeric"
+            placeholder="Numéro (sans 0 initial)"
+            className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
+                       px-4 py-3 text-black placeholder-white/90 outline-none"
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Overlay + liste en PORTAL (au-dessus de tout) */}
+      {open &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[2147483646] bg-black/40"
+            style={{ overscrollBehavior: "contain" }}
+            onClick={() => setOpen(false)}
+            aria-hidden
+          >
+            <div
+              ref={listRef}
+              onClick={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              className="fixed left-1/2 -translate-x-1/2 w-[92vw] max-w-lg
+                         rounded-2xl bg-white shadow-2xl border border-black/10
+                         overflow-y-auto text-black divide-y divide-black/10"
+              style={{
+                top: "12vh",
+                bottom: "24vh",               // ne pas recouvrir la bannière RGPD
+                WebkitOverflowScrolling: "touch",
+                overscrollBehavior: "contain", // pas de chainage vers la page
+                touchAction: "pan-y",          // scroll vertical OK
+              }}
+            >
+              {COUNTRIES.map((c) => {
+                const selected = c.num === country.num;
+                return (
+                  <button
+                    key={c.num}
+                    type="button"
+                    ref={selected ? selectedRef : null}
+                    onClick={() => {
+                      setCountry(c);
+                      setOpen(false);
+                    }}
+                    className={`w-full px-4 py-3 text-left flex items-center gap-2
+                                ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
+                  >
+                    <span className="w-7 tabular-nums">{c.num}.</span>
+                    <span className="shrink-0">{c.flag}</span>
+                    <span className="flex-1">{c.name}</span>
+                    <span className="tabular-nums">(+{c.dial})</span>
+                    {selected && <span aria-hidden className="ml-2">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 }
