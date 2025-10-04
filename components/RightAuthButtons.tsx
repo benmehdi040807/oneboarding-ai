@@ -41,26 +41,27 @@ function WelcomeBannerOverBar() {
     setPos({ left, top, width });
   };
 
+  const loadProfileState = () => {
+    try {
+      const p = localStorage.getItem("ob_profile");
+      const prof = p ? JSON.parse(p) : null;
+      setFirstName(prof?.firstName ?? null);
+      setActive(localStorage.getItem("ob_connected") === "1");
+    } catch {}
+  };
+
   useEffect(() => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
 
-    const load = () => {
-      try {
-        const p = localStorage.getItem("ob_profile");
-        const prof = p ? JSON.parse(p) : null;
-        setFirstName(prof?.firstName ?? null);
-        setActive(localStorage.getItem("ob_connected") === "1");
-      } catch {}
-      recompute();
-      setTimeout(recompute, 60);
-      setTimeout(recompute, 240);
-    };
-    load();
+    loadProfileState();
+    recompute();
+    setTimeout(recompute, 60);
+    setTimeout(recompute, 240);
 
-    const onChange = () => load();
+    const onChange = () => { loadProfileState(); recompute(); };
     window.addEventListener("ob:connected-changed", onChange);
     window.addEventListener("ob:profile-changed", onChange);
 
@@ -72,7 +73,7 @@ function WelcomeBannerOverBar() {
     window.addEventListener("scroll", recompute, { passive: true });
     window.addEventListener("load", recompute, { once: true });
 
-    const mo = new MutationObserver(() => recompute());
+    const mo = new MutationObserver(recompute);
     mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
@@ -96,7 +97,7 @@ function WelcomeBannerOverBar() {
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 2147483390, // au-dessus de la barre, sous les gros modals
+        zIndex: 2147483390, // au-dessus de la barre, sous les vrais modals
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -142,21 +143,20 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // même skin que les boutons gauche — conteneur inline-flex (important desktop)
+  // même skin que les boutons gauche — conteneur inline-flex
   const circle =
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
   const onBlueClick = () => setOpenSubscribe(true);
 
-  // doré => (dé)connexion uniquement (aucune incitation si pas de profil)
+  // Doré => (dé)connexion uniquement (jamais d’incitation)
   const onGoldClick = () => {
     const hasProfile = !!localStorage.getItem("ob_profile");
     if (connected) {
       localStorage.setItem("ob_connected", "0");
       window.dispatchEvent(new Event("ob:connected-changed"));
-    } else {
-      if (!hasProfile) return;
+    } else if (hasProfile) {
       localStorage.setItem("ob_connected", "1");
       window.dispatchEvent(new Event("ob:connected-changed"));
     }
@@ -206,10 +206,7 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière */}
       <WelcomeBannerOverBar />
-
-      {/* Modal création */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
