@@ -11,15 +11,20 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const [e164, setE164] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // lock scroll
+  // Lock scroll + empêcher pull-to-refresh du fond
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
+    const prevObs = (document.body.style as any).overscrollBehaviorY;
     document.body.style.overflow = "hidden";
+    (document.body.style as any).overscrollBehaviorY = "contain";
+
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
+
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
+      (document.body.style as any).overscrollBehaviorY = prevObs || "";
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
@@ -34,6 +39,9 @@ export default function SubscribeModal({ open, onClose }: Props) {
     const profile = { firstName, lastName, phone: e164 };
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
+
+    // 🔔 notifier toute l’UI (bannière incluse)
+    window.dispatchEvent(new Event("ob:profile-changed"));
     window.dispatchEvent(new Event("ob:connected-changed"));
 
     setSubmitting(false);
@@ -50,7 +58,10 @@ export default function SubscribeModal({ open, onClose }: Props) {
       role="dialog"
       aria-modal="true"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-md"
+      // empêche le swipe sur le backdrop d’entraîner la page
+      onTouchMove={(e) => { if (e.target === e.currentTarget) e.preventDefault(); }}
+      className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-md overscroll-contain"
+      style={{ overscrollBehavior: "contain" }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -58,11 +69,11 @@ export default function SubscribeModal({ open, onClose }: Props) {
                    bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl
                    p-4 sm:p-6 m-0 sm:m-6"
       >
-        {/* X — large hit-area (44x44) */}
+        {/* X — large hit-area + z-index pour assurer le clic */}
         <button
           onClick={onClose}
           aria-label="Fermer"
-          className="absolute right-3 top-3 h-11 w-11 rounded-full bg-white/90 hover:bg-white text-black/80 grid place-items-center text-2xl"
+          className="absolute right-3 top-3 h-12 w-12 rounded-full bg-white/90 hover:bg-white text-black/80 grid place-items-center text-2xl z-20"
         >
           ×
         </button>
@@ -88,6 +99,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
             onChange={(e) => setFirstName(e.target.value)}
           />
 
+          {/* Pays + Indicatif + Numéro */}
           <PhoneField value={e164} onChange={setE164} />
 
           <button
