@@ -8,13 +8,15 @@ export default function RgpdBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Ne pas afficher sur la page légale + si déjà accepté
-    const onLegal = typeof window !== "undefined" && window.location.pathname.startsWith("/legal");
-    if (onLegal) return setShow(false);
+    // Ne pas afficher sur la page /legal
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/legal")) {
+      setShow(false);
+      return;
+    }
 
     try {
-      const accepted = localStorage.getItem(CONSENT_KEY) === "1";
-      setShow(!accepted);
+      const consentGiven = localStorage.getItem(CONSENT_KEY) === "1";
+      setShow(!consentGiven);
     } catch {
       setShow(true);
     }
@@ -24,16 +26,13 @@ export default function RgpdBanner() {
 
   return (
     <div
-      role="region"
-      aria-label="Bandeau d'information RGPD"
-      // Au-dessus du contenu, sous les modals lourds
       style={{
         position: "fixed",
         left: 0,
         right: 0,
         bottom: 0,
         zIndex: 2147483200,
-        pointerEvents: "none", // évite de bloquer les clics hors de la carte
+        pointerEvents: "none",
       }}
     >
       <div
@@ -46,12 +45,12 @@ export default function RgpdBanner() {
         <div
           style={{
             pointerEvents: "auto",
-            background: "white",
-            color: "black",
+            background: "#fff",
+            color: "#000",
             borderRadius: 16,
             padding: 12,
+            border: "1px solid rgba(0,0,0,.1)",
             boxShadow: "0 10px 24px rgba(0,0,0,.18)",
-            border: "1px solid rgba(0,0,0,.08)",
           }}
         >
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
@@ -59,24 +58,22 @@ export default function RgpdBanner() {
           </p>
 
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            {/* Bouton unique vers /legal */}
             <a
               href="/legal"
               style={{
-                display: "inline-block",
+                flex: 1,
+                textAlign: "center",
                 padding: "10px 14px",
                 borderRadius: 12,
                 border: "1px solid rgba(0,0,0,.12)",
                 textDecoration: "none",
-                color: "black",
+                color: "#000",
                 fontWeight: 500,
-                background: "white",
               }}
             >
               CGU / Privacy
             </a>
 
-            {/* Bouton “J’ai compris” qui enregistre le consentement */}
             <button
               onClick={() => {
                 try {
@@ -85,11 +82,12 @@ export default function RgpdBanner() {
                 setShow(false);
               }}
               style={{
+                flex: 1,
                 padding: "10px 14px",
                 borderRadius: 12,
                 border: "none",
-                background: "black",
-                color: "white",
+                background: "#000",
+                color: "#fff",
                 fontWeight: 600,
               }}
             >
@@ -100,4 +98,4 @@ export default function RgpdBanner() {
       </div>
     </div>
   );
-            }
+}
