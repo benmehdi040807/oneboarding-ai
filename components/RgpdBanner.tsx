@@ -8,15 +8,14 @@ export default function RgpdBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Ne pas afficher sur la page /legal
+    // Ne pas afficher le bandeau sur /legal
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/legal")) {
       setShow(false);
       return;
     }
-
     try {
-      const consentGiven = localStorage.getItem(CONSENT_KEY) === "1";
-      setShow(!consentGiven);
+      const ok = localStorage.getItem(CONSENT_KEY) === "1";
+      setShow(!ok);
     } catch {
       setShow(true);
     }
@@ -25,23 +24,8 @@ export default function RgpdBanner() {
   if (!show) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 2147483200,
-        pointerEvents: "none",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 720,
-          margin: "0 auto",
-          padding: "0 16px 20px 16px",
-        }}
-      >
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2147483200, pointerEvents: "none" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px 20px 16px" }}>
         <div
           style={{
             pointerEvents: "auto",
@@ -61,14 +45,9 @@ export default function RgpdBanner() {
             <a
               href="/legal"
               style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,.12)",
-                textDecoration: "none",
-                color: "#000",
-                fontWeight: 500,
+                flex: 1, textAlign: "center", padding: "10px 14px",
+                borderRadius: 12, border: "1px solid rgba(0,0,0,.12)",
+                textDecoration: "none", color: "#000", fontWeight: 500,
               }}
             >
               CGU / Privacy
@@ -76,19 +55,12 @@ export default function RgpdBanner() {
 
             <button
               onClick={() => {
-                try {
-                  localStorage.setItem(CONSENT_KEY, "1");
-                } catch {}
+                try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
                 setShow(false);
               }}
               style={{
-                flex: 1,
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "none",
-                background: "#000",
-                color: "#fff",
-                fontWeight: 600,
+                flex: 1, padding: "10px 14px", borderRadius: 12,
+                border: "none", background: "#000", color: "#fff", fontWeight: 600,
               }}
             >
               J’ai compris
