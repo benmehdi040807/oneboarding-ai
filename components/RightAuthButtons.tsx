@@ -29,12 +29,9 @@ function WelcomeBannerOverBar() {
   const BANNER_H = 27; // px
   const GAP_Y = 6;     // px
 
-  // Positionne la bannière : mêmes left/width que barre(+OK), mais hauteur fixe
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-
-    // si la barre n’est pas encore montée, on re-tente sans cacher le host
     if (!host || !bar) { setTimeout(position, 120); return; }
 
     const barRect = bar.getBoundingClientRect();
@@ -61,7 +58,7 @@ function WelcomeBannerOverBar() {
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "block"; // <— visible dès le départ
+    host.style.display = "block";
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
@@ -243,15 +240,13 @@ function ErrorCapsule({
   );
 }
 
-/** ------------------------- Boutons droits ------------------------ */
+/** ---------------------- Boutons droits (INLINE) ---------------------- */
 export default function RightAuthButtons() {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openError, setOpenError] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [hiddenByOverlay, setHiddenByOverlay] = useState(false);
 
+  // état connecté
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -260,116 +255,11 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
-    null;
-
-  const getOkEl = () => {
-    const btns = Array.from(document.querySelectorAll("button"));
-    return (
-      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
-      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
-      null
-    );
-  };
-
-  // Overlay réellement VISIBLE ?
-  const overlayIsVisible = (el: Element) => {
-    const s = window.getComputedStyle(el as HTMLElement);
-    if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
-    const rect = (el as HTMLElement).getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  };
-
-  const checkOverlay = () => {
-    const candidates = [
-      ...document.querySelectorAll('[role="dialog"]'),
-      ...document.querySelectorAll(".modal"),
-      ...document.querySelectorAll("[data-overlay]"),
-    ];
-    setHiddenByOverlay(candidates.some(overlayIsVisible));
-  };
-
-  // Positionnement + clamp
-  const position = () => {
-    const host = hostRef.current;
-    const bar = getBarEl();
-    if (!host || !bar) { setTimeout(position, 120); return; }
-
-    const barRect = bar.getBoundingClientRect();
-    const ok = getOkEl();
-    let rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
-
-    const BTN = 48;
-    const BETWEEN = 10;
-    const GAP_Y = 10;
-
-    const totalWidth = 2 * BTN + BETWEEN;
-
-    if (!Number.isFinite(rightEdge) || rightEdge < barRect.left + totalWidth) {
-      rightEdge = barRect.right;
-    }
-
-    const minLeft = 8;
-    const maxLeft = Math.max(minLeft, window.innerWidth - totalWidth - 8);
-
-    let left = rightEdge - totalWidth;
-    left = Math.min(Math.max(left, minLeft), maxLeft);
-
-    const top = barRect.bottom + GAP_Y;
-
-    host.style.cssText = `
-      position: fixed;
-      left: ${left}px;
-      top: ${top}px;
-      z-index: 2147483400;
-      display: ${hiddenByOverlay ? "none" : "block"};
-      pointer-events: auto;
-    `;
-  };
-
-  useEffect(() => {
-    const host = document.createElement("div");
-    host.style.display = "block"; // <— visible de base
-    hostRef.current = host;
-    document.body.appendChild(host);
-    setMounted(true);
-
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    const ok = getOkEl();
-    if (bar) ro.observe(bar);
-    if (ok) ro.observe(ok);
-
-    window.addEventListener("resize", position, { passive: true });
-    window.addEventListener("scroll", position, { passive: true });
-    window.addEventListener("load", position, { once: true });
-
-    const mo = new MutationObserver(() => { checkOverlay(); position(); });
-    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
-
-    const t1 = setTimeout(() => { checkOverlay(); position(); }, 40);
-    const t2 = setTimeout(() => { checkOverlay(); position(); }, 140);
-    const t3 = setTimeout(() => { checkOverlay(); position(); }, 300);
-
-    return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      ro.disconnect();
-      mo.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
-      host.remove();
-    };
-  }, []);
-
-  useEffect(() => { position(); }, [hiddenByOverlay]);
-
-  if (!mounted || !hostRef.current) return null;
-
-  const circle =
-    "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
-    "flex items-center justify-center backdrop-blur select-none";
+  // classes identiques aux boutons de GAUCHE (capsules)
+  const capsule =
+    "h-12 w-12 rounded-xl border border-[var(--border)] " +
+    "bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] " +
+    "grid place-items-center transition";
 
   const onGoldClick = () => {
     if (connected) {
@@ -381,25 +271,26 @@ export default function RightAuthButtons() {
         localStorage.setItem("ob_connected", "1");
         window.dispatchEvent(new Event("ob:connected-changed"));
       } else {
-        setOpenError(true); // capsule flottante
+        setOpenError(true);
       }
     }
   };
 
-  return createPortal(
+  return (
     <>
-      <div className="flex items-center gap-[10px]">
+      {/* --- Boutons RENDUS INLINE (pas de portal) --- */}
+      <div className="flex items-center gap-3">
         {/* Création d’espace (O dégradé bleu→turquoise) */}
         <button
           type="button"
           aria-label="Créer mon espace"
           onClick={() => setOpenSubscribe(true)}
-          className={circle}
+          className={capsule}
+          title="Créer mon espace"
         >
           <span
-            className="text-xl font-extrabold"
+            className="text-xl font-extrabold leading-none"
             style={{
-              lineHeight: 1,
               background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
@@ -409,18 +300,17 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (toujours doré, dégradé doux) */}
+        {/* Connexion / Déconnexion (O doré dégradé) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
-          className={circle}
+          className={capsule}
           onClick={onGoldClick}
           title={connected ? "Se déconnecter" : "Se connecter"}
         >
           <span
-            className="text-xl font-extrabold"
+            className="text-xl font-extrabold leading-none"
             style={{
-              lineHeight: 1,
               background: "linear-gradient(90deg,#FFD451,#EABE3F,#D9D1C0)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
@@ -431,10 +321,10 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière immersive au-dessus de la barre */}
+      {/* Bannière immersive (au-dessus de la barre) */}
       <WelcomeBannerOverBar />
 
-      {/* Capsule d’erreur */}
+      {/* Capsule “pas d’espace” */}
       <ErrorCapsule
         open={openError}
         onClose={() => setOpenError(false)}
@@ -443,7 +333,6 @@ export default function RightAuthButtons() {
 
       {/* Modal de création d’espace */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
-    </>,
-    hostRef.current
+    </>
   );
-                            }
+                          }
