@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Country = { num: number; name: string; dial: string; flag: string };
 
@@ -59,7 +60,22 @@ export default function PhoneField({ value, onChange }: Props) {
     onChange(e164);
   }, [country, local, onChange]);
 
-  // À l'ouverture : remonter tout en haut + centrer l’élément sélectionné
+  // Lock body & bloquer les gestes globaux quand la liste est ouverte
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const prevent = (e: TouchEvent) => e.preventDefault();
+    document.addEventListener("touchmove", prevent, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("touchmove", prevent);
+    };
+  }, [open]);
+
+  // À l'ouverture : reset scroll + centrer l’élément sélectionné
   useEffect(() => {
     if (!open) return;
     if (listRef.current) listRef.current.scrollTop = 0;
@@ -68,7 +84,8 @@ export default function PhoneField({ value, onChange }: Props) {
 
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
-  return (
+  // ---------- UI ----------
+  const selector = (
     <div className="space-y-3">
       {/* Sélecteur */}
       <div className="relative">
@@ -104,54 +121,63 @@ export default function PhoneField({ value, onChange }: Props) {
           onChange={(e) => setLocal(e.target.value)}
         />
       </div>
-
-      {/* Liste modale (opaque, capte tous les gestes) */}
-      {open && (
-        <div
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-[2147483607] bg-black/30"
-          style={{ overscrollBehavior: "contain", touchAction: "none" }} // bloque les gestes globaux
-          aria-hidden
-        >
-          <div
-            ref={listRef}
-            onClick={(e) => e.stopPropagation()}
-            className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
-                       w-[92vw] max-w-lg rounded-2xl
-                       bg-white shadow-2xl border border-black/10
-                       max-h-[60vh] overflow-y-auto text-black
-                       divide-y divide-black/10"
-            style={{
-              WebkitOverflowScrolling: "touch",
-              overscrollBehavior: "contain",
-              touchAction: "pan-y", // scroll vertical uniquement
-            }}
-          >
-            {COUNTRIES.map((c) => {
-              const selected = c.num === country.num;
-              return (
-                <button
-                  key={c.num}
-                  type="button"
-                  ref={selected ? selectedRef : null}
-                  onClick={() => {
-                    setCountry(c);
-                    setOpen(false);
-                  }}
-                  className={`w-full px-4 py-3 text-left flex items-center gap-2
-                              ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
-                >
-                  <span className="w-7 tabular-nums">{c.num}.</span>
-                  <span className="shrink-0">{c.flag}</span>
-                  <span className="flex-1">{c.name}</span>
-                  <span className="tabular-nums">(+{c.dial})</span>
-                  {selected && <span aria-hidden className="ml-2">✓</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
+  );
+
+  const overlay =
+    open &&
+    createPortal(
+      <div
+        className="fixed inset-0 z-[2147483646] bg-black/30"
+        style={{ overscrollBehavior: "contain", touchAction: "none" }}
+        onClick={() => setOpen(false)}
+        aria-hidden
+      >
+        <div
+          ref={listRef}
+          onClick={(e) => e.stopPropagation()}
+          className="fixed left-1/2 -translate-x-1/2 w-[92vw] max-w-lg
+                     rounded-2xl bg-white shadow-2xl border border-black/10
+                     overflow-y-auto text-black divide-y divide-black/10"
+          style={{
+            top: "12vh",
+            bottom: "24vh", // espace pour ne PAS recouvrir la bannière RGPD
+            WebkitOverflowScrolling: "touch",
+            overscrollBehavior: "contain",
+            touchAction: "pan-y",
+          }}
+        >
+          {COUNTRIES.map((c) => {
+            const selected = c.num === country.num;
+            return (
+              <button
+                key={c.num}
+                type="button"
+                ref={selected ? selectedRef : null}
+                onClick={() => {
+                  setCountry(c);
+                  setOpen(false);
+                }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2
+                            ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
+              >
+                <span className="w-7 tabular-nums">{c.num}.</span>
+                <span className="shrink-0">{c.flag}</span>
+                <span className="flex-1">{c.name}</span>
+                <span className="tabular-nums">(+{c.dial})</span>
+                {selected && <span aria-hidden className="ml-2">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>,
+      document.body
+    );
+
+  return (
+    <>
+      {selector}
+      {overlay}
+    </>
   );
 }
