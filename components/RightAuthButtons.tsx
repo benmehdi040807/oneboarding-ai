@@ -33,7 +33,9 @@ function WelcomeBannerOverBar() {
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    if (!host || !bar) return;
+
+    // si la barre n’est pas encore montée, on re-tente sans cacher le host
+    if (!host || !bar) { setTimeout(position, 120); return; }
 
     const barRect = bar.getBoundingClientRect();
     const ok = getOkEl();
@@ -53,13 +55,13 @@ function WelcomeBannerOverBar() {
       z-index: 2147483646;
       display: block;
       pointer-events: none;
-      border-radius: 12px; /* arrondi doux */
+      border-radius: 12px;
     `;
   };
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "none";
+    host.style.display = "block"; // <— visible dès le départ
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
@@ -109,9 +111,9 @@ function WelcomeBannerOverBar() {
     <div
       className="w-full h-full flex items-center justify-center px-3"
       style={{
-        background: "rgba(17,24,39,0.12)", // transparence élevée
+        background: "rgba(17,24,39,0.12)",
         boxShadow: "0 10px 24px rgba(0,0,0,.14)",
-        borderRadius: 12, // sécurité côté contenu
+        borderRadius: 12,
       }}
     >
       <div className="truncate text-center text-[12px] sm:text-[13px] text-white font-medium">
@@ -122,7 +124,7 @@ function WelcomeBannerOverBar() {
         <span
           className="font-extrabold"
           style={{
-            background: "linear-gradient(90deg,#3b82f6,#06b6d4)", // bleu → turquoise
+            background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}
@@ -148,7 +150,6 @@ function ErrorCapsule({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // positionner la capsule centrée au-dessus de la barre
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
@@ -157,18 +158,18 @@ function ErrorCapsule({
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    if (!host || !bar) return;
+    if (!host || !bar) { setTimeout(position, 120); return; }
 
     const r = bar.getBoundingClientRect();
     const centerX = r.left + r.width / 2;
-    const top = Math.max(8, r.top - 16 - 54); // 54 ≈ hauteur/ombre capsule
+    const top = Math.max(8, r.top - 16 - 54);
 
     host.style.cssText = `
       position: fixed;
       left: ${centerX}px;
       top: ${top}px;
       transform: translateX(-50%);
-      z-index: 2147483605; /* au-dessus des boutons & sous SubscribeModal (3600) */
+      z-index: 2147483605;
       display: ${open ? "block" : "none"};
       pointer-events: auto;
       max-width: min(92vw, 540px);
@@ -177,6 +178,7 @@ function ErrorCapsule({
 
   useEffect(() => {
     const host = document.createElement("div");
+    host.style.display = "block";
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
@@ -198,13 +200,9 @@ function ErrorCapsule({
       clearTimeout(t2);
       host.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    position();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  useEffect(() => { position(); }, [open]);
 
   if (!mounted || !hostRef.current || !open) return null;
 
@@ -220,13 +218,10 @@ function ErrorCapsule({
       aria-modal="true"
     >
       <div className="text-[13px] sm:text-[14px] text-black/85 text-center">
-        <div className="font-semibold mb-1">
-          Aucun espace trouvé sur cet appareil
-        </div>
+        <div className="font-semibold mb-1">Aucun espace trouvé sur cet appareil</div>
         <div className="opacity-80 mb-3">
           Pour continuer, crée ton espace avec le <span className="font-semibold">O bleu</span>.
         </div>
-
         <div className="flex items-center justify-center gap-2">
           <button
             onClick={onClose}
@@ -236,8 +231,7 @@ function ErrorCapsule({
           </button>
           <button
             onClick={onCreate}
-            className="px-3 py-2 rounded-xl text-white font-medium shadow
-                       hover:opacity-95 active:scale-[.99] transition
+            className="px-3 py-2 rounded-xl text-white font-medium shadow hover:opacity-95 active:scale-[.99] transition
                        bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
           >
             Créer mon espace
@@ -280,20 +274,28 @@ export default function RightAuthButtons() {
     );
   };
 
-  // Détecte si un overlay/modal est ouvert → on cache les boutons
-  const checkOverlay = () => {
-    const any =
-      document.querySelector('[role="dialog"]') ||
-      document.querySelector(".modal") ||
-      document.querySelector("[data-overlay]");
-    setHiddenByOverlay(Boolean(any));
+  // Overlay réellement VISIBLE ?
+  const overlayIsVisible = (el: Element) => {
+    const s = window.getComputedStyle(el as HTMLElement);
+    if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
+    const rect = (el as HTMLElement).getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
   };
 
-  // Positionnement robuste + clamp dans le viewport
+  const checkOverlay = () => {
+    const candidates = [
+      ...document.querySelectorAll('[role="dialog"]'),
+      ...document.querySelectorAll(".modal"),
+      ...document.querySelectorAll("[data-overlay]"),
+    ];
+    setHiddenByOverlay(candidates.some(overlayIsVisible));
+  };
+
+  // Positionnement + clamp
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    if (!host || !bar) return;
+    if (!host || !bar) { setTimeout(position, 120); return; }
 
     const barRect = bar.getBoundingClientRect();
     const ok = getOkEl();
@@ -321,7 +323,7 @@ export default function RightAuthButtons() {
       position: fixed;
       left: ${left}px;
       top: ${top}px;
-      z-index: 2147483400; /* sous les overlays légaux & SubscribeModal */
+      z-index: 2147483400;
       display: ${hiddenByOverlay ? "none" : "block"};
       pointer-events: auto;
     `;
@@ -329,7 +331,7 @@ export default function RightAuthButtons() {
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "none";
+    host.style.display = "block"; // <— visible de base
     hostRef.current = host;
     document.body.appendChild(host);
     setMounted(true);
@@ -344,10 +346,7 @@ export default function RightAuthButtons() {
     window.addEventListener("scroll", position, { passive: true });
     window.addEventListener("load", position, { once: true });
 
-    const mo = new MutationObserver(() => {
-      checkOverlay();
-      position();
-    });
+    const mo = new MutationObserver(() => { checkOverlay(); position(); });
     mo.observe(document.body, { childList: true, subtree: true, attributes: true });
 
     const t1 = setTimeout(() => { checkOverlay(); position(); }, 40);
@@ -362,13 +361,9 @@ export default function RightAuthButtons() {
       window.removeEventListener("scroll", position);
       host.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    position();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hiddenByOverlay]);
+  useEffect(() => { position(); }, [hiddenByOverlay]);
 
   if (!mounted || !hostRef.current) return null;
 
@@ -386,8 +381,7 @@ export default function RightAuthButtons() {
         localStorage.setItem("ob_connected", "1");
         window.dispatchEvent(new Event("ob:connected-changed"));
       } else {
-        // ==> Capsule flottante plutôt que alert()
-        setOpenError(true);
+        setOpenError(true); // capsule flottante
       }
     }
   };
@@ -452,4 +446,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-}
+                            }
