@@ -5,7 +5,7 @@ import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-// Petit composant interne : message au-dessus de la barre
+/* Message de bienvenue (optionnel, affiché au-dessus de la barre quand connecté) */
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
@@ -41,15 +41,23 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const [e164, setE164] = useState(""); // rempli par PhoneField
   const [submitting, setSubmitting] = useState(false);
 
-  // verrouillage scroll page quand ouvert
+  // verrouillage scroll page quand ouvert + fermeture via Escape
   useEffect(() => {
     if (!open) return;
+
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+
     return () => {
       document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -63,7 +71,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
 
-    // notifier le reste de l’UI
+    // notifier le reste de l’UI (bannière, boutons…)
     window.dispatchEvent(new Event("ob:connected-changed"));
 
     setSubmitting(false);
@@ -84,6 +92,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby="subscribe-title"
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -92,20 +101,28 @@ export default function SubscribeModal({ open, onClose }: Props) {
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="w-full sm:max-w-lg rounded-3xl border border-white/60
+          className="relative w-full sm:max-w-lg rounded-3xl border border-white/60
                      bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl
                      p-4 sm:p-6 m-0 sm:m-6"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-black/90">Créer mon espace</h2>
-            <button
-              onClick={onClose}
-              className="h-10 w-10 rounded-full bg-white/80 hover:bg-white/95 text-black/80
-                         flex items-center justify-center text-xl"
-              aria-label="Fermer"
-            >
-              ×
-            </button>
+          {/* X ABSOLU : hitbox ≥44px, clic ultra-fiable */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="absolute right-3 top-3 h-11 w-11 rounded-full bg-white/90 hover:bg-white
+                       text-black/80 text-2xl leading-none flex items-center justify-center
+                       cursor-pointer"
+            style={{ minWidth: 44, minHeight: 44 }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            ×
+          </button>
+
+          <div className="mb-4 pr-14"> {/* pr-14 pour ne pas chevaucher la croix */}
+            <h2 id="subscribe-title" className="text-xl font-semibold text-black/90">
+              Créer mon espace
+            </h2>
           </div>
 
           <form className="space-y-4" onSubmit={onSubmit}>
