@@ -48,7 +48,8 @@ export default function PhoneField({ value, onChange }: Props) {
   const [country, setCountry] = useState<Country>(DEFAULT);
   const [local, setLocal] = useState<string>("");
   const [open, setOpen] = useState(false);
-  const selectedRef = useRef<HTMLButtonElement | null>(null);
+
+  const listRef = useRef<HTMLDivElement | null>(null); // conteneur scrollable
 
   // Compose E.164
   useEffect(() => {
@@ -57,10 +58,10 @@ export default function PhoneField({ value, onChange }: Props) {
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Scroll auto vers l’élément sélectionné
+  // À chaque ouverture : repartir en haut de liste (évite l'effet "commence à 6")
   useEffect(() => {
-    if (open && selectedRef.current) {
-      selectedRef.current.scrollIntoView({ block: "center" });
+    if (open && listRef.current) {
+      listRef.current.scrollTop = 0;
     }
   }, [open]);
 
@@ -103,17 +104,29 @@ export default function PhoneField({ value, onChange }: Props) {
         />
       </div>
 
-      {/* 3) Liste flottante (opacité renforcée + scroll interne fiable) */}
+      {/* 3) Liste flottante — scroll interne fiable */}
       {open && (
-        <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" aria-hidden>
+        <div
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[2147483602]"
+          aria-hidden
+          // bloque gestes globaux (pull-to-refresh, etc.)
+          style={{ overscrollBehavior: "contain", touchAction: "none" }}
+        >
           <div
             onClick={(e) => e.stopPropagation()}
+            ref={listRef}
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
                        w-[92vw] max-w-lg rounded-2xl
-                       bg-white/80 backdrop-blur-2xl border border-white/70 shadow-2xl
-                       max-h:[60vh] max-h-[60vh] overflow-y-auto text-black/90
-                       touch-pan-y overscroll-contain scroll-smooth divide-y divide-black/10"
-            style={{ WebkitOverflowScrolling: "touch" }}
+                       bg-white/90 backdrop-blur-2xl border border-white/70 shadow-2xl
+                       max-h-[60vh] overflow-y-auto text-black/90
+                       divide-y divide-black/10"
+            // autorise le scroll vertical naturel à l’intérieur
+            style={{
+              WebkitOverflowScrolling: "touch",
+              overscrollBehavior: "contain",
+              touchAction: "pan-y",
+            }}
           >
             {COUNTRIES.map((c) => {
               const selected = c.num === country.num;
@@ -121,13 +134,12 @@ export default function PhoneField({ value, onChange }: Props) {
                 <button
                   key={c.num}
                   type="button"
-                  ref={selected ? selectedRef : null}
                   onClick={() => {
                     setCountry(c);
                     setOpen(false);
                   }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
-                              ${selected ? "bg-white/90" : "bg-white/70 active:bg-white/80"}`}
+                              ${selected ? "bg-white" : "bg-white/80 active:bg-white/90"}`}
                 >
                   <span className="w-7 tabular-nums">{c.num}.</span>
                   <span className="shrink-0">{c.flag}</span>
@@ -142,4 +154,4 @@ export default function PhoneField({ value, onChange }: Props) {
       )}
     </div>
   );
-      }
+}
