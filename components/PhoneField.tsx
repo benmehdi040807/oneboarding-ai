@@ -51,7 +51,6 @@ export default function PhoneField({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
 
   const selectedRef = useRef<HTMLButtonElement | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
 
   // Compose E.164
   useEffect(() => {
@@ -60,47 +59,43 @@ export default function PhoneField({ value, onChange }: Props) {
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Lock body SANS bloquer le scroll interne (Android OK)
+  // Lock body pendant l’overlay
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Centrer l’option sélectionnée à l’ouverture
+  // Centrer l’option sélectionnée
   useEffect(() => {
-    if (!open) return;
-    if (selectedRef.current) selectedRef.current.scrollIntoView({ block: "nearest" });
+    if (open && selectedRef.current) selectedRef.current.scrollIntoView({ block: "nearest" });
   }, [open]);
 
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
   return (
     <>
-      {/* Sélecteur */}
       <div className="space-y-3">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                       px-4 py-3 text-left text-black flex items-center justify-between"
-          >
-            <span className="truncate">
-              {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
-            </span>
-            <span className={`ml-3 transition ${open ? "rotate-180" : ""}`}>▾</span>
-          </button>
-        </div>
+        {/* BOUTON: cliquable partout */}
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3
+                     text-left text-black flex items-center justify-between active:scale-[.99]"
+        >
+          <span className="truncate">
+            {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
+          </span>
+          <span className={`ml-3 select-none leading-none ${open ? "rotate-180" : ""}`}>▾</span>
+        </button>
 
         {/* Indicatif + numéro */}
         <div className="grid grid-cols-[auto_1fr] gap-3">
           <div
-            className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                       px-4 py-3 text-black flex items-center min-w-[82px]"
+            className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-black flex items-center min-w-[82px]"
             aria-hidden
           >
             {dial}
@@ -109,37 +104,34 @@ export default function PhoneField({ value, onChange }: Props) {
             type="tel"
             inputMode="numeric"
             placeholder="Numéro (sans 0 initial)"
-            className="w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur
-                       px-4 py-3 text-black placeholder-white/90 outline-none"
+            className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black placeholder-black/40 outline-none"
             value={local}
             onChange={(e) => setLocal(e.target.value)}
           />
         </div>
       </div>
 
-      {/* Overlay + liste en PORTAL (au-dessus de tout) */}
+      {/* Overlay + liste (portal, z-index max) */}
       {open &&
         createPortal(
           <div
-            className="fixed inset-0 z-[2147483646] bg-black/40"
-            style={{ overscrollBehavior: "contain" }}
+            className="fixed inset-0 z-[2147483647]"
+            style={{ background: "rgba(0,0,0,0.6)", overscrollBehavior: "contain" }}
             onClick={() => setOpen(false)}
             aria-hidden
           >
             <div
-              ref={listRef}
               onClick={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
               onTouchMove={(e) => e.stopPropagation()}
-              className="fixed left-1/2 -translate-x-1/2 w-[92vw] max-w-lg
-                         rounded-2xl bg-white shadow-2xl border border-black/10
-                         overflow-y-auto text-black divide-y divide-black/10"
+              role="listbox"
+              className="fixed left-1/2 -translate-x-1/2 w-[92vw] max-w-lg rounded-2xl bg-white shadow-2xl border border-black/10 overflow-y-auto text-black divide-y divide-black/10"
               style={{
                 top: "12vh",
-                bottom: "24vh",               // ne pas recouvrir la bannière RGPD
+                bottom: "24vh",
                 WebkitOverflowScrolling: "touch",
-                overscrollBehavior: "contain", // pas de chainage vers la page
-                touchAction: "pan-y",          // scroll vertical OK
+                overscrollBehavior: "contain",
+                touchAction: "pan-y",
               }}
             >
               {COUNTRIES.map((c) => {
@@ -149,10 +141,7 @@ export default function PhoneField({ value, onChange }: Props) {
                     key={c.num}
                     type="button"
                     ref={selected ? selectedRef : null}
-                    onClick={() => {
-                      setCountry(c);
-                      setOpen(false);
-                    }}
+                    onClick={() => { setCountry(c); setOpen(false); }}
                     className={`w-full px-4 py-3 text-left flex items-center gap-2
                                 ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
                   >
@@ -170,4 +159,4 @@ export default function PhoneField({ value, onChange }: Props) {
         )}
     </>
   );
-}
+                                  }
