@@ -11,42 +11,43 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const [e164, setE164] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Verrouille le scroll global sans bloquer les listes internes
+  // Verrou global + neutralisation des éléments fixes (bannière RGPD)
   useEffect(() => {
     if (!open) return;
     const body = document.body, html = document.documentElement;
-    const sBodyOverflow = body.style.overflow;
-    const sBodyOBY = (body.style as any).overscrollBehaviorY;
-    const sHtmlOBY = (html.style as any).overscrollBehaviorY;
+    const prevOverflow = body.style.overflow;
+    const prevBodyOBY = (body.style as any).overscrollBehaviorY;
+    const prevHtmlOBY = (html.style as any).overscrollBehaviorY;
 
     body.style.overflow = "hidden";
     (body.style as any).overscrollBehaviorY = "none";
     (html.style as any).overscrollBehaviorY = "none";
+    html.classList.add("ob-modal-open");
 
     return () => {
-      body.style.overflow = sBodyOverflow;
-      (body.style as any).overscrollBehaviorY = sBodyOBY ?? "";
-      (html.style as any).overscrollBehaviorY = sHtmlOBY ?? "";
+      body.style.overflow = prevOverflow;
+      (body.style as any).overscrollBehaviorY = prevBodyOBY ?? "";
+      (html.style as any).overscrollBehaviorY = prevHtmlOBY ?? "";
+      html.classList.remove("ob-modal-open");
     };
   }, [open]);
 
   if (!open) return null;
 
-  // Création de l’espace
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !e164) return;
     setSubmitting(true);
-
-    const profile = { firstName, lastName, phone: e164 };
-    localStorage.setItem("ob_profile", JSON.stringify(profile));
-    localStorage.setItem("ob_connected", "1");
-
-    window.dispatchEvent(new Event("ob:profile-changed"));
-    window.dispatchEvent(new Event("ob:connected-changed"));
-
-    setSubmitting(false);
-    onClose();
+    try {
+      const profile = { firstName, lastName, phone: e164 };
+      localStorage.setItem("ob_profile", JSON.stringify(profile));
+      localStorage.setItem("ob_connected", "1");
+      window.dispatchEvent(new Event("ob:profile-changed"));
+      window.dispatchEvent(new Event("ob:connected-changed"));
+    } finally {
+      setSubmitting(false);
+      onClose();
+    }
   };
 
   const baseInput =
@@ -56,8 +57,11 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
   return (
     <>
-      {/* Assure l’affichage complet de la dropdown pays */}
+      {/* Styles globaux pour éviter toute interception pendant le modal */}
       <style jsx global>{`
+        /* Désactive les interactions de la bannière RGPD quand le modal est ouvert */
+        .ob-modal-open .fixed.inset-x-0.bottom-0 { pointer-events: none !important; }
+
         .ob-modal-panel { overflow: visible !important; }
         .react-international-phone-country-selector,
         .react-international-phone-country-selector-dropdown,
@@ -75,7 +79,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center
                    bg-black/25 backdrop-blur-md"
-        style={{ overscrollBehavior: "contain" }}  // pas de preventDefault ici
+        style={{ overscrollBehavior: "contain" }}
       >
         <div
           onClick={(e) => e.stopPropagation()}
@@ -121,6 +125,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
             </div>
 
             <button
+              type="submit"
               disabled={submitting || !firstName || !lastName || !e164}
               className="w-full rounded-2xl py-5 text-lg font-semibold text-white
                          shadow hover:opacity-95 active:scale-[.99] transition
