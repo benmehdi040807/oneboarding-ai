@@ -49,27 +49,28 @@ export default function PhoneField({ value, onChange }: Props) {
   const [local, setLocal] = useState<string>("");
   const [open, setOpen] = useState(false);
 
-  const listRef = useRef<HTMLDivElement | null>(null); // conteneur scrollable
+  const selectedRef = useRef<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Compose E.164
+  // Compose en E.164
   useEffect(() => {
     const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
     const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
     onChange(e164);
   }, [country, local, onChange]);
 
-  // À chaque ouverture : repartir en haut de liste (évite l'effet "commence à 6")
+  // À l'ouverture : remonter tout en haut + centrer l’élément sélectionné
   useEffect(() => {
-    if (open && listRef.current) {
-      listRef.current.scrollTop = 0;
-    }
+    if (!open) return;
+    if (listRef.current) listRef.current.scrollTop = 0;
+    if (selectedRef.current) selectedRef.current.scrollIntoView({ block: "nearest" });
   }, [open]);
 
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
   return (
     <div className="space-y-3">
-      {/* 1) Sélecteur de pays */}
+      {/* Sélecteur */}
       <div className="relative">
         <button
           type="button"
@@ -84,7 +85,7 @@ export default function PhoneField({ value, onChange }: Props) {
         </button>
       </div>
 
-      {/* 2) Indicatif + Numéro */}
+      {/* Indicatif + numéro */}
       <div className="grid grid-cols-[auto_1fr] gap-3">
         <div
           className="rounded-2xl border border-black/10 bg-white/60 backdrop-blur
@@ -104,28 +105,26 @@ export default function PhoneField({ value, onChange }: Props) {
         />
       </div>
 
-      {/* 3) Liste flottante — scroll interne fiable */}
+      {/* Liste modale (opaque, capte tous les gestes) */}
       {open && (
         <div
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-[2147483602]"
+          className="fixed inset-0 z-[2147483607] bg-black/30"
+          style={{ overscrollBehavior: "contain", touchAction: "none" }} // bloque les gestes globaux
           aria-hidden
-          // bloque gestes globaux (pull-to-refresh, etc.)
-          style={{ overscrollBehavior: "contain", touchAction: "none" }}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
             ref={listRef}
+            onClick={(e) => e.stopPropagation()}
             className="fixed left-1/2 -translate-x-1/2 bottom-[160px]
                        w-[92vw] max-w-lg rounded-2xl
-                       bg-white/90 backdrop-blur-2xl border border-white/70 shadow-2xl
-                       max-h-[60vh] overflow-y-auto text-black/90
+                       bg-white shadow-2xl border border-black/10
+                       max-h-[60vh] overflow-y-auto text-black
                        divide-y divide-black/10"
-            // autorise le scroll vertical naturel à l’intérieur
             style={{
               WebkitOverflowScrolling: "touch",
               overscrollBehavior: "contain",
-              touchAction: "pan-y",
+              touchAction: "pan-y", // scroll vertical uniquement
             }}
           >
             {COUNTRIES.map((c) => {
@@ -134,12 +133,13 @@ export default function PhoneField({ value, onChange }: Props) {
                 <button
                   key={c.num}
                   type="button"
+                  ref={selected ? selectedRef : null}
                   onClick={() => {
                     setCountry(c);
                     setOpen(false);
                   }}
                   className={`w-full px-4 py-3 text-left flex items-center gap-2
-                              ${selected ? "bg-white" : "bg-white/80 active:bg-white/90"}`}
+                              ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
                 >
                   <span className="w-7 tabular-nums">{c.num}.</span>
                   <span className="shrink-0">{c.flag}</span>
