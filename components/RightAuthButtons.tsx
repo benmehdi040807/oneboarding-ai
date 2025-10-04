@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/* ========= Mini-bannière “Actif” au-dessus de la barre ========= */
+/* ========= Mini-bannière “Actif” au-dessus de la barre =========
+   Objectif “natif” :
+   - Moins d’observateurs : un ResizeObserver sur la barre + resize/scroll.
+   - Pas de MutationObserver (bruit inutile / perf).
+   - ARIA propre (role="status") et pointer-events: none (aucune interférence).
+*/
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -12,32 +17,25 @@ function WelcomeBannerOverBar() {
   const [active, setActive] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
 
-  const BANNER_H = 27; // validé
-  const GAP_Y = 6;     // validé
+  // Spécs validées
+  const BANNER_H = 27;
+  const GAP_Y = 6;
 
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
-  const getOkEl = () => {
-    const btns = Array.from(document.querySelectorAll("button"));
-    return (
-      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
-      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
-      null
-    );
-  };
-
+  // pour info : on évite de dépendre d’un bouton “OK” fragile
   const recompute = () => {
     const bar = getBarEl();
     if (!bar) return setPos(null);
+
     const rect = bar.getBoundingClientRect();
-    const ok = getOkEl();
-    const rightEdge = ok ? ok.getBoundingClientRect().right : rect.right;
-    const width = Math.max(180, rightEdge - rect.left);
+    const width = Math.max(180, rect.width);
     const top = Math.max(8, rect.top - GAP_Y - BANNER_H);
     const left = rect.left;
+
     setPos({ left, top, width });
   };
 
@@ -47,42 +45,46 @@ function WelcomeBannerOverBar() {
       const prof = p ? JSON.parse(p) : null;
       setFirstName(prof?.firstName ?? null);
       setActive(localStorage.getItem("ob_connected") === "1");
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
 
   useEffect(() => {
+    // hôte du portail
     const host = document.createElement("div");
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
 
+    // état initial
     loadProfileState();
-    recompute();
-    setTimeout(recompute, 60);
-    setTimeout(recompute, 240);
+    // position initiale (après paint)
+    requestAnimationFrame(recompute);
 
-    const onChange = () => { loadProfileState(); recompute(); };
+    // écoute changements “connexions / profil”
+    const onChange = () => {
+      loadProfileState();
+      recompute();
+    };
     window.addEventListener("ob:connected-changed", onChange);
     window.addEventListener("ob:profile-changed", onChange);
 
-    const ro = new ResizeObserver(recompute);
+    // observer la barre uniquement (plus simple et plus natif)
     const bar = getBarEl();
+    const ro = new ResizeObserver(recompute);
     if (bar) ro.observe(bar);
 
+    // resize/scroll de la fenêtre
     window.addEventListener("resize", recompute, { passive: true });
     window.addEventListener("scroll", recompute, { passive: true });
-    window.addEventListener("load", recompute, { once: true });
-
-    const mo = new MutationObserver(recompute);
-    mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
-      ro.disconnect();
-      mo.disconnect();
       window.removeEventListener("resize", recompute);
       window.removeEventListener("scroll", recompute);
+      ro.disconnect();
       host.remove();
     };
   }, []);
@@ -91,13 +93,15 @@ function WelcomeBannerOverBar() {
 
   return createPortal(
     <div
+      role="status"
+      aria-live="polite"
       style={{
         position: "fixed",
         left: pos.left,
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 2147483390, // au-dessus de la barre, sous les vrais modals
+        zIndex: 2147483390, // au-dessus de la barre, sous les “vrais” modals
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -107,6 +111,7 @@ function WelcomeBannerOverBar() {
         justifyContent: "center",
         paddingLeft: 12,
         paddingRight: 12,
+        backdropFilter: "blur(2px)",
       }}
     >
       <div className="truncate text-center text-[12px] sm:text-[13px] text-white font-medium">
@@ -135,6 +140,7 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
 
+  // État connexion (natif = simple localStorage + custom event)
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -143,14 +149,15 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // même skin que les boutons gauche — conteneur inline-flex
+  // Skin identique aux boutons gauche
   const circle =
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
+  // Bleu = ouverture fiche d’inscription (le <dialog> natif est géré dans SubscribeModal)
   const onBlueClick = () => setOpenSubscribe(true);
 
-  // Doré => (dé)connexion uniquement (jamais d’incitation)
+  // Doré = (dé)connexion uniquement (comportement clair, sans incitation)
   const onGoldClick = () => {
     const hasProfile = !!localStorage.getItem("ob_profile");
     if (connected) {
@@ -206,7 +213,10 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
+      {/* Bannière légère, sans interférence */}
       <WelcomeBannerOverBar />
+
+      {/* Modal d’inscription (utilise <dialog> natif dans SubscribeModal) */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
