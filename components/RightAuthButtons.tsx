@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/** ----------------- Bannière immersive type « mini barre » ----------------- */
+/* ------------------------------------------------------------------ */
+/*  Bannière de bienvenue (au-dessus de la barre) – version validée   */
+/*  H = 27px, GAP = 6px, « Actif » dégradé bleu                       */
+/* ------------------------------------------------------------------ */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -12,8 +15,8 @@ function WelcomeBannerOverBar() {
   const [active, setActive] = useState(false);
 
   const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
+    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
   const getOkEl = () => {
@@ -51,7 +54,7 @@ function WelcomeBannerOverBar() {
       top: ${top}px;
       width: ${width}px;
       height: ${height}px;
-      z-index: 2147483646;
+      z-index: 2147483646; /* sous les vrais modaux, au-dessus du fond */
       display: block;
       pointer-events: none;
       border-radius: 12px;
@@ -138,7 +141,9 @@ function WelcomeBannerOverBar() {
   );
 }
 
-/** -------- Capsule flottante « erreur / créer un espace » -------- */
+/* ------------------------------------------------------------------ */
+/*  Capsule d’erreur (bas-centre) – 1 seul bouton + croix fiable      */
+/* ------------------------------------------------------------------ */
 function ErrorCapsule({
   open,
   onClose,
@@ -151,32 +156,20 @@ function ErrorCapsule({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
-    null;
-
   const position = () => {
     const host = hostRef.current;
-    const bar = getBarEl();
-    if (!host || !bar) {
-      setTimeout(position, 120);
-      return;
-    }
+    if (!host) return;
 
-    const r = bar.getBoundingClientRect();
-    const centerX = r.left + r.width / 2;
-    const top = Math.max(8, r.top - 16 - 54);
-
+    const bottom = 24; // au-dessus du bord inférieur
     host.style.cssText = `
       position: fixed;
-      left: ${centerX}px;
-      top: ${top}px;
+      left: 50%;
+      bottom: ${bottom}px;
       transform: translateX(-50%);
-      z-index: 56;
+      z-index: 2147483647; /* au-dessus de la bannière */
       display: ${open ? "block" : "none"};
       pointer-events: auto;
-      max-width: min(92vw, 540px);
+      max-width: min(92vw, 560px);
     `;
   };
 
@@ -187,19 +180,16 @@ function ErrorCapsule({
     hostRef.current = host;
     setMounted(true);
 
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    if (bar) ro.observe(bar);
+    const onPos = () => position();
+    window.addEventListener("resize", onPos);
+    window.addEventListener("scroll", onPos);
 
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position);
-    const t1 = setTimeout(position, 40);
-    const t2 = setTimeout(position, 140);
+    const t1 = setTimeout(onPos, 40);
+    const t2 = setTimeout(onPos, 140);
 
     return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
+      window.removeEventListener("resize", onPos);
+      window.removeEventListener("scroll", onPos);
       clearTimeout(t1);
       clearTimeout(t2);
       host.remove();
@@ -214,7 +204,7 @@ function ErrorCapsule({
 
   return createPortal(
     <div
-      className="rounded-3xl px-4 py-3 backdrop-blur-2xl border shadow-xl"
+      className="relative rounded-3xl px-5 py-4 backdrop-blur-2xl border shadow-xl"
       style={{
         background: "rgba(255,255,255,0.32)",
         borderColor: "rgba(255,255,255,0.6)",
@@ -223,26 +213,41 @@ function ErrorCapsule({
       role="dialog"
       aria-modal="true"
     >
-      <div className="text-[13px] sm:text-[14px] text-black/85 text-center">
+      {/* X large et fiable */}
+      <button
+        onClick={onClose}
+        aria-label="Fermer"
+        className="absolute -right-3 -top-3 h-11 w-11 rounded-full bg-white/90 hover:bg-white text-black/80 text-2xl leading-none
+                   flex items-center justify-center select-none cursor-pointer"
+        style={{ minWidth: 44, minHeight: 44 }}
+      >
+        ×
+      </button>
+
+      <div className="text-[14px] text-black/85 text-center">
         <div className="font-semibold mb-1">Aucun espace trouvé sur cet appareil</div>
         <div className="opacity-80 mb-4">
           Pour continuer, crée ton espace avec le <span className="font-semibold">O bleu</span>.
         </div>
 
-        <button
-          onClick={onCreate}
-          className="px-4 py-2.5 rounded-xl text-white font-medium shadow hover:opacity-95 active:scale-[.99] transition
-                     bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
-        >
-          Créer mon espace
-        </button>
+        <div className="flex items-center justify-center">
+          <button
+            onClick={onCreate}
+            className="px-5 py-3 rounded-2xl text-white font-semibold shadow hover:opacity-95 active:scale-[.99] transition
+                       bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
+          >
+            Créer mon espace
+          </button>
+        </div>
       </div>
     </div>,
     hostRef.current
   );
 }
 
-/** ------------------------- Boutons droits ------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Boutons droits (miroir)                                           */
+/* ------------------------------------------------------------------ */
 export default function RightAuthButtons() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -260,8 +265,8 @@ export default function RightAuthButtons() {
   }, []);
 
   const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
+    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
   const getOkEl = () => {
@@ -273,13 +278,13 @@ export default function RightAuthButtons() {
     );
   };
 
+  // Masquer si un overlay/modale visible
   const overlayIsVisible = (el: Element) => {
     const s = window.getComputedStyle(el as HTMLElement);
     if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
     const rect = (el as HTMLElement).getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   };
-
   const checkOverlay = () => {
     const candidates = [
       ...document.querySelectorAll('[role="dialog"]'),
@@ -289,6 +294,7 @@ export default function RightAuthButtons() {
     setHiddenByOverlay(candidates.some(overlayIsVisible));
   };
 
+  // Position miroir des boutons de gauche – sans z-index forcé
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
@@ -322,7 +328,6 @@ export default function RightAuthButtons() {
       position: fixed;
       left: ${left}px;
       top: ${top}px;
-      z-index: 2147483400;
       display: ${hiddenByOverlay ? "none" : "block"};
       pointer-events: auto;
     `;
@@ -383,8 +388,7 @@ export default function RightAuthButtons() {
   if (!mounted || !hostRef.current) return null;
 
   const circle =
-    "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
-    "flex items-center justify-center backdrop-blur select-none";
+    "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow flex items-center justify-center backdrop-blur select-none";
 
   const onGoldClick = () => {
     if (connected) {
@@ -396,7 +400,7 @@ export default function RightAuthButtons() {
         localStorage.setItem("ob_connected", "1");
         window.dispatchEvent(new Event("ob:connected-changed"));
       } else {
-        setOpenError(true);
+        setOpenError(true); // capsule en bas
       }
     }
   };
@@ -408,9 +412,11 @@ export default function RightAuthButtons() {
         <button
           type="button"
           aria-label="Créer mon espace"
-          onClick={() => setOpenSubscribe(true)}
+          onClick={() => {
+            setOpenError(false);
+            setOpenSubscribe(true);
+          }}
           className={circle}
-          title="Créer mon espace"
         >
           <span
             className="text-xl font-extrabold"
@@ -425,7 +431,7 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (toujours doré, dégradé doux) */}
+        {/* Connexion / Déconnexion (doré) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -447,10 +453,10 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière immersive au-dessus de la barre */}
+      {/* Bannière de bienvenue */}
       <WelcomeBannerOverBar />
 
-      {/* Capsule d’erreur (bas centre, X implicite via click extérieur, 1 seul bouton) */}
+      {/* Capsule d’erreur (bas) */}
       <ErrorCapsule
         open={openError}
         onClose={() => setOpenError(false)}
@@ -465,4 +471,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-       }
+                            }
