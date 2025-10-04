@@ -5,17 +5,19 @@ import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-/* Message compact au-dessus de la barre (resté inchangé côté page) */
+/* Message texte simple au-dessus de la barre (en plus de la bannière compacte) */
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     const load = () => {
-      const p = typeof window !== "undefined" ? localStorage.getItem("ob_profile") : null;
-      const prof = p ? JSON.parse(p) : null;
-      setFirstName(prof?.firstName ?? null);
-      setActive(localStorage.getItem("ob_connected") === "1");
+      try {
+        const p = localStorage.getItem("ob_profile");
+        const prof = p ? JSON.parse(p) : null;
+        setFirstName(prof?.firstName ?? null);
+        setActive(localStorage.getItem("ob_connected") === "1");
+      } catch {}
     };
     load();
     window.addEventListener("ob:connected-changed", load);
@@ -32,7 +34,10 @@ function WelcomeMessageAboveBar() {
     <div className="w-full text-center mt-3 mb-2">
       <span className="text-lg font-semibold text-black/80">
         Bonjour {firstName} — Espace désormais :
-        <span className="ml-1 font-bold" style={{ background: "linear-gradient(90deg,#3b82f6,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+        <span
+          className="ml-1 font-bold"
+          style={{ background: "linear-gradient(90deg,#3b82f6,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+        >
           Actif
         </span>
       </span>
@@ -49,68 +54,65 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // Verrouillage scroll de la page quand ouvert
+  // Verrouille le scroll de page + empêche pull-to-refresh global
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    const prevOBY = (document.body.style as any).overscrollBehaviorY;
-    document.body.style.overflow = "hidden";
-    (document.body.style as any).overscrollBehaviorY = "contain";
+    const body = document.body;
+    const html = document.documentElement;
+
+    const prevOverflow = body.style.overflow;
+    const prevBodyOBY = (body.style as any).overscrollBehaviorY;
+    const prevHtmlOBY = (html.style as any).overscrollBehaviorY;
+
+    body.style.overflow = "hidden";
+    (body.style as any).overscrollBehaviorY = "none";
+    (html.style as any).overscrollBehaviorY = "none";
+
     return () => {
-      document.body.style.overflow = prev;
-      (document.body.style as any).overscrollBehaviorY = prevOBY ?? "";
+      body.style.overflow = prevOverflow;
+      (body.style as any).overscrollBehaviorY = prevBodyOBY ?? "";
+      (html.style as any).overscrollBehaviorY = prevHtmlOBY ?? "";
     };
   }, [open]);
 
-  // Empêcher pull-to-refresh / overscroll hors du panneau
+  // Contient les gestes (tactile / roulette) au sein du panel
   useEffect(() => {
     if (!open) return;
     const overlay = overlayRef.current!;
     const panel = panelRef.current!;
 
-    // Helper: l’élément cible peut-il scroller ?
-    const canScroll = (el: HTMLElement | null) => {
-      while (el && el !== panel && el !== overlay) {
-        const style = getComputedStyle(el);
-        const oy = style.overflowY;
-        if (
-          (oy === "auto" || oy === "scroll") &&
-          el.scrollHeight > el.clientHeight
-        ) {
+    const isScrollable = (el: HTMLElement | null) => {
+      while (el && el !== overlay) {
+        if (el === panel) {
+          if (panel.scrollHeight > panel.clientHeight) return true;
+        }
+        const st = getComputedStyle(el);
+        if ((st.overflowY === "auto" || st.overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
           return true;
         }
-        el = el.parentElement as HTMLElement | null;
+        el = el.parentElement;
       }
-      // le panel lui-même peut scroller
-      return panel.scrollHeight > panel.clientHeight;
+      return false;
     };
 
-    const preventIfOverlay = (e: Event) => {
-      // si le geste part de l’overlay (en dehors du contenu) → on bloque
-      if (e.target === overlay) {
-        e.preventDefault();
-        return;
-      }
-      // si ça vient de l’intérieur mais aucun parent scrollable → on bloque pour éviter le refresh
-      if (!canScroll(e.target as HTMLElement)) {
-        e.preventDefault();
-      }
+    const guard = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (!isScrollable(target)) e.preventDefault(); // bloque l’overscroll global (donc pas de refresh)
     };
 
-    // iOS/Android (tactile)
-    overlay.addEventListener("touchmove", preventIfOverlay, { passive: false });
-    // Desktop touchpad/roulette
-    overlay.addEventListener("wheel", preventIfOverlay, { passive: false });
+    overlay.addEventListener("touchmove", guard, { passive: false });
+    overlay.addEventListener("wheel", guard, { passive: false });
 
     return () => {
-      overlay.removeEventListener("touchmove", preventIfOverlay);
-      overlay.removeEventListener("wheel", preventIfOverlay);
+      overlay.removeEventListener("touchmove", guard);
+      overlay.removeEventListener("wheel", guard);
     };
   }, [open]);
 
   if (!open) return null;
 
-  // Création espace
+  // Création de l’espace
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !e164) return;
@@ -120,11 +122,9 @@ export default function SubscribeModal({ open, onClose }: Props) {
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
 
-    // Notifier le reste de l’UI (et laisser à React/DOM le temps de respirer)
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new Event("ob:profile-changed"));
-      window.dispatchEvent(new Event("ob:connected-changed"));
-    });
+    // Notifie immédiatement le reste de l’UI (bannière incluse), puis ferme
+    window.dispatchEvent(new Event("ob:profile-changed"));
+    window.dispatchEvent(new Event("ob:connected-changed"));
 
     setSubmitting(false);
     onClose();
@@ -137,6 +137,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
   return (
     <>
+      {/* Message textuel au-dessus de la barre */}
       <WelcomeMessageAboveBar />
 
       <div
@@ -147,24 +148,17 @@ export default function SubscribeModal({ open, onClose }: Props) {
           if (e.target === e.currentTarget) onClose();
         }}
         className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-md"
-        style={{
-          overscrollBehavior: "contain",
-          touchAction: "none",
-        }}
+        style={{ overscrollBehavior: "contain", touchAction: "none" }}
       >
         <div
           ref={panelRef}
           onClick={(e) => e.stopPropagation()}
           className="relative w-full sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-3xl border border-white/60
                      bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl p-4 sm:p-6 m-0 sm:m-6"
-          style={{
-            touchAction: "pan-y",
-            overscrollBehavior: "contain",
-          }}
+          style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-black/90">Créer mon espace</h2>
-            {/* X universel pour fermer */}
             <button
               onClick={onClose}
               className="h-10 w-10 rounded-full bg-white/80 hover:bg-white/95 text-black/80
@@ -196,15 +190,10 @@ export default function SubscribeModal({ open, onClose }: Props) {
             />
 
             {/* Pays + Indicatif + Numéro */}
-            <div
-              // wrapper qui contraint aussi les menus portalisés (certains libs les exportent dans body)
-              className="relative"
-              style={{ overscrollBehavior: "contain" }}
-            >
+            <div className="relative" style={{ overscrollBehavior: "contain" }}>
               <PhoneField value={e164} onChange={setE164} />
             </div>
 
-            {/* Bouton principal */}
             <button
               disabled={submitting || !firstName || !lastName || !e164}
               className="w-full rounded-2xl py-5 text-lg font-semibold text-white
@@ -219,4 +208,4 @@ export default function SubscribeModal({ open, onClose }: Props) {
       </div>
     </>
   );
-}
+        }
