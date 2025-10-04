@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import "./globals.css";
+import RgpdBanner from "@/components/RgpdBanner";
 
 export const metadata = {
   metadataBase: new URL("https://oneboardingai.com"),
@@ -44,17 +45,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#B3E5FC" />
       </head>
 
-      {/* 
+      {/*
         Natif :
-        - Texte noir par défaut (les selects/inputs système restent lisibles)
-        - Couleurs système (color-scheme: light) pour éviter les styles "dark" auto
-        - Pas d’overflow global ni de fond sombre ici
+        - Texte noir par défaut (inputs/selects système lisibles)
+        - color-scheme: light pour éviter les thèmes "dark" auto
+        - Pas d’overflow global ni de fond imposé ici
       */}
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
-        {/* Conteneur central neutre (la page se charge de son propre fond si besoin) */}
+        {/* Conteneur central neutre (les pages gèrent leur propre fond si besoin) */}
         <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">
           {children}
         </div>
+
+        {/* Bandeau RGPD (natif) — rendu en bas de page */}
+        <RgpdBanner />
       </body>
     </html>
   );
