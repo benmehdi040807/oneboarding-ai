@@ -209,6 +209,7 @@ function ErrorCapsule({
       role="dialog"
       aria-modal="true"
     >
+      {/* Fermeture par X seulement (comme validé) */}
       <button
         onClick={onClose}
         aria-label="Fermer"
@@ -237,14 +238,13 @@ function ErrorCapsule({
   );
 }
 
-/** ------------------------- Boutons droits ------------------------ */
+/** ------------------------- Boutons droits (INLINE) ------------------------ */
 export default function RightAuthButtons() {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openError, setOpenError] = useState(false);
   const [connected, setConnected] = useState(false);
 
+  // état connecté
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -257,95 +257,9 @@ export default function RightAuthButtons() {
     };
   }, []);
 
-  const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
-    null;
-
-  const getOkEl = () => {
-    const btns = Array.from(document.querySelectorAll("button"));
-    return (
-      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
-      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
-      null
-    );
-  };
-
-  const position = () => {
-    const host = hostRef.current;
-    const bar  = getBarEl();
-    if (!host || !bar) { setTimeout(position, 120); return; }
-
-    const barRect = bar.getBoundingClientRect();
-    const ok = getOkEl();
-    let rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
-
-    const BTN = 48;
-    const BETWEEN = 10;
-    const GAP_Y = 10;
-
-    const totalWidth = 2 * BTN + BETWEEN;
-    if (!Number.isFinite(rightEdge) || rightEdge < barRect.left + totalWidth) {
-      rightEdge = barRect.right;
-    }
-
-    const minLeft = 8;
-    const maxLeft = Math.max(minLeft, window.innerWidth - totalWidth - 8);
-
-    let left = rightEdge - totalWidth;
-    left = Math.min(Math.max(left, minLeft), maxLeft);
-
-    const top = barRect.bottom + GAP_Y;
-
-    host.style.cssText = `
-      position: fixed;
-      left: ${left}px;
-      top: ${top}px;
-      z-index: 2147483400;
-      display: block;
-      pointer-events: auto;
-    `;
-  };
-
-  useEffect(() => {
-    const host = document.createElement("div");
-    host.style.display = "block";
-    hostRef.current = host;
-    document.body.appendChild(host);
-    setMounted(true);
-
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    const ok  = getOkEl();
-    if (bar) ro.observe(bar);
-    if (ok)  ro.observe(ok);
-
-    window.addEventListener("resize", position, { passive: true });
-    window.addEventListener("scroll", position, { passive: true });
-    window.addEventListener("load", position, { once: true });
-
-    const mo = new MutationObserver(() => position());
-    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
-
-    const t1 = setTimeout(position, 40);
-    const t2 = setTimeout(position, 140);
-    const t3 = setTimeout(position, 300);
-
-    return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      ro.disconnect();
-      mo.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
-      host.remove();
-    };
-  }, []);
-
-  if (!mounted || !hostRef.current) return null;
-
   const circle =
-    "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow " +
-    "flex items-center justify-center backdrop-blur select-none";
+    "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] " +
+    "grid place-items-center transition select-none";
 
   const onGoldClick = () => {
     if (connected) {
@@ -362,14 +276,17 @@ export default function RightAuthButtons() {
     }
   };
 
-  return createPortal(
+  return (
     <>
-      <div className="flex items-center gap-[10px]">
+      {/* Boutons INLINE (miroir des boutons gauche) */}
+      <div className="flex items-center gap-3">
+        {/* Création d’espace */}
         <button
           type="button"
           aria-label="Créer mon espace"
           onClick={() => setOpenSubscribe(true)}
           className={circle}
+          title="Créer mon espace"
         >
           <span
             className="text-xl font-extrabold"
@@ -384,6 +301,7 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
+        {/* Connexion / Déconnexion */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -408,7 +326,7 @@ export default function RightAuthButtons() {
       {/* Bannière immersive au-dessus de la barre */}
       <WelcomeBannerOverBar />
 
-      {/* Capsule d’erreur */}
+      {/* Capsule d’erreur (flottante, bas-centre) */}
       <ErrorCapsule
         open={openError}
         onClose={() => setOpenError(false)}
@@ -417,7 +335,6 @@ export default function RightAuthButtons() {
 
       {/* Modal de création d’espace */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
-    </>,
-    hostRef.current
+    </>
   );
-      }
+}
