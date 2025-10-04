@@ -1,59 +1,52 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/** ----------------- Bannière immersive type « mini barre » ----------------- */
+/* ================= Bannière « mini barre » au-dessus de la barre ================= */
 function WelcomeBannerOverBar() {
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  const portalHost = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+
+  const BANNER_H = 27; // px validé
+  const GAP_Y = 6;     // px validé
 
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
-  // Constantes validées
-  const BANNER_H = 27; // px
-  const GAP_Y = 6;     // px
+  const getOkEl = () => {
+    const btns = Array.from(document.querySelectorAll("button"));
+    return (
+      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
+      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
+      null
+    );
+  };
 
-  const position = () => {
-    const host = hostRef.current;
+  const recompute = () => {
     const bar = getBarEl();
-    if (!host || !bar) return;
+    if (!bar) return setPos(null);
 
     const barRect = bar.getBoundingClientRect();
-    const okBtn =
-      (Array.from(document.querySelectorAll("button")).find(
-        (b) => (b.textContent || "").trim() === "OK" || (b.getAttribute("aria-label") || "").toLowerCase() === "ok"
-      ) as HTMLElement) || null;
-    const rightEdge = okBtn ? okBtn.getBoundingClientRect().right : barRect.right;
+    const ok = getOkEl();
+    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
     const width = Math.max(180, rightEdge - barRect.left);
-    const height = BANNER_H;
-    const top = Math.max(8, barRect.top - GAP_Y - height);
+    const top = Math.max(8, barRect.top - GAP_Y - BANNER_H);
     const left = barRect.left;
-
-    host.style.cssText = `
-      position: fixed;
-      left: ${left}px;
-      top: ${top}px;
-      width: ${width}px;
-      height: ${height}px;
-      z-index: 60;
-      display: block;
-      pointer-events: none;
-      border-radius: 12px;
-    `;
+    setPos({ left, top, width });
   };
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "block";
     document.body.appendChild(host);
-    hostRef.current = host;
+    portalHost.current = host;
     setMounted(true);
 
     const load = () => {
@@ -68,60 +61,74 @@ function WelcomeBannerOverBar() {
     window.addEventListener("ob:connected-changed", onChange);
     window.addEventListener("ob:profile-changed", onChange);
 
-    const ro = new ResizeObserver(position);
+    const ro = new ResizeObserver(recompute);
     const bar = getBarEl();
     if (bar) ro.observe(bar);
 
-    window.addEventListener("resize", position, { passive: true });
-    window.addEventListener("scroll", position, { passive: true });
-    window.addEventListener("load", position, { once: true });
+    window.addEventListener("resize", recompute, { passive: true });
+    window.addEventListener("scroll", recompute, { passive: true });
+    window.addEventListener("load", recompute, { once: true });
 
-    const t1 = setTimeout(position, 40);
-    const t2 = setTimeout(position, 140);
-    const t3 = setTimeout(position, 300);
+    const t1 = setTimeout(recompute, 40);
+    const t2 = setTimeout(recompute, 140);
+    const t3 = setTimeout(recompute, 300);
 
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
       ro.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
+      window.removeEventListener("resize", recompute);
+      window.removeEventListener("scroll", recompute);
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       host.remove();
     };
   }, []);
 
-  if (!mounted || !hostRef.current || !active || !firstName) return null;
+  // Conditions d’affichage
+  if (!mounted || !portalHost.current || !active || !firstName || !pos) return null;
 
-  // On injecte directement dans le host (pas besoin de createPortal ici)
-  hostRef.current.innerHTML = "";
-  const container = document.createElement("div");
-  container.className = "w-full h-full flex items-center justify-center px-3";
-  Object.assign(container.style, {
-    background: "rgba(17,24,39,0.12)",
-    boxShadow: "0 10px 24px rgba(0,0,0,.14)",
-    borderRadius: "12px",
-  });
-
-  const inner = document.createElement("div");
-  inner.className = "truncate text-center text-[12px] sm:text-[13px] text-white font-medium";
-  inner.innerHTML =
-    `Bonjour&nbsp;${firstName}&nbsp;` +
-    "○&nbsp;<span class='font-semibold'>Espace</span>&nbsp;désormais&nbsp;:&nbsp;" +
-    `<span class='font-extrabold' style="-webkit-background-clip:text;-webkit-text-fill-color:transparent;background:linear-gradient(90deg,#3b82f6,#06b6d4);">Actif</span>`;
-  container.appendChild(inner);
-
-  // Monte à chaque render (léger mais sûr)
-  requestAnimationFrame(() => {
-    try {
-      hostRef.current?.appendChild(container);
-    } catch {}
-  });
-
-  return null;
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        left: pos.left,
+        top: pos.top,
+        width: pos.width,
+        height: BANNER_H,
+        zIndex: 60,
+        pointerEvents: "none",
+        borderRadius: 12,
+        background: "rgba(17,24,39,0.12)",
+        boxShadow: "0 10px 24px rgba(0,0,0,.14)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingLeft: 12,
+        paddingRight: 12,
+      }}
+    >
+      <div className="truncate text-center text-[12px] sm:text-[13px] text-white font-medium">
+        {"Bonjour\u00A0" + firstName}
+        {"\u00A0\u25CB\u00A0"}
+        <span className="font-semibold">Espace</span>
+        {"\u00A0désormais :\u00A0"}
+        <span
+          className="font-extrabold"
+          style={{
+            background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Actif
+        </span>
+      </div>
+    </div>,
+    portalHost.current
+  );
 }
 
-/** ------------------------- Boutons droits (inline) ------------------------ */
+/* =========================== Boutons droits (inline) =========================== */
 export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -134,19 +141,17 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
+  // Mêmes classes que les boutons gauches (miroir)
   const circle =
-    // EXACTEMENT la même classe que les boutons GAUCHE (effet miroir)
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
   const onGoldClick = () => {
     const profile = localStorage.getItem("ob_profile");
     if (connected) {
-      // Déconnexion
       localStorage.setItem("ob_connected", "0");
       window.dispatchEvent(new Event("ob:connected-changed"));
     } else {
-      // Connexion : si profil existe → connecter ; sinon ouvrir création d’espace
       if (profile) {
         localStorage.setItem("ob_connected", "1");
         window.dispatchEvent(new Event("ob:connected-changed"));
@@ -158,9 +163,8 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      {/* Boutons rendus INLINE, donc toujours visibles */}
       <div className="flex items-center gap-3">
-        {/* Création d’espace (O dégradé bleu→turquoise) */}
+        {/* Création d’espace (O bleu→turquoise) */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -181,7 +185,7 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (doré, dégradé doux) */}
+        {/* Connexion / Déconnexion (doré) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -203,10 +207,10 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière immersive au-dessus de la barre */}
+      {/* Bannière au-dessus de la barre */}
       <WelcomeBannerOverBar />
 
-      {/* Modal de création d’espace */}
+      {/* Modal création d’espace */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
