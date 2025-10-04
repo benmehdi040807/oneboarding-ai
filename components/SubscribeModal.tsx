@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-/* --------- Message au-dessus de la barre (optionnel/local) --------- */
+/* Message compact au-dessus de la barre (resté inchangé côté page) */
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
@@ -32,39 +32,85 @@ function WelcomeMessageAboveBar() {
     <div className="w-full text-center mt-3 mb-2">
       <span className="text-lg font-semibold text-black/80">
         Bonjour {firstName} — Espace désormais :
-        <span className="ml-1 text-green-500 font-bold">Actif</span>
+        <span className="ml-1 font-bold" style={{ background: "linear-gradient(90deg,#3b82f6,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          Actif
+        </span>
       </span>
     </div>
   );
 }
 
 export default function SubscribeModal({ open, onClose }: Props) {
-  // états simples
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
-  const [e164, setE164] = useState(""); // rempli par PhoneField
+  const [e164, setE164] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  /* ----- verrouillage scroll page quand ouvert + ESC pour fermer ----- */
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // Verrouillage scroll de la page quand ouvert
   useEffect(() => {
     if (!open) return;
-    const prevOverflow = document.body.style.overflow;
+    const prev = document.body.style.overflow;
+    const prevOBY = (document.body.style as any).overscrollBehaviorY;
     document.body.style.overflow = "hidden";
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    (document.body.style as any).overscrollBehaviorY = "contain";
+    return () => {
+      document.body.style.overflow = prev;
+      (document.body.style as any).overscrollBehaviorY = prevOBY ?? "";
     };
-    window.addEventListener("keydown", onKey);
+  }, [open]);
+
+  // Empêcher pull-to-refresh / overscroll hors du panneau
+  useEffect(() => {
+    if (!open) return;
+    const overlay = overlayRef.current!;
+    const panel = panelRef.current!;
+
+    // Helper: l’élément cible peut-il scroller ?
+    const canScroll = (el: HTMLElement | null) => {
+      while (el && el !== panel && el !== overlay) {
+        const style = getComputedStyle(el);
+        const oy = style.overflowY;
+        if (
+          (oy === "auto" || oy === "scroll") &&
+          el.scrollHeight > el.clientHeight
+        ) {
+          return true;
+        }
+        el = el.parentElement as HTMLElement | null;
+      }
+      // le panel lui-même peut scroller
+      return panel.scrollHeight > panel.clientHeight;
+    };
+
+    const preventIfOverlay = (e: Event) => {
+      // si le geste part de l’overlay (en dehors du contenu) → on bloque
+      if (e.target === overlay) {
+        e.preventDefault();
+        return;
+      }
+      // si ça vient de l’intérieur mais aucun parent scrollable → on bloque pour éviter le refresh
+      if (!canScroll(e.target as HTMLElement)) {
+        e.preventDefault();
+      }
+    };
+
+    // iOS/Android (tactile)
+    overlay.addEventListener("touchmove", preventIfOverlay, { passive: false });
+    // Desktop touchpad/roulette
+    overlay.addEventListener("wheel", preventIfOverlay, { passive: false });
 
     return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKey);
+      overlay.removeEventListener("touchmove", preventIfOverlay);
+      overlay.removeEventListener("wheel", preventIfOverlay);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
-  // SUBMIT : on “crée l’espace” localement
+  // Création espace
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !e164) return;
@@ -74,63 +120,56 @@ export default function SubscribeModal({ open, onClose }: Props) {
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
 
-    // Notifier le reste de l’UI : met à jour bannière & état
-    window.dispatchEvent(new Event("ob:profile-changed"));
-    window.dispatchEvent(new Event("ob:connected-changed"));
+    // Notifier le reste de l’UI (et laisser à React/DOM le temps de respirer)
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("ob:profile-changed"));
+      window.dispatchEvent(new Event("ob:connected-changed"));
+    });
 
     setSubmitting(false);
     onClose();
   };
 
-  // styles : placeholders clairs (blanc/gris) avant saisie
   const baseInput =
     "w-full rounded-2xl border border-black/10 bg-white/60 backdrop-blur " +
     "px-4 py-3 text-black placeholder-white/90 outline-none " +
     "focus:ring-2 focus:ring-[#2E6CF5]/40 focus:border-transparent";
 
-  /* ----- Handlers pour neutraliser le pull-to-refresh iOS/Android ----- */
-  const onOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
-  const onOverlayTouchMove: React.TouchEventHandler<HTMLDivElement> = (e) => {
-    // Si on glisse sur l'overlay (hors panneau), on empêche le refresh/page pan
-    if (e.target === e.currentTarget && e.cancelable) {
-      e.preventDefault();
-    }
-  };
-
   return (
     <>
-      {/* (Facultatif) Petit message au-dessus de la barre quand déjà connecté */}
       <WelcomeMessageAboveBar />
 
       <div
+        ref={overlayRef}
         role="dialog"
         aria-modal="true"
-        onClick={onOverlayClick}
-        onTouchMove={onOverlayTouchMove}
-        className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center
-                   bg-black/25 backdrop-blur-md"
-        // Bloque le pull-to-refresh/pan global sur de nombreux UA
-        style={{ overscrollBehavior: "contain", touchAction: "none" }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-md"
+        style={{
+          overscrollBehavior: "contain",
+          touchAction: "none",
+        }}
       >
         <div
+          ref={panelRef}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full sm:max-w-lg rounded-3xl border border-white/60
-                     bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl
-                     p-4 sm:p-6 m-0 sm:m-6"
-          // Autorise uniquement le scroll vertical interne et évite l’overscroll propagation
-          style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
+          className="relative w-full sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-3xl border border-white/60
+                     bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl p-4 sm:p-6 m-0 sm:m-6"
+          style={{
+            touchAction: "pan-y",
+            overscrollBehavior: "contain",
+          }}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-black/90">Créer mon espace</h2>
+            {/* X universel pour fermer */}
             <button
               onClick={onClose}
               className="h-10 w-10 rounded-full bg-white/80 hover:bg-white/95 text-black/80
                          flex items-center justify-center text-xl"
               aria-label="Fermer"
-              title="Fermer"
             >
               ×
             </button>
@@ -157,9 +196,15 @@ export default function SubscribeModal({ open, onClose }: Props) {
             />
 
             {/* Pays + Indicatif + Numéro */}
-            <PhoneField value={e164} onChange={setE164} />
+            <div
+              // wrapper qui contraint aussi les menus portalisés (certains libs les exportent dans body)
+              className="relative"
+              style={{ overscrollBehavior: "contain" }}
+            >
+              <PhoneField value={e164} onChange={setE164} />
+            </div>
 
-            {/* Bouton principal agrandi */}
+            {/* Bouton principal */}
             <button
               disabled={submitting || !firstName || !lastName || !e164}
               className="w-full rounded-2xl py-5 text-lg font-semibold text-white
