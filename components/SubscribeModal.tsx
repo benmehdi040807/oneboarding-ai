@@ -5,7 +5,7 @@ import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-/* Message texte simple au-dessus de la barre (en plus de la bannière compacte) */
+/* Message texte simple au-dessus de la barre (complément visuel) */
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
@@ -75,7 +75,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
     };
   }, [open]);
 
-  // Contient les gestes (tactile / roulette) au sein du panel
+  // Contient les gestes (tactile/roulette) au sein du panel
   useEffect(() => {
     if (!open) return;
     const overlay = overlayRef.current!;
@@ -90,7 +90,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
         if ((st.overflowY === "auto" || st.overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
           return true;
         }
-        el = el.parentElement;
+        el = el.parentElement as HTMLElement | null;
       }
       return false;
     };
@@ -98,7 +98,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
     const guard = (e: Event) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (!isScrollable(target)) e.preventDefault(); // bloque l’overscroll global (donc pas de refresh)
+      if (!isScrollable(target)) e.preventDefault();
     };
 
     overlay.addEventListener("touchmove", guard, { passive: false });
@@ -108,6 +108,27 @@ export default function SubscribeModal({ open, onClose }: Props) {
       overlay.removeEventListener("touchmove", guard);
       overlay.removeEventListener("wheel", guard);
     };
+  }, [open]);
+
+  // *** Fix: forcer la liste des pays à s’ouvrir en haut (scrollTop = 0) ***
+  useEffect(() => {
+    if (!open) return;
+    const mo = new MutationObserver((mut) => {
+      for (const m of mut) {
+        m.addedNodes.forEach((n) => {
+          if (!(n instanceof HTMLElement)) return;
+          const list =
+            (n.matches && n.matches('[role="listbox"], .country-list, .react-international-phone-country-selector'))
+              ? n
+              : n.querySelector?.('[role="listbox"], .country-list, .react-international-phone-country-selector');
+          if (list instanceof HTMLElement) {
+            list.scrollTop = 0;
+          }
+        });
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => mo.disconnect();
   }, [open]);
 
   if (!open) return null;
@@ -208,4 +229,4 @@ export default function SubscribeModal({ open, onClose }: Props) {
       </div>
     </>
   );
-        }
+}
