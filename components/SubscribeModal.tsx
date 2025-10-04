@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
@@ -11,48 +11,22 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const [e164, setE164] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const overlayRef = useRef<HTMLDivElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  // Verrouille le scroll de page + empêche pull-to-refresh global
+  // Verrouille le scroll global sans bloquer les listes internes
   useEffect(() => {
     if (!open) return;
     const body = document.body, html = document.documentElement;
-    const prevOverflow = body.style.overflow;
-    const prevBodyOBY = (body.style as any).overscrollBehaviorY;
-    const prevHtmlOBY = (html.style as any).overscrollBehaviorY;
+    const sBodyOverflow = body.style.overflow;
+    const sBodyOBY = (body.style as any).overscrollBehaviorY;
+    const sHtmlOBY = (html.style as any).overscrollBehaviorY;
 
     body.style.overflow = "hidden";
     (body.style as any).overscrollBehaviorY = "none";
     (html.style as any).overscrollBehaviorY = "none";
 
     return () => {
-      body.style.overflow = prevOverflow;
-      (body.style as any).overscrollBehaviorY = prevBodyOBY ?? "";
-      (html.style as any).overscrollBehaviorY = prevHtmlOBY ?? "";
-    };
-  }, [open]);
-
-  // Contient les gestes au sein du panel (sans bloquer les listes internes)
-  useEffect(() => {
-    if (!open) return;
-    const overlay = overlayRef.current!;
-    const allowIfScrollable = (e: Event) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      let el: HTMLElement | null = target;
-      while (el && el !== overlay) {
-        const st = getComputedStyle(el);
-        if ((st.overflowY === "auto" || st.overflowY === "scroll") && el.scrollHeight > el.clientHeight) return;
-        el = el.parentElement;
-      }
-      e.preventDefault();
-    };
-    overlay.addEventListener("touchmove", allowIfScrollable, { passive: false });
-    overlay.addEventListener("wheel", allowIfScrollable, { passive: false });
-    return () => {
-      overlay.removeEventListener("touchmove", allowIfScrollable);
-      overlay.removeEventListener("wheel", allowIfScrollable);
+      body.style.overflow = sBodyOverflow;
+      (body.style as any).overscrollBehaviorY = sBodyOBY ?? "";
+      (html.style as any).overscrollBehaviorY = sHtmlOBY ?? "";
     };
   }, [open]);
 
@@ -68,7 +42,6 @@ export default function SubscribeModal({ open, onClose }: Props) {
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
 
-    // Notifier l’UI (bannière)
     window.dispatchEvent(new Event("ob:profile-changed"));
     window.dispatchEvent(new Event("ob:connected-changed"));
 
@@ -83,13 +56,9 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
   return (
     <>
-      {/* Styles pour que la liste des pays ne soit JAMAIS coupée */}
+      {/* Assure l’affichage complet de la dropdown pays */}
       <style jsx global>{`
-        /* le panel ne clippe plus les overlays internes (liste pays) */
-        .ob-modal-panel {
-          overflow: visible !important;
-        }
-        /* renforce la pile et le comportement de la liste pays (classes courantes) */
+        .ob-modal-panel { overflow: visible !important; }
         .react-international-phone-country-selector,
         .react-international-phone-country-selector-dropdown,
         [role="listbox"] {
@@ -101,20 +70,18 @@ export default function SubscribeModal({ open, onClose }: Props) {
       `}</style>
 
       <div
-        ref={overlayRef}
         role="dialog"
         aria-modal="true"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
-        className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/25 backdrop-blur-md"
-        style={{ overscrollBehavior: "contain", touchAction: "none" }}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center
+                   bg-black/25 backdrop-blur-md"
+        style={{ overscrollBehavior: "contain" }}  // pas de preventDefault ici
       >
         <div
-          ref={panelRef}
           onClick={(e) => e.stopPropagation()}
           className="ob-modal-panel relative w-full sm:max-w-lg max-h-[85vh] rounded-3xl border border-white/60
-                     bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl p-4 sm:p-6 m-0 sm:m-6"
+                     bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl
+                     p-4 sm:p-6 m-0 sm:m-6"
           style={{ touchAction: "pan-y" }}
         >
           <div className="flex items-center justify-between mb-4">
@@ -149,7 +116,6 @@ export default function SubscribeModal({ open, onClose }: Props) {
               onChange={(e) => setFirstName(e.target.value)}
             />
 
-            {/* Pays + Indicatif + Numéro */}
             <div className="relative">
               <PhoneField value={e164} onChange={setE164} />
             </div>
