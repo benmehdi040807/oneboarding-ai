@@ -4,16 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/* ================= Bannière « mini barre » au-dessus de la barre ================= */
+/* ===== Mini-bannière “Actif” au-dessus de la barre ===== */
 function WelcomeBannerOverBar() {
-  const portalHost = useRef<HTMLDivElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
 
-  const BANNER_H = 27; // px validé
-  const GAP_Y = 6;     // px validé
+  const BANNER_H = 27; // validé
+  const GAP_Y = 6;     // validé
 
   const getBarEl = () =>
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
@@ -32,28 +32,32 @@ function WelcomeBannerOverBar() {
   const recompute = () => {
     const bar = getBarEl();
     if (!bar) return setPos(null);
-
-    const barRect = bar.getBoundingClientRect();
+    const rect = bar.getBoundingClientRect();
     const ok = getOkEl();
-    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
-
-    const width = Math.max(180, rightEdge - barRect.left);
-    const top = Math.max(8, barRect.top - GAP_Y - BANNER_H);
-    const left = barRect.left;
+    const rightEdge = ok ? ok.getBoundingClientRect().right : rect.right;
+    const width = Math.max(180, rightEdge - rect.left);
+    const top = Math.max(8, rect.top - GAP_Y - BANNER_H);
+    const left = rect.left;
     setPos({ left, top, width });
   };
 
   useEffect(() => {
     const host = document.createElement("div");
     document.body.appendChild(host);
-    portalHost.current = host;
+    hostRef.current = host;
     setMounted(true);
 
     const load = () => {
-      const p = typeof window !== "undefined" ? localStorage.getItem("ob_profile") : null;
-      const prof = p ? JSON.parse(p) : null;
-      setFirstName(prof?.firstName ?? null);
-      setActive(localStorage.getItem("ob_connected") === "1");
+      try {
+        const p = localStorage.getItem("ob_profile");
+        const prof = p ? JSON.parse(p) : null;
+        setFirstName(prof?.firstName ?? null);
+        setActive(localStorage.getItem("ob_connected") === "1");
+      } catch {}
+      // positionne immédiatement
+      recompute();
+      setTimeout(recompute, 50);
+      setTimeout(recompute, 200);
     };
     load();
 
@@ -69,6 +73,9 @@ function WelcomeBannerOverBar() {
     window.addEventListener("scroll", recompute, { passive: true });
     window.addEventListener("load", recompute, { once: true });
 
+    const mo = new MutationObserver(() => recompute());
+    mo.observe(document.body, { childList: true, subtree: true });
+
     const t1 = setTimeout(recompute, 40);
     const t2 = setTimeout(recompute, 140);
     const t3 = setTimeout(recompute, 300);
@@ -77,6 +84,7 @@ function WelcomeBannerOverBar() {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener("resize", recompute);
       window.removeEventListener("scroll", recompute);
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
@@ -84,8 +92,7 @@ function WelcomeBannerOverBar() {
     };
   }, []);
 
-  // Conditions d’affichage
-  if (!mounted || !portalHost.current || !active || !firstName || !pos) return null;
+  if (!mounted || !hostRef.current || !active || !firstName || !pos) return null;
 
   return createPortal(
     <div
@@ -95,7 +102,7 @@ function WelcomeBannerOverBar() {
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 60,
+        zIndex: 60, // assez haut mais sous les gros modaux
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -124,11 +131,11 @@ function WelcomeBannerOverBar() {
         </span>
       </div>
     </div>,
-    portalHost.current
+    hostRef.current
   );
 }
 
-/* =========================== Boutons droits (inline) =========================== */
+/* ===================== Boutons de droite (miroir des boutons gauches) ===================== */
 export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -141,7 +148,6 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // Mêmes classes que les boutons gauches (miroir)
   const circle =
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
@@ -164,7 +170,6 @@ export default function RightAuthButtons() {
   return (
     <>
       <div className="flex items-center gap-3">
-        {/* Création d’espace (O bleu→turquoise) */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -185,7 +190,6 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (doré) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -207,11 +211,11 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière au-dessus de la barre */}
+      {/* Bannière */}
       <WelcomeBannerOverBar />
 
-      {/* Modal création d’espace */}
+      {/* Modal */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
-}
+            }
