@@ -4,10 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/* ------------------------------------------------------------------ */
-/*  Bannière de bienvenue (au-dessus de la barre) – version validée   */
-/*  H = 27px, GAP = 6px, « Actif » dégradé bleu                       */
-/* ------------------------------------------------------------------ */
+/** ----------------- Bannière immersive type « mini barre » ----------------- */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -15,8 +12,8 @@ function WelcomeBannerOverBar() {
   const [active, setActive] = useState(false);
 
   const getBarEl = () =>
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
+    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
     null;
 
   const getOkEl = () => {
@@ -28,16 +25,14 @@ function WelcomeBannerOverBar() {
     );
   };
 
-  const BANNER_H = 27;
-  const GAP_Y = 6;
+  // Hauteur fixe + gap
+  const BANNER_H = 27; // px
+  const GAP_Y = 6;     // px
 
   const position = () => {
     const host = hostRef.current;
     const bar = getBarEl();
-    if (!host || !bar) {
-      setTimeout(position, 120);
-      return;
-    }
+    if (!host || !bar) { setTimeout(position, 120); return; }
 
     const barRect = bar.getBoundingClientRect();
     const ok = getOkEl();
@@ -54,7 +49,7 @@ function WelcomeBannerOverBar() {
       top: ${top}px;
       width: ${width}px;
       height: ${height}px;
-      z-index: 2147483646; /* sous les vrais modaux, au-dessus du fond */
+      z-index: 2147483646;
       display: block;
       pointer-events: none;
       border-radius: 12px;
@@ -102,9 +97,7 @@ function WelcomeBannerOverBar() {
       mo.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       host.remove();
     };
   }, []);
@@ -141,9 +134,7 @@ function WelcomeBannerOverBar() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Capsule d’erreur (bas-centre) – 1 seul bouton + croix fiable      */
-/* ------------------------------------------------------------------ */
+/** -------- Capsule flottante « erreur / créer un espace » -------- */
 function ErrorCapsule({
   open,
   onClose,
@@ -156,20 +147,29 @@ function ErrorCapsule({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  const getBarEl = () =>
+    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
+    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
+    null;
+
   const position = () => {
     const host = hostRef.current;
-    if (!host) return;
+    const bar = getBarEl();
+    if (!host || !bar) { setTimeout(position, 120); return; }
 
-    const bottom = 24; // au-dessus du bord inférieur
+    const r = bar.getBoundingClientRect();
+    const centerX = r.left + r.width / 2;
+    const top = Math.max(8, r.top - 16 - 54);
+
     host.style.cssText = `
       position: fixed;
-      left: 50%;
-      bottom: ${bottom}px;
+      left: ${centerX}px;
+      top: ${top}px;
       transform: translateX(-50%);
-      z-index: 2147483647; /* au-dessus de la bannière */
+      z-index: 2147483605;
       display: ${open ? "block" : "none"};
       pointer-events: auto;
-      max-width: min(92vw, 560px);
+      max-width: min(92vw, 540px);
     `;
   };
 
@@ -180,31 +180,32 @@ function ErrorCapsule({
     hostRef.current = host;
     setMounted(true);
 
-    const onPos = () => position();
-    window.addEventListener("resize", onPos);
-    window.addEventListener("scroll", onPos);
+    const ro = new ResizeObserver(position);
+    const bar = getBarEl();
+    if (bar) ro.observe(bar);
 
-    const t1 = setTimeout(onPos, 40);
-    const t2 = setTimeout(onPos, 140);
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position);
+    const t1 = setTimeout(position, 40);
+    const t2 = setTimeout(position, 140);
 
     return () => {
-      window.removeEventListener("resize", onPos);
-      window.removeEventListener("scroll", onPos);
+      ro.disconnect();
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position);
       clearTimeout(t1);
       clearTimeout(t2);
       host.remove();
     };
   }, []);
 
-  useEffect(() => {
-    position();
-  }, [open]);
+  useEffect(() => { position(); }, [open]);
 
   if (!mounted || !hostRef.current || !open) return null;
 
   return createPortal(
     <div
-      className="relative rounded-3xl px-5 py-4 backdrop-blur-2xl border shadow-xl"
+      className="rounded-3xl px-4 py-3 backdrop-blur-2xl border shadow-xl"
       style={{
         background: "rgba(255,255,255,0.32)",
         borderColor: "rgba(255,255,255,0.6)",
@@ -213,27 +214,21 @@ function ErrorCapsule({
       role="dialog"
       aria-modal="true"
     >
-      {/* X large et fiable */}
-      <button
-        onClick={onClose}
-        aria-label="Fermer"
-        className="absolute -right-3 -top-3 h-11 w-11 rounded-full bg-white/90 hover:bg-white text-black/80 text-2xl leading-none
-                   flex items-center justify-center select-none cursor-pointer"
-        style={{ minWidth: 44, minHeight: 44 }}
-      >
-        ×
-      </button>
-
-      <div className="text-[14px] text-black/85 text-center">
+      <div className="text-[13px] sm:text-[14px] text-black/85 text-center">
         <div className="font-semibold mb-1">Aucun espace trouvé sur cet appareil</div>
-        <div className="opacity-80 mb-4">
+        <div className="opacity-80 mb-3">
           Pour continuer, crée ton espace avec le <span className="font-semibold">O bleu</span>.
         </div>
-
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={onClose}
+            className="px-3 py-2 rounded-xl bg-white/85 hover:bg-white text-black/80 border border-black/10"
+          >
+            Fermer
+          </button>
           <button
             onClick={onCreate}
-            className="px-5 py-3 rounded-2xl text-white font-semibold shadow hover:opacity-95 active:scale-[.99] transition
+            className="px-3 py-2 rounded-xl text-white font-medium shadow hover:opacity-95 active:scale-[.99] transition
                        bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
           >
             Créer mon espace
@@ -245,17 +240,13 @@ function ErrorCapsule({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Boutons droits (miroir)                                           */
-/* ------------------------------------------------------------------ */
+/** ------------------------- Boutons droits (INLINE) ------------------------ */
 export default function RightAuthButtons() {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openError, setOpenError] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [hiddenByOverlay, setHiddenByOverlay] = useState(false);
 
+  // état connecté
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -264,131 +255,9 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  const getBarEl = () =>
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
-    null;
-
-  const getOkEl = () => {
-    const btns = Array.from(document.querySelectorAll("button"));
-    return (
-      (btns.find((b) => (b.textContent || "").trim() === "OK") as HTMLElement) ||
-      (btns.find((b) => (b.getAttribute("aria-label") || "").toLowerCase() === "ok") as HTMLElement) ||
-      null
-    );
-  };
-
-  // Masquer si un overlay/modale visible
-  const overlayIsVisible = (el: Element) => {
-    const s = window.getComputedStyle(el as HTMLElement);
-    if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
-    const rect = (el as HTMLElement).getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  };
-  const checkOverlay = () => {
-    const candidates = [
-      ...document.querySelectorAll('[role="dialog"]'),
-      ...document.querySelectorAll(".modal"),
-      ...document.querySelectorAll("[data-overlay]"),
-    ];
-    setHiddenByOverlay(candidates.some(overlayIsVisible));
-  };
-
-  // Position miroir des boutons de gauche – sans z-index forcé
-  const position = () => {
-    const host = hostRef.current;
-    const bar = getBarEl();
-    if (!host || !bar) {
-      setTimeout(position, 120);
-      return;
-    }
-
-    const barRect = bar.getBoundingClientRect();
-    const ok = getOkEl();
-    let rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
-
-    const BTN = 48;
-    const BETWEEN = 10;
-    const GAP_Y = 10;
-    const totalWidth = 2 * BTN + BETWEEN;
-
-    if (!Number.isFinite(rightEdge) || rightEdge < barRect.left + totalWidth) {
-      rightEdge = barRect.right;
-    }
-
-    const minLeft = 8;
-    const maxLeft = Math.max(minLeft, window.innerWidth - totalWidth - 8);
-
-    let left = rightEdge - totalWidth;
-    left = Math.min(Math.max(left, minLeft), maxLeft);
-
-    const top = barRect.bottom + GAP_Y;
-
-    host.style.cssText = `
-      position: fixed;
-      left: ${left}px;
-      top: ${top}px;
-      display: ${hiddenByOverlay ? "none" : "block"};
-      pointer-events: auto;
-    `;
-  };
-
-  useEffect(() => {
-    const host = document.createElement("div");
-    host.style.display = "block";
-    hostRef.current = host;
-    document.body.appendChild(host);
-    setMounted(true);
-
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    const ok = getOkEl();
-    if (bar) ro.observe(bar);
-    if (ok) ro.observe(ok);
-
-    window.addEventListener("resize", position, { passive: true });
-    window.addEventListener("scroll", position, { passive: true });
-    window.addEventListener("load", position, { once: true });
-
-    const mo = new MutationObserver(() => {
-      checkOverlay();
-      position();
-    });
-    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
-
-    const t1 = setTimeout(() => {
-      checkOverlay();
-      position();
-    }, 40);
-    const t2 = setTimeout(() => {
-      checkOverlay();
-      position();
-    }, 140);
-    const t3 = setTimeout(() => {
-      checkOverlay();
-      position();
-    }, 300);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      ro.disconnect();
-      mo.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
-      host.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    position();
-  }, [hiddenByOverlay]);
-
-  if (!mounted || !hostRef.current) return null;
-
   const circle =
-    "h-12 w-12 rounded-full bg-white/85 hover:bg-white/95 shadow flex items-center justify-center backdrop-blur select-none";
+    "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] " +
+    "grid place-items-center transition select-none";
 
   const onGoldClick = () => {
     if (connected) {
@@ -400,22 +269,20 @@ export default function RightAuthButtons() {
         localStorage.setItem("ob_connected", "1");
         window.dispatchEvent(new Event("ob:connected-changed"));
       } else {
-        setOpenError(true); // capsule en bas
+        setOpenError(true);
       }
     }
   };
 
-  return createPortal(
+  return (
     <>
-      <div className="flex items-center gap-[10px]">
-        {/* Création d’espace (O dégradé bleu→turquoise) */}
+      {/* ➜ Rend les deux boutons INLINE (miroir des boutons de gauche) */}
+      <div className="flex items-center gap-3">
+        {/* O bleu → créer espace */}
         <button
           type="button"
           aria-label="Créer mon espace"
-          onClick={() => {
-            setOpenError(false);
-            setOpenSubscribe(true);
-          }}
+          onClick={() => setOpenSubscribe(true)}
           className={circle}
         >
           <span
@@ -431,12 +298,12 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (doré) */}
+        {/* O doré → connexion/déconnexion */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
-          className={circle}
           onClick={onGoldClick}
+          className={circle}
           title={connected ? "Se déconnecter" : "Se connecter"}
         >
           <span
@@ -453,22 +320,18 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière de bienvenue */}
+      {/* Bannière immersive (portal) */}
       <WelcomeBannerOverBar />
 
-      {/* Capsule d’erreur (bas) */}
+      {/* Capsule d’erreur (portal) */}
       <ErrorCapsule
         open={openError}
         onClose={() => setOpenError(false)}
-        onCreate={() => {
-          setOpenError(false);
-          setOpenSubscribe(true);
-        }}
+        onCreate={() => { setOpenError(false); setOpenSubscribe(true); }}
       />
 
-      {/* Modal de création d’espace */}
+      {/* Modal création d’espace */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
-    </>,
-    hostRef.current
+    </>
   );
-                            }
+                      }
