@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/** ----------------- Bannière immersive type « mini barre » ----------------- */
+/* ----------------- Bannière de bienvenue (au-dessus de la barre) ----------------- */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -25,9 +25,8 @@ function WelcomeBannerOverBar() {
     );
   };
 
-  // Hauteur fixe + gap
-  const BANNER_H = 27; // px
-  const GAP_Y = 6;     // px
+  const BANNER_H = 27; // hauteur validée
+  const GAP_Y = 6;     // gap validé
 
   const position = () => {
     const host = hostRef.current;
@@ -70,7 +69,6 @@ function WelcomeBannerOverBar() {
       setActive(localStorage.getItem("ob_connected") === "1");
     };
     load();
-
     const onChange = () => load();
     window.addEventListener("ob:connected-changed", onChange);
 
@@ -134,7 +132,7 @@ function WelcomeBannerOverBar() {
   );
 }
 
-/** -------- Capsule flottante « erreur / créer un espace » -------- */
+/* ----------------- Capsule d’erreur mi-bas, 1 seul bouton + X ----------------- */
 function ErrorCapsule({
   open,
   onClose,
@@ -147,54 +145,38 @@ function ErrorCapsule({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
-    null;
-
   const position = () => {
     const host = hostRef.current;
-    const bar = getBarEl();
-    if (!host || !bar) { setTimeout(position, 120); return; }
+    if (!host) return;
 
-    const r = bar.getBoundingClientRect();
-    const centerX = r.left + r.width / 2;
-    const top = Math.max(8, r.top - 16 - 54);
-
+    // offset pour éviter le bandeau légal
+    const baseBottom = window.innerWidth < 640 ? 110 : 56; // mobile / desktop
     host.style.cssText = `
       position: fixed;
-      left: ${centerX}px;
-      top: ${top}px;
+      left: 50%;
+      bottom: ${baseBottom}px;
       transform: translateX(-50%);
       z-index: 2147483605;
       display: ${open ? "block" : "none"};
       pointer-events: auto;
-      max-width: min(92vw, 540px);
+      max-width: min(92vw, 560px);
     `;
   };
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "block";
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
 
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    if (bar) ro.observe(bar);
-
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position);
-    const t1 = setTimeout(position, 40);
-    const t2 = setTimeout(position, 140);
-
+    window.addEventListener("resize", position, { passive: true });
+    window.addEventListener("scroll", position, { passive: true });
+    const t1 = setTimeout(position, 20);
+    const t2 = setTimeout(position, 120);
     return () => {
-      ro.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
-      clearTimeout(t1);
-      clearTimeout(t2);
+      clearTimeout(t1); clearTimeout(t2);
       host.remove();
     };
   }, []);
@@ -205,7 +187,7 @@ function ErrorCapsule({
 
   return createPortal(
     <div
-      className="rounded-3xl px-4 py-3 backdrop-blur-2xl border shadow-xl"
+      className="relative rounded-3xl px-4 py-4 sm:px-5 sm:py-5 backdrop-blur-2xl border shadow-xl"
       style={{
         background: "rgba(255,255,255,0.32)",
         borderColor: "rgba(255,255,255,0.6)",
@@ -214,39 +196,39 @@ function ErrorCapsule({
       role="dialog"
       aria-modal="true"
     >
-      <div className="text-[13px] sm:text-[14px] text-black/85 text-center">
+      {/* X pour fermer */}
+      <button
+        onClick={onClose}
+        aria-label="Fermer"
+        className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/90 hover:bg-white text-black/80 border border-black/10 grid place-items-center text-lg"
+      >
+        ×
+      </button>
+
+      <div className="text-[14px] text-black/85 text-center">
         <div className="font-semibold mb-1">Aucun espace trouvé sur cet appareil</div>
-        <div className="opacity-80 mb-3">
+        <div className="opacity-80 mb-4">
           Pour continuer, crée ton espace avec le <span className="font-semibold">O bleu</span>.
         </div>
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-2 rounded-xl bg-white/85 hover:bg-white text-black/80 border border-black/10"
-          >
-            Fermer
-          </button>
-          <button
-            onClick={onCreate}
-            className="px-3 py-2 rounded-xl text-white font-medium shadow hover:opacity-95 active:scale-[.99] transition
-                       bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
-          >
-            Créer mon espace
-          </button>
-        </div>
+        <button
+          onClick={onCreate}
+          className="px-4 py-3 rounded-2xl text-white font-medium shadow hover:opacity-95 active:scale-[.99] transition
+                     bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
+        >
+          Créer mon espace
+        </button>
       </div>
     </div>,
     hostRef.current
   );
 }
 
-/** ------------------------- Boutons droits (INLINE) ------------------------ */
+/* ------------------------- Boutons droits (inline) ------------------------- */
 export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openError, setOpenError] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // état connecté
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -276,9 +258,7 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      {/* ➜ Rend les deux boutons INLINE (miroir des boutons de gauche) */}
       <div className="flex items-center gap-3">
-        {/* O bleu → créer espace */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -298,7 +278,6 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* O doré → connexion/déconnexion */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -320,18 +299,18 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière immersive (portal) */}
+      {/* Bannière bienvenue */}
       <WelcomeBannerOverBar />
 
-      {/* Capsule d’erreur (portal) */}
+      {/* Capsule erreur */}
       <ErrorCapsule
         open={openError}
         onClose={() => setOpenError(false)}
         onCreate={() => { setOpenError(false); setOpenSubscribe(true); }}
       />
 
-      {/* Modal création d’espace */}
+      {/* Modal création */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
-                      }
+}
