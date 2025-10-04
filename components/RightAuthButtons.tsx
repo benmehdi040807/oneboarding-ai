@@ -69,8 +69,11 @@ function WelcomeBannerOverBar() {
       setActive(localStorage.getItem("ob_connected") === "1");
     };
     load();
+
     const onChange = () => load();
+    // ← écoute les deux événements
     window.addEventListener("ob:connected-changed", onChange);
+    window.addEventListener("ob:profile-changed", onChange);
 
     const ro = new ResizeObserver(position);
     const bar = getBarEl();
@@ -91,6 +94,7 @@ function WelcomeBannerOverBar() {
 
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
+      window.removeEventListener("ob:profile-changed", onChange);
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", position);
@@ -132,7 +136,7 @@ function WelcomeBannerOverBar() {
   );
 }
 
-/* ----------------- Capsule d’erreur mi-bas, 1 seul bouton + X ----------------- */
+/* ----------------- Capsule d’erreur mi-bas ----------------- */
 function ErrorCapsule({
   open,
   onClose,
@@ -148,9 +152,7 @@ function ErrorCapsule({
   const position = () => {
     const host = hostRef.current;
     if (!host) return;
-
-    // offset pour éviter le bandeau légal
-    const baseBottom = window.innerWidth < 640 ? 110 : 56; // mobile / desktop
+    const baseBottom = window.innerWidth < 640 ? 110 : 56; // évite le bandeau légal
     host.style.cssText = `
       position: fixed;
       left: 50%;
@@ -168,7 +170,6 @@ function ErrorCapsule({
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
-
     window.addEventListener("resize", position, { passive: true });
     window.addEventListener("scroll", position, { passive: true });
     const t1 = setTimeout(position, 20);
@@ -193,14 +194,13 @@ function ErrorCapsule({
         borderColor: "rgba(255,255,255,0.6)",
         boxShadow: "0 12px 30px rgba(0,0,0,.18)",
       }}
-      role="dialog"
-      aria-modal="true"
+      role="dialog" aria-modal="true"
     >
       {/* X pour fermer */}
       <button
         onClick={onClose}
         aria-label="Fermer"
-        className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/90 hover:bg-white text-black/80 border border-black/10 grid place-items-center text-lg"
+        className="absolute -right-3 -top-3 h-11 w-11 rounded-full bg-white/90 hover:bg-white text-black/80 border border-black/10 grid place-items-center text-xl z-20"
       >
         ×
       </button>
@@ -223,7 +223,7 @@ function ErrorCapsule({
   );
 }
 
-/* ------------------------- Boutons droits (inline) ------------------------- */
+/* ------------------------- Boutons droits ------------------------- */
 export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openError, setOpenError] = useState(false);
@@ -313,4 +313,4 @@ export default function RightAuthButtons() {
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
-}
+            }
