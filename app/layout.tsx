@@ -1,12 +1,10 @@
-export const runtime = "nodejs"; // ✅ Force Node.js
+export const runtime = "nodejs";
 
 import "./globals.css";
 
 export const metadata = {
-  metadataBase: new URL("https://oneboardingai.com"), // ✅ URLs relatives -> absolues
-  alternates: {
-    canonical: "https://oneboardingai.com",
-  },
+  metadataBase: new URL("https://oneboardingai.com"),
+  alternates: { canonical: "https://oneboardingai.com" },
   title: "OneBoarding AI",
   description:
     "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
@@ -17,30 +15,9 @@ export const metadata = {
     url: "https://oneboardingai.com",
     siteName: "OneBoarding AI",
     images: [
-      // 1) Priorité: JPG 1200×628 (idéal Facebook/WhatsApp/Twitter)
-      {
-        url: "/brand/og-oneboardingai-1200x628.jpg",
-        width: 1200,
-        height: 628,
-        alt: "OneBoarding AI - Votre IA personnel",
-        type: "image/jpeg",
-      },
-      // 2) Fallback: PNG 1200×628
-      {
-        url: "/brand/og-oneboardingai-1200x628.png",
-        width: 1200,
-        height: 628,
-        alt: "OneBoarding AI - Votre IA personnel",
-        type: "image/png",
-      },
-      // 3) Ultime fallback: carré 1024×1024 (WhatsApp aime parfois ce format)
-      {
-        url: "/brand/og-oneboardingai.png",
-        width: 1024,
-        height: 1024,
-        alt: "OneBoarding AI - Votre IA personnel (carré)",
-        type: "image/png",
-      },
+      { url: "/brand/og-oneboardingai-1200x628.jpg", width: 1200, height: 628, alt: "OneBoarding AI - Votre IA personnel", type: "image/jpeg" },
+      { url: "/brand/og-oneboardingai-1200x628.png",  width: 1200, height: 628, alt: "OneBoarding AI - Votre IA personnel", type: "image/png"   },
+      { url: "/brand/og-oneboardingai.png",           width: 1024, height: 1024, alt: "OneBoarding AI - carré",          type: "image/png"   },
     ],
     locale: "fr_FR",
     type: "website",
@@ -57,25 +34,25 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
       <head>
-        {/* Crucial pour le mobile */}
+        {/* Mobile */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Harmonise la barre d'adresse mobile avec le haut du dégradé */}
+        {/* Harmonise la barre d’adresse mobile */}
         <meta name="theme-color" content="#B3E5FC" />
-        {/* Optionnel: si tu crées une app Meta plus tard, ajoute ton app_id ici pour supprimer l’avertissement du debugger */}
-        {/* <meta property="fb:app_id" content="TON_APP_ID_FACEBOOK" /> */}
       </head>
-      {/* IMPORTANT : pas de fond sombre ici */}
-      <body className="bg-transparent text-white overflow-x-hidden min-h-dvh antialiased">
-        {/* Conteneur central (transparent) */}
-        <div className="mx-auto w-full max-w-xl px-4 min-h-dvh bg-transparent">
+
+      {/* 
+        Natif :
+        - Texte noir par défaut (les selects/inputs système restent lisibles)
+        - Couleurs système (color-scheme: light) pour éviter les styles "dark" auto
+        - Pas d’overflow global ni de fond sombre ici
+      */}
+      <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
+        {/* Conteneur central neutre (la page se charge de son propre fond si besoin) */}
+        <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">
           {children}
         </div>
       </body>
