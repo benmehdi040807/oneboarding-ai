@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/* ===== Mini-bannière “Actif” au-dessus de la barre ===== */
+/* ========= Mini-bannière “Actif” au-dessus de la barre ========= */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -55,9 +55,8 @@ function WelcomeBannerOverBar() {
         setActive(localStorage.getItem("ob_connected") === "1");
       } catch {}
       recompute();
-      setTimeout(recompute, 50);
-      setTimeout(recompute, 200);
-      setTimeout(recompute, 400);
+      setTimeout(recompute, 60);
+      setTimeout(recompute, 240);
     };
     load();
 
@@ -76,10 +75,6 @@ function WelcomeBannerOverBar() {
     const mo = new MutationObserver(() => recompute());
     mo.observe(document.body, { childList: true, subtree: true });
 
-    const t1 = setTimeout(recompute, 40);
-    const t2 = setTimeout(recompute, 140);
-    const t3 = setTimeout(recompute, 300);
-
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
@@ -87,7 +82,6 @@ function WelcomeBannerOverBar() {
       mo.disconnect();
       window.removeEventListener("resize", recompute);
       window.removeEventListener("scroll", recompute);
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       host.remove();
     };
   }, []);
@@ -102,7 +96,7 @@ function WelcomeBannerOverBar() {
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 60,                 // au-dessus de la barre, sous les modaux
+        zIndex: 2147483390, // au-dessus de la barre, sous les gros modals
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -135,7 +129,7 @@ function WelcomeBannerOverBar() {
   );
 }
 
-/* ===================== Boutons de droite ===================== */
+/* ======================== Boutons de droite ======================== */
 export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -148,22 +142,21 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
-  // même skin que les boutons gauche
+  // même skin que les boutons gauche — conteneur inline-flex (important desktop)
   const circle =
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
-  // BLEU => création uniquement
   const onBlueClick = () => setOpenSubscribe(true);
 
-  // DORÉ => (dé)connexion uniquement, sans popup si pas de profil
+  // doré => (dé)connexion uniquement (aucune incitation si pas de profil)
   const onGoldClick = () => {
-    const profile = localStorage.getItem("ob_profile");
+    const hasProfile = !!localStorage.getItem("ob_profile");
     if (connected) {
       localStorage.setItem("ob_connected", "0");
       window.dispatchEvent(new Event("ob:connected-changed"));
     } else {
-      if (!profile) return; // aucune incitation
+      if (!hasProfile) return;
       localStorage.setItem("ob_connected", "1");
       window.dispatchEvent(new Event("ob:connected-changed"));
     }
@@ -171,7 +164,7 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      <div className="flex items-center gap-3">
+      <div className="inline-flex items-center gap-3">
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -213,10 +206,10 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière de bienvenue (au-dessus de la barre) */}
+      {/* Bannière */}
       <WelcomeBannerOverBar />
 
-      {/* Modal de création */}
+      {/* Modal création */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
