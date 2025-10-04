@@ -5,7 +5,7 @@ import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-// Petit composant interne : message au-dessus de la barre
+/* --------- Message au-dessus de la barre (optionnel/local) --------- */
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
@@ -45,15 +45,22 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const [e164, setE164] = useState(""); // rempli par PhoneField
   const [submitting, setSubmitting] = useState(false);
 
-  // verrouillage scroll page quand ouvert
+  /* ----- verrouillage scroll page quand ouvert + ESC pour fermer ----- */
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-  }, [open]);
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -67,7 +74,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
 
-    // notifier le reste de l’UI (deux events)
+    // Notifier le reste de l’UI : met à jour bannière & état
     window.dispatchEvent(new Event("ob:profile-changed"));
     window.dispatchEvent(new Event("ob:connected-changed"));
 
@@ -81,21 +88,31 @@ export default function SubscribeModal({ open, onClose }: Props) {
     "px-4 py-3 text-black placeholder-white/90 outline-none " +
     "focus:ring-2 focus:ring-[#2E6CF5]/40 focus:border-transparent";
 
+  /* ----- Handlers pour neutraliser le pull-to-refresh iOS/Android ----- */
+  const onOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const onOverlayTouchMove: React.TouchEventHandler<HTMLDivElement> = (e) => {
+    // Si on glisse sur l'overlay (hors panneau), on empêche le refresh/page pan
+    if (e.target === e.currentTarget && e.cancelable) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <>
-      {/* Message de bienvenue au-dessus de la barre */}
+      {/* (Facultatif) Petit message au-dessus de la barre quand déjà connecté */}
       <WelcomeMessageAboveBar />
 
       <div
         role="dialog"
         aria-modal="true"
-        onClick={(e) => {
-          // clic sur l’overlay => fermer
-          if (e.target === e.currentTarget) onClose();
-        }}
+        onClick={onOverlayClick}
+        onTouchMove={onOverlayTouchMove}
         className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center
                    bg-black/25 backdrop-blur-md"
-        // Empêche le pull-to-refresh & les gestes hors contenu
+        // Bloque le pull-to-refresh/pan global sur de nombreux UA
         style={{ overscrollBehavior: "contain", touchAction: "none" }}
       >
         <div
@@ -103,7 +120,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
           className="relative w-full sm:max-w-lg rounded-3xl border border-white/60
                      bg-[rgba(255,255,255,0.32)] backdrop-blur-2xl shadow-xl
                      p-4 sm:p-6 m-0 sm:m-6"
-          // Autoriser le scroll vertical normal & éviter la propagation d’overscroll
+          // Autorise uniquement le scroll vertical interne et évite l’overscroll propagation
           style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
           <div className="flex items-center justify-between mb-4">
@@ -113,6 +130,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
               className="h-10 w-10 rounded-full bg-white/80 hover:bg-white/95 text-black/80
                          flex items-center justify-center text-xl"
               aria-label="Fermer"
+              title="Fermer"
             >
               ×
             </button>
