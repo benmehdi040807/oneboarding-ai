@@ -5,7 +5,6 @@ import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-// Bannière au-dessus de la barre (inchangée)
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
@@ -44,25 +43,21 @@ export default function SubscribeModal({ open, onClose }: Props) {
   const [e164, setE164] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Bloque le scroll de la page quand ouvert
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
-  // Fermeture via ESC
-  useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !e164) return;
     setSubmitting(true);
@@ -70,7 +65,6 @@ export default function SubscribeModal({ open, onClose }: Props) {
     const profile = { firstName, lastName, phone: e164 };
     localStorage.setItem("ob_profile", JSON.stringify(profile));
     localStorage.setItem("ob_connected", "1");
-
     window.dispatchEvent(new Event("ob:profile-changed"));
     window.dispatchEvent(new Event("ob:connected-changed"));
 
@@ -79,23 +73,20 @@ export default function SubscribeModal({ open, onClose }: Props) {
   };
 
   const baseInput =
-    "w-full rounded-2xl border border-black/10 bg-white " + // 100% opaque
-    "px-4 py-3 text-black placeholder-black/40 outline-none " +
-    "focus:ring-2 focus:ring-[#2E6CF5]/30 focus:border-transparent";
+    "w-full rounded-2xl border border-black/10 bg-white px-4 py-3 " +
+    "text-black placeholder-black/40 outline-none focus:ring-2 focus:ring-[#2E6CF5]/30";
 
   return (
     <>
       <WelcomeMessageAboveBar />
 
-      {/* Overlay plein écran TRÈS opaque, au z-index maximum */}
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         className="fixed inset-0 z-[2147483647] flex items-end sm:items-center justify-center"
-        style={{ background: "rgba(0,0,0,0.6)", overscrollBehavior: "contain" }}
+        style={{ background: "rgba(0,0,0,0.6)" }}
       >
-        {/* Carte MODAL entièrement opaque (plus de transparence) */}
         <div
           onClick={(e) => e.stopPropagation()}
           className="w-full sm:max-w-lg rounded-3xl border border-black/10 bg-white shadow-2xl p-4 sm:p-6 m-0 sm:m-6"
@@ -122,7 +113,6 @@ export default function SubscribeModal({ open, onClose }: Props) {
               onChange={(e) => setLastName(e.target.value)}
               autoFocus
             />
-
             <input
               type="text"
               placeholder="Prénom"
