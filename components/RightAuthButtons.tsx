@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import SubscribeModal from "./SubscribeModal";
+
+// Dynamic (évite qu’une erreur dans le modal empêche d’afficher les boutons)
+const SubscribeModal = dynamic(() => import("./SubscribeModal"), { ssr: false, loading: () => null });
 
 /** ----------------- Bannière immersive type « mini barre » ----------------- */
 function WelcomeBannerOverBar() {
@@ -25,86 +28,90 @@ function WelcomeBannerOverBar() {
     );
   };
 
-  const BANNER_H = 27; // px
-  const GAP_Y = 6;     // px
+  // Hauteur & gap validés
+  const BANNER_H = 27;
+  const GAP_Y = 6;
 
   const position = () => {
-    const host = hostRef.current;
-    const bar  = getBarEl();
-    if (!host || !bar) { setTimeout(position, 120); return; }
+    try {
+      const host = hostRef.current;
+      const bar = getBarEl();
+      if (!host || !bar) { setTimeout(position, 120); return; }
 
-    const barRect   = bar.getBoundingClientRect();
-    const ok        = getOkEl();
-    const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
+      const barRect = bar.getBoundingClientRect();
+      const ok = getOkEl();
+      const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
-    const width  = Math.max(180, rightEdge - barRect.left);
-    const height = BANNER_H;
-    const top    = Math.max(8, barRect.top - GAP_Y - height);
-    const left   = barRect.left;
+      const width = Math.max(180, rightEdge - barRect.left);
+      const height = BANNER_H;
+      const top = Math.max(8, barRect.top - GAP_Y - height);
+      const left = barRect.left;
 
-    host.style.cssText = `
-      position: fixed;
-      left: ${left}px;
-      top: ${top}px;
-      width: ${width}px;
-      height: ${height}px;
-      z-index: 2147483646;
-      display: block;
-      pointer-events: none;
-      border-radius: 12px;
-    `;
+      host.style.cssText = `
+        position: fixed;
+        left: ${left}px;
+        top: ${top}px;
+        width: ${width}px;
+        height: ${height}px;
+        z-index: 2147483646;
+        display: block;
+        pointer-events: none;
+        border-radius: 12px;
+      `;
+    } catch {}
   };
 
   useEffect(() => {
-    const host = document.createElement("div");
-    host.style.display = "block";
-    document.body.appendChild(host);
-    hostRef.current = host;
-    setMounted(true);
+    try {
+      const host = document.createElement("div");
+      host.style.display = "block";
+      document.body.appendChild(host);
+      hostRef.current = host;
+      setMounted(true);
 
-    const load = () => {
-      const p = typeof window !== "undefined" ? localStorage.getItem("ob_profile") : null;
-      const prof = p ? JSON.parse(p) : null;
-      setFirstName(prof?.firstName ?? null);
-      setActive(localStorage.getItem("ob_connected") === "1");
-    };
-    load();
+      const load = () => {
+        const p = typeof window !== "undefined" ? localStorage.getItem("ob_profile") : null;
+        const prof = p ? JSON.parse(p) : null;
+        setFirstName(prof?.firstName ?? null);
+        setActive(localStorage.getItem("ob_connected") === "1");
+      };
+      load();
 
-    const onChange = () => load();
-    window.addEventListener("ob:connected-changed", onChange);
-    window.addEventListener("ob:profile-changed", onChange);
+      const onChange = () => load();
+      window.addEventListener("ob:connected-changed", onChange);
+      window.addEventListener("ob:profile-changed", onChange);
 
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    const ok  = getOkEl();
-    if (bar) ro.observe(bar);
-    if (ok)  ro.observe(ok);
+      const ro = new ResizeObserver(position);
+      const bar = getBarEl();
+      const ok = getOkEl();
+      if (bar) ro.observe(bar);
+      if (ok) ro.observe(ok);
 
-    window.addEventListener("resize", position, { passive: true });
-    window.addEventListener("scroll", position, { passive: true });
-    window.addEventListener("load", position, { once: true });
+      window.addEventListener("resize", position, { passive: true });
+      window.addEventListener("scroll", position, { passive: true });
+      window.addEventListener("load", position, { once: true });
 
-    const mo = new MutationObserver(() => position());
-    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      const mo = new MutationObserver(() => position());
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true });
 
-    const t1 = setTimeout(position, 40);
-    const t2 = setTimeout(position, 140);
-    const t3 = setTimeout(position, 300);
+      const t1 = setTimeout(position, 40);
+      const t2 = setTimeout(position, 140);
+      const t3 = setTimeout(position, 300);
 
-    return () => {
-      window.removeEventListener("ob:connected-changed", onChange);
-      window.removeEventListener("ob:profile-changed", onChange);
-      ro.disconnect();
-      mo.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      host.remove();
-    };
+      return () => {
+        window.removeEventListener("ob:connected-changed", onChange);
+        window.removeEventListener("ob:profile-changed", onChange);
+        ro.disconnect();
+        mo.disconnect();
+        window.removeEventListener("resize", position);
+        window.removeEventListener("scroll", position);
+        clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+        host.remove();
+      };
+    } catch {}
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
     const a = setTimeout(position, 20);
     const b = setTimeout(position, 120);
     const c = setTimeout(position, 260);
@@ -157,41 +164,45 @@ function ErrorCapsule({
   const [mounted, setMounted] = useState(false);
 
   const position = () => {
-    const host = hostRef.current;
-    if (!host) return;
-    const margin = Math.max(8, window.innerHeight * 0.08);
-    const top = window.innerHeight - margin - 140;
-    const centerX = window.innerWidth / 2;
-    host.style.cssText = `
-      position: fixed;
-      left: ${centerX}px;
-      top: ${top}px;
-      transform: translateX(-50%);
-      z-index: 2147483605;
-      display: ${open ? "block" : "none"};
-      pointer-events: auto;
-      max-width: min(92vw, 540px);
-    `;
+    try {
+      const host = hostRef.current;
+      if (!host) return;
+      const margin = Math.max(8, window.innerHeight * 0.08);
+      const top = window.innerHeight - margin - 140;
+      const centerX = window.innerWidth / 2;
+      host.style.cssText = `
+        position: fixed;
+        left: ${centerX}px;
+        top: ${top}px;
+        transform: translateX(-50%);
+        z-index: 2147483605;
+        display: ${open ? "block" : "none"};
+        pointer-events: auto;
+        max-width: min(92vw, 540px);
+      `;
+    } catch {}
   };
 
   useEffect(() => {
-    const host = document.createElement("div");
-    host.style.display = "block";
-    document.body.appendChild(host);
-    hostRef.current = host;
-    setMounted(true);
+    try {
+      const host = document.createElement("div");
+      host.style.display = "block";
+      document.body.appendChild(host);
+      hostRef.current = host;
+      setMounted(true);
 
-    window.addEventListener("resize", position, { passive: true });
-    window.addEventListener("scroll", position, { passive: true });
-    const t1 = setTimeout(position, 40);
-    const t2 = setTimeout(position, 140);
+      window.addEventListener("resize", position, { passive: true });
+      window.addEventListener("scroll", position, { passive: true });
+      const t1 = setTimeout(position, 40);
+      const t2 = setTimeout(position, 140);
 
-    return () => {
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position);
-      clearTimeout(t1); clearTimeout(t2);
-      host.remove();
-    };
+      return () => {
+        window.removeEventListener("resize", position);
+        window.removeEventListener("scroll", position);
+        clearTimeout(t1); clearTimeout(t2);
+        host.remove();
+      };
+    } catch {}
   }, []);
 
   useEffect(() => { position(); }, [open]);
@@ -209,7 +220,7 @@ function ErrorCapsule({
       role="dialog"
       aria-modal="true"
     >
-      {/* Fermeture par X seulement (comme validé) */}
+      {/* fermeture via X (unique bouton de fermeture) */}
       <button
         onClick={onClose}
         aria-label="Fermer"
@@ -244,7 +255,7 @@ export default function RightAuthButtons() {
   const [openError, setOpenError] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // état connecté
+  // Toujours afficher les boutons; on n’utilise pas d’overlay/portal pour eux
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
     load();
@@ -278,7 +289,7 @@ export default function RightAuthButtons() {
 
   return (
     <>
-      {/* Boutons INLINE (miroir des boutons gauche) */}
+      {/* BOUTONS INLINE */}
       <div className="flex items-center gap-3">
         {/* Création d’espace */}
         <button
@@ -323,17 +334,17 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière immersive au-dessus de la barre */}
+      {/* BANNIÈRE FLOTTANTE */}
       <WelcomeBannerOverBar />
 
-      {/* Capsule d’erreur (flottante, bas-centre) */}
+      {/* CAPSULE ERREUR FLOTTANTE */}
       <ErrorCapsule
         open={openError}
         onClose={() => setOpenError(false)}
         onCreate={() => { setOpenError(false); setOpenSubscribe(true); }}
       />
 
-      {/* Modal de création d’espace */}
+      {/* MODAL CRÉATION ESPACE */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
