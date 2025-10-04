@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
 
 type Country = { num: number; name: string; dial: string; flag: string };
 
@@ -41,122 +40,60 @@ const COUNTRIES: Country[] = [
   { num: 33, name: "Afrique du Sud", flag: "🇿🇦", dial: "27" },
 ];
 
-const DEFAULT = COUNTRIES[0];
+const DEFAULT_INDEX = 0;
 
 type Props = { value: string; onChange: (e164: string) => void };
 
 export default function PhoneField({ value, onChange }: Props) {
-  const [country, setCountry] = useState<Country>(DEFAULT);
+  const [idx, setIdx] = useState<number>(DEFAULT_INDEX);
   const [local, setLocal] = useState<string>("");
-  const [open, setOpen] = useState(false);
 
-  const selectedRef = useRef<HTMLButtonElement | null>(null);
+  const country = COUNTRIES[idx];
+  const dial = useMemo(() => `+${country.dial}`, [country]);
 
-  // Compose E.164
+  // Compose E.164 à chaque changement
   useEffect(() => {
     const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
     const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
     onChange(e164);
   }, [country, local, onChange]);
 
-  // Lock body pendant l’overlay
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
-  // Centrer l’option sélectionnée
-  useEffect(() => {
-    if (open && selectedRef.current) selectedRef.current.scrollIntoView({ block: "nearest" });
-  }, [open]);
-
-  const dial = useMemo(() => `+${country.dial}`, [country]);
-
   return (
-    <>
-      <div className="space-y-3">
-        {/* BOUTON: cliquable partout */}
-        <button
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3
-                     text-left text-black flex items-center justify-between active:scale-[.99]"
+    <div className="space-y-3">
+      {/* Sélecteur natif (toute la zone est cliquable) */}
+      <div className="relative">
+        <select
+          value={idx}
+          onChange={(e) => setIdx(parseInt(e.target.value, 10))}
+          className="w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 pr-10 text-black"
         >
-          <span className="truncate">
-            {country.num}. {country.name} <span className="ml-1">{country.flag}</span>
-          </span>
-          <span className={`ml-3 select-none leading-none ${open ? "rotate-180" : ""}`}>▾</span>
-        </button>
-
-        {/* Indicatif + numéro */}
-        <div className="grid grid-cols-[auto_1fr] gap-3">
-          <div
-            className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-black flex items-center min-w-[82px]"
-            aria-hidden
-          >
-            {dial}
-          </div>
-          <input
-            type="tel"
-            inputMode="numeric"
-            placeholder="Numéro (sans 0 initial)"
-            className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black placeholder-black/40 outline-none"
-            value={local}
-            onChange={(e) => setLocal(e.target.value)}
-          />
-        </div>
+          {COUNTRIES.map((c, i) => (
+            <option key={c.num} value={i}>
+              {c.num}. {c.name} {c.flag}  (+{c.dial})
+            </option>
+          ))}
+        </select>
+        {/* caret visuel (mais la zone entière est cliquable) */}
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none">▾</span>
       </div>
 
-      {/* Overlay + liste (portal, z-index max) */}
-      {open &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[2147483647]"
-            style={{ background: "rgba(0,0,0,0.6)", overscrollBehavior: "contain" }}
-            onClick={() => setOpen(false)}
-            aria-hidden
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onWheel={(e) => e.stopPropagation()}
-              onTouchMove={(e) => e.stopPropagation()}
-              role="listbox"
-              className="fixed left-1/2 -translate-x-1/2 w-[92vw] max-w-lg rounded-2xl bg-white shadow-2xl border border-black/10 overflow-y-auto text-black divide-y divide-black/10"
-              style={{
-                top: "12vh",
-                bottom: "24vh",
-                WebkitOverflowScrolling: "touch",
-                overscrollBehavior: "contain",
-                touchAction: "pan-y",
-              }}
-            >
-              {COUNTRIES.map((c) => {
-                const selected = c.num === country.num;
-                return (
-                  <button
-                    key={c.num}
-                    type="button"
-                    ref={selected ? selectedRef : null}
-                    onClick={() => { setCountry(c); setOpen(false); }}
-                    className={`w-full px-4 py-3 text-left flex items-center gap-2
-                                ${selected ? "bg-black/[.03] font-medium" : "bg-white active:bg-black/[.02]"}`}
-                  >
-                    <span className="w-7 tabular-nums">{c.num}.</span>
-                    <span className="shrink-0">{c.flag}</span>
-                    <span className="flex-1">{c.name}</span>
-                    <span className="tabular-nums">(+{c.dial})</span>
-                    {selected && <span aria-hidden className="ml-2">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>,
-          document.body
-        )}
-    </>
+      {/* Indicatif + numéro */}
+      <div className="grid grid-cols-[auto_1fr] gap-3">
+        <div
+          className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-black flex items-center min-w-[82px]"
+          aria-hidden
+        >
+          {dial}
+        </div>
+        <input
+          type="tel"
+          inputMode="numeric"
+          placeholder="Numéro (sans 0 initial)"
+          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black placeholder-black/40 outline-none"
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+        />
+      </div>
+    </div>
   );
-                                  }
+}
