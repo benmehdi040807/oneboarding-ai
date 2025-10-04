@@ -25,18 +25,16 @@ function WelcomeBannerOverBar() {
     );
   };
 
-  // ---- Hauteur figée + gap resserré ----
   const BANNER_H = 27; // px
   const GAP_Y = 6;     // px
 
-  // Positionne la bannière : mêmes left/width que barre(+OK), mais hauteur fixe
   const position = () => {
     const host = hostRef.current;
-    const bar = getBarEl();
+    const bar  = getBarEl();
     if (!host || !bar) { setTimeout(position, 120); return; }
 
-    const barRect = bar.getBoundingClientRect();
-    const ok = getOkEl();
+    const barRect   = bar.getBoundingClientRect();
+    const ok        = getOkEl();
     const rightEdge = ok ? ok.getBoundingClientRect().right : barRect.right;
 
     const width  = Math.max(180, rightEdge - barRect.left);
@@ -59,7 +57,7 @@ function WelcomeBannerOverBar() {
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "block"; // visible dès le départ
+    host.style.display = "block";
     document.body.appendChild(host);
     hostRef.current = host;
     setMounted(true);
@@ -87,7 +85,7 @@ function WelcomeBannerOverBar() {
     window.addEventListener("load", position, { once: true });
 
     const mo = new MutationObserver(() => position());
-    mo.observe(document.body, { childList: true, subtree: true });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
 
     const t1 = setTimeout(position, 40);
     const t2 = setTimeout(position, 140);
@@ -105,7 +103,6 @@ function WelcomeBannerOverBar() {
     };
   }, []);
 
-  // ➜ Repositionner dès qu'on devient actif / que le prénom arrive
   useEffect(() => {
     if (!mounted) return;
     const a = setTimeout(position, 20);
@@ -120,7 +117,7 @@ function WelcomeBannerOverBar() {
     <div
       className="w-full h-full flex items-center justify-center px-3"
       style={{
-        background: "rgba(17,24,39,0.12)", // transparence élevée
+        background: "rgba(17,24,39,0.12)",
         boxShadow: "0 10px 24px rgba(0,0,0,.14)",
         borderRadius: 12,
       }}
@@ -133,7 +130,7 @@ function WelcomeBannerOverBar() {
         <span
           className="font-extrabold"
           style={{
-            background: "linear-gradient(90deg,#3b82f6,#06b6d4)", // bleu → turquoise
+            background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}
@@ -159,22 +156,12 @@ function ErrorCapsule({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const getBarEl = () =>
-    (document.querySelector('input[placeholder*="Votre question"]') as HTMLElement) ||
-    (document.querySelector('textarea[placeholder*="Votre question"]') as HTMLElement) ||
-    null;
-
   const position = () => {
     const host = hostRef.current;
-    const bar  = getBarEl();
-    if (!host || !bar) { setTimeout(position, 120); return; }
-
-    const r = bar.getBoundingClientRect();
-    const centerX = r.left + r.width / 2;
-    // milieu-bas de l’écran (sans mordre sur la barre)
+    if (!host) return;
     const margin = Math.max(8, window.innerHeight * 0.08);
     const top = window.innerHeight - margin - 140;
-
+    const centerX = window.innerWidth / 2;
     host.style.cssText = `
       position: fixed;
       left: ${centerX}px;
@@ -194,17 +181,12 @@ function ErrorCapsule({
     hostRef.current = host;
     setMounted(true);
 
-    const ro = new ResizeObserver(position);
-    const bar = getBarEl();
-    if (bar) ro.observe(bar);
-
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position);
+    window.addEventListener("resize", position, { passive: true });
+    window.addEventListener("scroll", position, { passive: true });
     const t1 = setTimeout(position, 40);
     const t2 = setTimeout(position, 140);
 
     return () => {
-      ro.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
       clearTimeout(t1); clearTimeout(t2);
@@ -262,7 +244,6 @@ export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openError, setOpenError] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [hiddenByOverlay, setHiddenByOverlay] = useState(false);
 
   useEffect(() => {
     const load = () => setConnected(localStorage.getItem("ob_connected") === "1");
@@ -290,24 +271,6 @@ export default function RightAuthButtons() {
     );
   };
 
-  // Overlay réellement VISIBLE ?
-  const overlayIsVisible = (el: Element) => {
-    const s = window.getComputedStyle(el as HTMLElement);
-    if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
-    const rect = (el as HTMLElement).getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  };
-
-  const checkOverlay = () => {
-    const candidates = [
-      ...document.querySelectorAll('[role="dialog"]'),
-      ...document.querySelectorAll(".modal"),
-      ...document.querySelectorAll("[data-overlay]"),
-    ];
-    setHiddenByOverlay(candidates.some(overlayIsVisible));
-  };
-
-  // Positionnement + clamp
   const position = () => {
     const host = hostRef.current;
     const bar  = getBarEl();
@@ -322,7 +285,6 @@ export default function RightAuthButtons() {
     const GAP_Y = 10;
 
     const totalWidth = 2 * BTN + BETWEEN;
-
     if (!Number.isFinite(rightEdge) || rightEdge < barRect.left + totalWidth) {
       rightEdge = barRect.right;
     }
@@ -340,14 +302,14 @@ export default function RightAuthButtons() {
       left: ${left}px;
       top: ${top}px;
       z-index: 2147483400;
-      display: ${hiddenByOverlay ? "none" : "block"};
+      display: block;
       pointer-events: auto;
     `;
   };
 
   useEffect(() => {
     const host = document.createElement("div");
-    host.style.display = "block"; // visible de base
+    host.style.display = "block";
     hostRef.current = host;
     document.body.appendChild(host);
     setMounted(true);
@@ -362,12 +324,12 @@ export default function RightAuthButtons() {
     window.addEventListener("scroll", position, { passive: true });
     window.addEventListener("load", position, { once: true });
 
-    const mo = new MutationObserver(() => { checkOverlay(); position(); });
+    const mo = new MutationObserver(() => position());
     mo.observe(document.body, { childList: true, subtree: true, attributes: true });
 
-    const t1 = setTimeout(() => { checkOverlay(); position(); }, 40);
-    const t2 = setTimeout(() => { checkOverlay(); position(); }, 140);
-    const t3 = setTimeout(() => { checkOverlay(); position(); }, 300);
+    const t1 = setTimeout(position, 40);
+    const t2 = setTimeout(position, 140);
+    const t3 = setTimeout(position, 300);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
@@ -378,8 +340,6 @@ export default function RightAuthButtons() {
       host.remove();
     };
   }, []);
-
-  useEffect(() => { position(); }, [hiddenByOverlay]);
 
   if (!mounted || !hostRef.current) return null;
 
@@ -397,7 +357,7 @@ export default function RightAuthButtons() {
         localStorage.setItem("ob_connected", "1");
         window.dispatchEvent(new Event("ob:connected-changed"));
       } else {
-        setOpenError(true); // capsule flottante
+        setOpenError(true);
       }
     }
   };
@@ -405,7 +365,6 @@ export default function RightAuthButtons() {
   return createPortal(
     <>
       <div className="flex items-center gap-[10px]">
-        {/* Création d’espace (O dégradé bleu→turquoise) */}
         <button
           type="button"
           aria-label="Créer mon espace"
@@ -425,7 +384,6 @@ export default function RightAuthButtons() {
           </span>
         </button>
 
-        {/* Connexion / Déconnexion (toujours doré, dégradé doux) */}
         <button
           type="button"
           aria-label={connected ? "Se déconnecter" : "Se connecter"}
@@ -462,4 +420,4 @@ export default function RightAuthButtons() {
     </>,
     hostRef.current
   );
-        }
+      }
