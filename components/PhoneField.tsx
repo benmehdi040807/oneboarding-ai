@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Country = { num: number; name: string; dial: string; flag: string };
 
@@ -47,14 +47,44 @@ type Props = { value: string; onChange: (e164: string) => void };
 export default function PhoneField({ value, onChange }: Props) {
   const [idx, setIdx] = useState<number>(DEFAULT_INDEX);
   const [local, setLocal] = useState<string>("");
+  const isSettingFromProp = useRef(false); // évite les boucles value <-> state
 
   const country = COUNTRIES[idx];
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
-  // Compose E.164 à chaque changement
+  // Si le parent passe une valeur E.164 (+xxx...), essaye de la décomposer -> pays + local
+  useEffect(() => {
+    if (!value || !value.startsWith("+")) return;
+    // évite de re-parker si on vient tout juste d'émettre la même valeur
+    if (isSettingFromProp.current) {
+      isSettingFromProp.current = false;
+      return;
+    }
+
+    const digits = value.replace(/[^\d]/g, "");
+    // trouve le dial code le plus long qui matche le début
+    let matchIndex = DEFAULT_INDEX;
+    let rest = "";
+    let bestLen = -1;
+
+    for (let i = 0; i < COUNTRIES.length; i++) {
+      const d = COUNTRIES[i].dial;
+      if (digits.startsWith(d) && d.length > bestLen) {
+        bestLen = d.length;
+        matchIndex = i;
+      }
+    }
+    rest = digits.slice(bestLen);
+
+    setIdx(matchIndex);
+    setLocal(rest);
+  }, [value]);
+
+  // Compose E.164 et renvoie au parent
   useEffect(() => {
     const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
     const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
+    isSettingFromProp.current = true;
     onChange(e164);
   }, [country, local, onChange]);
 
@@ -69,11 +99,10 @@ export default function PhoneField({ value, onChange }: Props) {
         >
           {COUNTRIES.map((c, i) => (
             <option key={c.num} value={i}>
-              {c.num}. {c.name} {c.flag}  (+{c.dial})
+              {c.num}. {c.name} {c.flag} (+{c.dial})
             </option>
           ))}
         </select>
-        {/* caret visuel (mais la zone entière est cliquable) */}
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none">▾</span>
       </div>
 
