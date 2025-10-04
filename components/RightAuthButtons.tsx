@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import SubscribeDialog from "@/app/components/SubscribeDialog";
-import { CodeAccessDialog } from "@/app/components/CodeAccessDialog";
+import SubscribeModal from "./SubscribeModal";
+import CodeAccessDialog from "./CodeAccessDialog"; // fichier à créer à l'étape 2
 
 export default function RightAuthButtons() {
   const [connected, setConnected] = useState(false);
@@ -95,15 +95,9 @@ export default function RightAuthButtons() {
         )}
       </div>
 
-      {/* Dialogues natifs */}
-      <SubscribeDialog
-        open={openSub}
-        onClose={() => setOpenSub(false)}
-        paypalClientId={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID as string}
-        planId={process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID as string}
-      />
-
-      <CodeAccessDialog open={openCode} onClose={() => setOpenCode(false)} phoneE164="" />
+      {/* Modals */}
+      <SubscribeModal open={openSub} onClose={() => setOpenSub(false)} />
+      <CodeAccessDialog open={openCode} onClose={() => setOpenCode(false)} />
     </>
   );
 }
