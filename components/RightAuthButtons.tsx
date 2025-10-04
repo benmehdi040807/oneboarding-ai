@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SubscribeModal from "./SubscribeModal";
 
-/* ===== Bannière flottante, alignée sur la barre + bouton OK ===== */
+/* ========= Mini-bannière “Actif” au-dessus de la barre ========= */
 function WelcomeBannerOverBar() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [modalOpen, setModalOpen] = useState(false); // ← masque la bannière si un modal est ouvert
 
   const BANNER_H = 27;
   const GAP_Y = 6;
@@ -34,13 +35,23 @@ function WelcomeBannerOverBar() {
     if (!bar) return setPos(null);
     const rect = bar.getBoundingClientRect();
     const ok = getOkEl();
-    const rightEdge = ok ? ok.getBoundingClientRect().right : rect.right + 60; // +60 si pas trouvé
+    const rightEdge = ok ? ok.getBoundingClientRect().right : rect.right;
     const width = Math.max(180, rightEdge - rect.left);
     const top = Math.max(8, rect.top - GAP_Y - BANNER_H);
-    setPos({ left: rect.left, top, width });
+    const left = rect.left;
+    setPos({ left, top, width });
   };
 
-  const loadState = () => {
+  const checkModalOpen = () => {
+    // Détecte tous les types de modals/overlays “natifs” ou maison
+    const any =
+      document.querySelector(
+        '[aria-modal="true"],[role="dialog"],dialog[open],.modal,.sheet,.legal-modal,.legal-sheet'
+      ) !== null;
+    setModalOpen(any);
+  };
+
+  const loadProfileState = () => {
     try {
       const p = localStorage.getItem("ob_profile");
       const prof = p ? JSON.parse(p) : null;
@@ -55,12 +66,13 @@ function WelcomeBannerOverBar() {
     hostRef.current = host;
     setMounted(true);
 
-    loadState();
+    loadProfileState();
     recompute();
+    checkModalOpen();
     setTimeout(recompute, 60);
     setTimeout(recompute, 240);
 
-    const onChange = () => { loadState(); recompute(); };
+    const onChange = () => { loadProfileState(); recompute(); };
     window.addEventListener("ob:connected-changed", onChange);
     window.addEventListener("ob:profile-changed", onChange);
 
@@ -70,18 +82,28 @@ function WelcomeBannerOverBar() {
 
     window.addEventListener("resize", recompute, { passive: true });
     window.addEventListener("scroll", recompute, { passive: true });
+    window.addEventListener("load", () => { recompute(); checkModalOpen(); }, { once: true });
+
+    // Observe le DOM pour savoir si un modal s’ouvre/se ferme
+    const mo = new MutationObserver(() => {
+      recompute();
+      checkModalOpen();
+    });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["open", "style", "class", "aria-modal", "role"] });
 
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
       ro.disconnect();
-      host.remove();
+      mo.disconnect();
       window.removeEventListener("resize", recompute);
       window.removeEventListener("scroll", recompute);
+      host.remove();
     };
   }, []);
 
-  if (!mounted || !hostRef.current || !active || !firstName || !pos) return null;
+  // Ne rien afficher si : pas monté / pas de profil actif / pas de position / un modal est ouvert
+  if (!mounted || !hostRef.current || !active || !firstName || !pos || modalOpen) return null;
 
   return createPortal(
     <div
@@ -91,7 +113,8 @@ function WelcomeBannerOverBar() {
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 2147483390,
+        // ↓↓↓ Z-INDEX ABAISSÉ pour passer SOUS les modals légaux/subscribe
+        zIndex: 900, // (les modals sont > 1000)
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -99,7 +122,8 @@ function WelcomeBannerOverBar() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "0 12px",
+        paddingLeft: 12,
+        paddingRight: 12,
       }}
     >
       <div className="truncate text-center text-[12px] sm:text-[13px] text-white font-medium">
@@ -136,12 +160,14 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
+  // même skin que les boutons gauche — conteneur inline-flex
   const circle =
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
   const onBlueClick = () => setOpenSubscribe(true);
 
+  // Doré => (dé)connexion uniquement
   const onGoldClick = () => {
     const hasProfile = !!localStorage.getItem("ob_profile");
     if (connected) {
