@@ -54,7 +54,6 @@ function WelcomeBannerOverBar() {
         setFirstName(prof?.firstName ?? null);
         setActive(localStorage.getItem("ob_connected") === "1");
       } catch {}
-      // positionne immédiatement + petits rattrapages
       recompute();
       setTimeout(recompute, 50);
       setTimeout(recompute, 200);
@@ -65,10 +64,6 @@ function WelcomeBannerOverBar() {
     const onChange = () => load();
     window.addEventListener("ob:connected-changed", onChange);
     window.addEventListener("ob:profile-changed", onChange);
-
-    // “poll” court en secours après création
-    const tPoll1 = setTimeout(load, 300);
-    const tPoll2 = setTimeout(load, 800);
 
     const ro = new ResizeObserver(recompute);
     const bar = getBarEl();
@@ -88,7 +83,6 @@ function WelcomeBannerOverBar() {
     return () => {
       window.removeEventListener("ob:connected-changed", onChange);
       window.removeEventListener("ob:profile-changed", onChange);
-      clearTimeout(tPoll1); clearTimeout(tPoll2);
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", recompute);
@@ -108,7 +102,7 @@ function WelcomeBannerOverBar() {
         top: pos.top,
         width: pos.width,
         height: BANNER_H,
-        zIndex: 60,
+        zIndex: 60,                 // au-dessus de la barre, sous les modaux
         pointerEvents: "none",
         borderRadius: 12,
         background: "rgba(17,24,39,0.12)",
@@ -141,7 +135,7 @@ function WelcomeBannerOverBar() {
   );
 }
 
-/* ===================== Boutons de droite (miroir des boutons gauches) ===================== */
+/* ===================== Boutons de droite ===================== */
 export default function RightAuthButtons() {
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -154,22 +148,24 @@ export default function RightAuthButtons() {
     return () => window.removeEventListener("ob:connected-changed", onChange);
   }, []);
 
+  // même skin que les boutons gauche
   const circle =
     "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
     "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
+  // BLEU => création uniquement
+  const onBlueClick = () => setOpenSubscribe(true);
+
+  // DORÉ => (dé)connexion uniquement, sans popup si pas de profil
   const onGoldClick = () => {
     const profile = localStorage.getItem("ob_profile");
     if (connected) {
       localStorage.setItem("ob_connected", "0");
       window.dispatchEvent(new Event("ob:connected-changed"));
     } else {
-      if (profile) {
-        localStorage.setItem("ob_connected", "1");
-        window.dispatchEvent(new Event("ob:connected-changed"));
-      } else {
-        setOpenSubscribe(true);
-      }
+      if (!profile) return; // aucune incitation
+      localStorage.setItem("ob_connected", "1");
+      window.dispatchEvent(new Event("ob:connected-changed"));
     }
   };
 
@@ -179,7 +175,7 @@ export default function RightAuthButtons() {
         <button
           type="button"
           aria-label="Créer mon espace"
-          onClick={() => setOpenSubscribe(true)}
+          onClick={onBlueClick}
           className={circle}
           title="Créer mon espace"
         >
@@ -217,10 +213,10 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Bannière */}
+      {/* Bannière de bienvenue (au-dessus de la barre) */}
       <WelcomeBannerOverBar />
 
-      {/* Modal */}
+      {/* Modal de création */}
       <SubscribeModal open={openSubscribe} onClose={() => setOpenSubscribe(false)} />
     </>
   );
