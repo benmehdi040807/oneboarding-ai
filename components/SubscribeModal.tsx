@@ -5,7 +5,7 @@ import PhoneField from "./PhoneField";
 
 type Props = { open: boolean; onClose: () => void };
 
-// Bannière au-dessus de la barre (déjà validée)
+// Bannière au-dessus de la barre (inchangée)
 function WelcomeMessageAboveBar() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [active, setActive] = useState(false);
@@ -41,16 +41,24 @@ function WelcomeMessageAboveBar() {
 export default function SubscribeModal({ open, onClose }: Props) {
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
-  const [e164, setE164] = useState(""); // rempli par PhoneField
+  const [e164, setE164] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Lock body quand le modal est ouvert
+  // Bloque le scroll de la page quand ouvert
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, [open]);
+
+  // Fermeture via ESC
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -71,7 +79,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
   };
 
   const baseInput =
-    "w-full rounded-2xl border border-black/10 bg-white/95 " + // opacité + nette
+    "w-full rounded-2xl border border-black/10 bg-white " + // 100% opaque
     "px-4 py-3 text-black placeholder-black/40 outline-none " +
     "focus:ring-2 focus:ring-[#2E6CF5]/30 focus:border-transparent";
 
@@ -79,26 +87,25 @@ export default function SubscribeModal({ open, onClose }: Props) {
     <>
       <WelcomeMessageAboveBar />
 
+      {/* Overlay plein écran TRÈS opaque, au z-index maximum */}
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center
-                   bg-black/40" // overlay plus dense, sans blur
-        style={{ overscrollBehavior: "contain" }}
+        className="fixed inset-0 z-[2147483647] flex items-end sm:items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.6)", overscrollBehavior: "contain" }}
       >
+        {/* Carte MODAL entièrement opaque (plus de transparence) */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="w-full sm:max-w-lg rounded-3xl border border-black/10
-                     bg-white/95 shadow-2xl p-4 sm:p-6 m-0 sm:m-6" // carte opaque
+          className="w-full sm:max-w-lg rounded-3xl border border-black/10 bg-white shadow-2xl p-4 sm:p-6 m-0 sm:m-6"
           style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-black/90">Créer mon espace</h2>
             <button
               onClick={onClose}
-              className="h-10 w-10 rounded-full bg-black/5 hover:bg-black/10 text-black/80
-                         flex items-center justify-center text-xl"
+              className="h-10 w-10 rounded-full bg-black/5 hover:bg-black/10 text-black/80 flex items-center justify-center text-xl"
               aria-label="Fermer"
             >
               ×
@@ -129,10 +136,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
             <button
               disabled={submitting || !firstName || !lastName || !e164}
-              className="w-full rounded-2xl py-5 text-lg font-semibold text-white
-                         shadow hover:opacity-95 active:scale-[.99] transition
-                         disabled:opacity-60 disabled:cursor-not-allowed
-                         bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
+              className="w-full rounded-2xl py-5 text-lg font-semibold text-white shadow hover:opacity-95 active:scale-[.99] transition disabled:opacity-60 disabled:cursor-not-allowed bg-[linear-gradient(135deg,#4F8AF9,#2E6CF5)]"
             >
               {submitting ? "Création..." : "Créer mon espace"}
             </button>
