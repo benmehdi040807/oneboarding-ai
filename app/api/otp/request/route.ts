@@ -1,72 +1,42 @@
 // app/api/otp/request/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 
-// --- MINI KV EN MÉMOIRE (remplace si tu as déjà un kv.ts) ---
-const mem = new Map<string, any>();
-const kv = {
-  async get<T>(key: string): Promise<T | null> { return (mem.get(key) ?? null) as T | null; },
-  async set<T>(key: string, value: T): Promise<void> { mem.set(key, value); },
-  async del(key: string): Promise<void> { mem.delete(key); },
-};
-
-// --- OTP utils (évite 0/O/I/1) ---
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-function generateOtp(len = 6) {
-  const cryptoObj = require("node:crypto");
-  const bytes = cryptoObj.randomBytes(len);
-  let out = "";
-  for (let i = 0; i < len; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
-  return out;
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // pas de 0/O/I/1
+function codeFromInt(x: number, len = 6) {
+  let s = "";
+  for (let i = 0; i < len; i++) { s = ALPHABET[x % ALPHABET.length] + s; x = Math.floor(x / ALPHABET.length); }
+  return s;
 }
-function hashOtp(otp: string) {
-  const cryptoObj = require("node:crypto");
-  return cryptoObj.createHash("sha256").update(otp).digest("hex");
-}
-
-// --- ENVOI OTP (STUB DEV) ---
-// Remplacera plus tard par WhatsApp Cloud API / Twilio.
-// Pour l’instant, juste un log serveur (suffisant pour build & test).
-async function sendOtpDev(toE164: string, code: string) {
-  console.log(`[DEV] OTP vers ${toE164}: ${code}`);
-  return true;
+function computeOtp(phone: string, windowMs: number, secret: string) {
+  const t = Math.floor(Date.now() / windowMs);
+  const h = crypto.createHmac("sha256", secret).update(`${phone}:${t}`).digest();
+  // Prendre 4 octets et les transformer en int positif
+  const n = ((h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3]) >>> 0;
+  return codeFromInt(n, 6);
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const phoneE164 = (body?.phoneE164 ?? "").toString();
-
-    if (!phoneE164 || !phoneE164.startsWith("+")) {
+    const { phoneE164 } = await req.json();
+    if (!phoneE164 || typeof phoneE164 !== "string" || !phoneE164.startsWith("+")) {
       return NextResponse.json({ ok: false, error: "INVALID_PHONE" }, { status: 400 });
     }
 
-    // ⚙️ Mode DEV : autoriser l’OTP sans paiement (DEV_ALLOW_FREE=1)
-    const allowFree = process.env.DEV_ALLOW_FREE === "1";
-
-    // Vérifier statut d’abonnement (si tu l’enregistres ailleurs)
-    const user = await kv.get<{ status: "paid" | "free" }>(`user:${phoneE164}`);
-
-    if (!allowFree) {
-      if (!user || user.status !== "paid") {
-        // En prod, on exige le paiement
-        return NextResponse.json({ ok: false, error: "PAYMENT_REQUIRED" }, { status: 402 });
-      }
+    const STATELESS = process.env.DEV_STATELESS_OTP === "1";
+    if (!STATELESS) {
+      return NextResponse.json({ ok: false, error: "DEV_STATELESS_OTP_OFF" }, { status: 500 });
     }
-    // sinon en DEV, on laisse passer
 
-    // Générer & stocker l’OTP (5 min)
-    const code = generateOtp(6);
-    const codeHash = hashOtp(code);
-    const expiresAt = Date.now() + 5 * 60 * 1000;
+    const secret = process.env.DEV_OTP_SECRET || "dev-secret";
+    const windowMs = 5 * 60 * 1000; // 5 minutes
+    const code = computeOtp(phoneE164, windowMs, secret);
 
-    await kv.set(`otp:${phoneE164}`, { codeHash, expiresAt });
-
-    // Envoyer (stub dev)
-    await sendOtpDev(phoneE164, code);
+    console.log(`[DEV] OTP stateless vers ${phoneE164}: ${code}`);
+    // Ici tu enverras via WhatsApp plus tard. Pour l’instant, on log.
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    console.error("OTP request error:", e);
     return NextResponse.json({ ok: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
