@@ -1,3 +1,4 @@
+// components/RenewalNag.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -11,48 +12,36 @@ import { useEffect, useMemo, useState } from "react";
  *    • oneboarding.renewalNagAt   -> ms epoch (3 jours avant la fin – posé par PaymentModal)
  *    • oneboarding.phoneE164      -> identifiant (facultatif, pour l'event)
  * – Dismiss:
- *    • oneboarding.nagDismissedAt -> ms epoch (bannière masquée jusqu'à la prochaine session)
+ *    • oneboarding.nagDismissedAt -> ms epoch (historique – non bloquant)
+ *    • (session) oneboarding.nagDismissed.session -> "1" pour ne pas réafficher dans l'onglet courant
  *
  * Visibilité:
  * – Si plan = "subscription"  -> jamais.
- * – Si plan = "one-month" et Date.now() >= nagAt -> afficher.
+ * – Si plan = "one-month" et Date.now() >= nagAt -> afficher (sauf si dismiss session).
  * – Si expiré (Date.now() > activeUntil) -> texte adapté "Accès expiré".
  */
 
+const PLAN_KEY = "oneboarding.plan";
+const UNTIL_KEY = "oneboarding.activeUntil";
+const NAG_AT_KEY = "oneboarding.renewalNagAt";
+const PHONE_KEY = "oneboarding.phoneE164";
+const DISMISS_LOCAL_KEY = "oneboarding.nagDismissedAt";
+const DISMISS_SESSION_KEY = "oneboarding.nagDismissed.session";
+
+// RgpdBanner utilise ce key côté localStorage
+const RGPD_CONSENT_KEY = "oneboarding.rgpdConsent";
+
+type Plan = "one-month" | "subscription" | null;
+
 export default function RenewalNag() {
+  const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
   const [visible, setVisible] = useState(false);
 
-  // lecture des états persistés
-  const state = useMemo(() => {
-    try {
-      const plan = localStorage.getItem("oneboarding.plan") as
-        | "subscription"
-        | "one-month"
-        | null;
-
-      const activeUntilStr = localStorage.getItem("oneboarding.activeUntil");
-      const activeUntil = activeUntilStr ? Number(activeUntilStr) : null;
-
-      const nagAtStr = localStorage.getItem("oneboarding.renewalNagAt");
-      const nagAt = nagAtStr ? Number(nagAtStr) : null;
-
-      const dismissedStr = localStorage.getItem("oneboarding.nagDismissedAt");
-      const dismissedAt = dismissedStr ? Number(dismissedStr) : null;
-
-      const phone = localStorage.getItem("oneboarding.phoneE164") || "";
-
-      return { plan, activeUntil, nagAt, dismissedAt, phone };
-    } catch {
-      return {
-        plan: null,
-        activeUntil: null,
-        nagAt: null,
-        dismissedAt: null,
-        phone: "",
-      };
-    }
-  }, [now]);
+  // marquer la session (optionnel)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // rafraîchit "now" toutes les 60s pour refléter l'écoulement du temps
   useEffect(() => {
@@ -60,29 +49,84 @@ export default function RenewalNag() {
     return () => clearInterval(id);
   }, []);
 
+  // lecture des états persistés
+  const state = useMemo(() => {
+    if (!mounted) {
+      return {
+        plan: null as Plan,
+        activeUntil: null as number | null,
+        nagAt: null as number | null,
+        dismissedAt: null as number | null,
+        phone: "",
+      };
+    }
+    try {
+      const plan = (localStorage.getItem(PLAN_KEY) as Plan) ?? null;
+
+      const activeUntilStr = localStorage.getItem(UNTIL_KEY);
+      const activeUntil = activeUntilStr ? Number(activeUntilStr) : null;
+
+      const nagAtStr = localStorage.getItem(NAG_AT_KEY);
+      const nagAt = nagAtStr ? Number(nagAtStr) : null;
+
+      const dismissedStr = localStorage.getItem(DISMISS_LOCAL_KEY);
+      const dismissedAt = dismissedStr ? Number(dismissedStr) : null;
+
+      const phone = localStorage.getItem(PHONE_KEY) || "";
+
+      return { plan, activeUntil, nagAt, dismissedAt, phone };
+    } catch {
+      return {
+        plan: null as Plan,
+        activeUntil: null,
+        nagAt: null,
+        dismissedAt: null,
+        phone: "",
+      };
+    }
+  }, [mounted, now]);
+
+  // détecter si la barre RGPD est (probablement) visible → décaler la bannière
+  const rgpdVisible = useMemo(() => {
+    if (!mounted) return false;
+    try {
+      const consent = localStorage.getItem(RGPD_CONSENT_KEY) === "1";
+      const onLegal = typeof window !== "undefined" && window.location.pathname.startsWith("/legal");
+      return !consent && !onLegal;
+    } catch {
+      return true; // par défaut on suppose visible pour éviter le chevauchement
+    }
+  }, [mounted]);
+
   // calcule la visibilité
   useEffect(() => {
-    const { plan, nagAt, dismissedAt } = state;
+    if (!mounted) return;
+
+    const { plan, nagAt } = state;
+
+    // 1) Abonnement : jamais de bannière
     if (plan !== "one-month") {
       setVisible(false);
       return;
     }
-    if (dismissedAt && dismissedAt > performance.timing?.navigationStart) {
-      // banniere fermée durant cette session
-      setVisible(false);
-      return;
-    }
-    if (nagAt && now >= nagAt) {
-      setVisible(true);
-    } else {
-      setVisible(false);
-    }
-  }, [state, now]);
 
-  if (!visible) return null;
+    // 2) Si l'utilisateur a fermé la bannière durant CETTE session, ne pas réafficher
+    try {
+      if (sessionStorage.getItem(DISMISS_SESSION_KEY) === "1") {
+        setVisible(false);
+        return;
+      }
+    } catch {
+      // ignore
+    }
 
-  const expired =
-    !!state.activeUntil && now > (state.activeUntil as number);
+    // 3) Afficher si on a atteint le seuil de rappel
+    setVisible(Boolean(nagAt && now >= nagAt));
+  }, [mounted, state, now]);
+
+  if (!mounted || !visible) return null;
+
+  const expired = Boolean(state.activeUntil && now > (state.activeUntil as number));
 
   const daysLeft = (() => {
     if (!state.activeUntil) return null;
@@ -93,8 +137,11 @@ export default function RenewalNag() {
 
   function closeNag() {
     try {
-      localStorage.setItem("oneboarding.nagDismissedAt", String(Date.now()));
-    } catch {}
+      localStorage.setItem(DISMISS_LOCAL_KEY, String(Date.now())); // trace historique (non bloquant)
+      sessionStorage.setItem(DISMISS_SESSION_KEY, "1"); // blocage durant l'onglet courant
+    } catch {
+      // ignore
+    }
     setVisible(false);
   }
 
@@ -106,17 +153,18 @@ export default function RenewalNag() {
     );
   }
 
+  const bottomPx = rgpdVisible ? 92 : 18; // décale si la barre RGPD est affichée
+
   return (
     <>
       <style jsx>{`
         .nag {
           position: fixed;
           left: 50%;
-          bottom: 18px;
           transform: translateX(-50%);
           width: min(720px, 92vw);
-          z-index: 50;
-          background: rgba(255, 255, 255, 0.92);
+          z-index: 2147483190; /* au-dessus de la plupart des overlays, en dessous d’un éventuel 2147483200 */
+          background: rgba(255, 255, 255, 0.94);
           color: #0b1b2b;
           border: 1px solid rgba(11, 27, 43, 0.12);
           border-radius: 16px;
@@ -155,7 +203,7 @@ export default function RenewalNag() {
           background: linear-gradient(135deg, #0ea5e9, #0284c7);
         }
         .btn-ghost {
-          background: rgba(0, 0, 0, 0.04);
+          background: rgba(0, 0, 0, 0.06);
         }
         @media (max-width: 460px) {
           .nag-inner {
@@ -167,7 +215,7 @@ export default function RenewalNag() {
         }
       `}</style>
 
-      <div className="nag">
+      <div className="nag" style={{ bottom: bottomPx }}>
         <div className="nag-inner">
           <div>
             <div className="nag-title">
@@ -176,7 +224,7 @@ export default function RenewalNag() {
             <div className="nag-sub">
               {expired
                 ? "Renouvelez pour reprendre vos échanges sans interruption."
-                : daysLeft
+                : daysLeft !== null
                 ? `Il reste environ ${daysLeft} jour(s). Prolongez en un clic.`
                 : "Fin imminente. Prolongez en un clic."}
             </div>
