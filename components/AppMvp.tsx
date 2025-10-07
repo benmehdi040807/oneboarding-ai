@@ -35,7 +35,7 @@ export default function AppMvp() {
     } catch {
       return false;
     }
-  }, [history.length]); // recalcul léger à chaque nouveau message
+  }, [history.length]);
 
   const freeUsedRef = useRef<number>(0);
   useEffect(() => {
@@ -46,7 +46,6 @@ export default function AppMvp() {
       freeUsedRef.current = 0;
     }
   }, []);
-
   function incFreeCount() {
     try {
       freeUsedRef.current += 1;
@@ -71,13 +70,12 @@ export default function AppMvp() {
     }
   }, [history]);
 
-  // ---------- Ecoute connexion OTP → ouvrir Paiement automatiquement ----------
+  // Connexion OTP → ouvrir Paiement automatiquement
   useEffect(() => {
     const onConnectedChanged = () => {
       const connected = localStorage.getItem("ob_connected") === "1";
       if (connected) {
         const phoneE164 = localStorage.getItem("oneboarding.phoneE164") || undefined;
-        // on déclenche directement le paiement
         window.dispatchEvent(new CustomEvent("ob:open-payment", { detail: { phoneE164 } }));
       }
     };
@@ -85,13 +83,13 @@ export default function AppMvp() {
     return () => window.removeEventListener("ob:connected-changed", onConnectedChanged);
   }, []);
 
-  // ---------- ENVOI + AFFICHAGE RÉPONSE (avec gating 3 gratuites) ----------
+  // ENVOI + AFFICHAGE RÉPONSE (avec gating 3 gratuites)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
     if (!q || loading) return;
 
-    // Gate: si pas actif et déjà 3 réponses données, on bloque et on lance le flux d’activation
+    // Gate: si pas actif et déjà 3 réponses, on bloque et on lance le flux d’activation
     if (!isSpaceActive && freeUsedRef.current >= 3) {
       setOpenSubscribe(true); // OTP
       setDebug("Limite atteinte → OTP requis avant paiement");
@@ -142,15 +140,6 @@ export default function AppMvp() {
     }
   }
 
-  // ---------- Flux après fermeture de SubscribeModal ----------
-  // Ici on choisit d’ouvrir le CodeAccessDialog juste après la demande OTP
-  useEffect(() => {
-    // Quand on ferme SubscribeModal, si c'était pour gating, on enchaîne
-    // On détecte la fermeture par la bascule d'état openSubscribe → false
-    // et on regarde si on vient d’envoyer un OTP (pas de flag serveur ici,
-    // mais UX attendue : l’utilisateur vient de cliquer "Recevoir mon code")
-  }, [openSubscribe]);
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Modals “globaux” */}
@@ -160,7 +149,6 @@ export default function AppMvp() {
         open={openSubscribe}
         onClose={() => {
           setOpenSubscribe(false);
-          // On ouvre la saisie du code juste après (flux continu)
           setTimeout(() => setOpenCodeDialog(true), 80);
         }}
       />
@@ -170,7 +158,6 @@ export default function AppMvp() {
       />
 
       <div className="mx-auto max-w-screen-sm px-4 py-6 flex flex-col items-center">
-        {/* Menu principal (inclut les actions “Se connecter / Activer / Historique / Langue” + “Coming soon” sur O bleu/O doré) */}
         <div className="w-full mb-4">
           <Menu />
         </div>
@@ -195,10 +182,9 @@ export default function AppMvp() {
           </button>
         </form>
 
-        {/* Petit panneau debug (optionnel) */}
+        {/* Petit panneau debug (sans compteur visuel) */}
         <div className="w-full text-xs text-white/60 mb-4">
-          État : {debug} • Offertes consommées: {freeUsedRef.current}/3 •{" "}
-          Accès: {isSpaceActive ? "actif" : "non actif"}
+          État : {debug}
         </div>
 
         {/* Historique */}
@@ -225,4 +211,4 @@ export default function AppMvp() {
       </div>
     </div>
   );
-      }
+}
