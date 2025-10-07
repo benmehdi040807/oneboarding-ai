@@ -47,24 +47,21 @@ type Props = { value: string; onChange: (e164: string) => void };
 export default function PhoneField({ value, onChange }: Props) {
   const [idx, setIdx] = useState<number>(DEFAULT_INDEX);
   const [local, setLocal] = useState<string>("");
-  const isSettingFromProp = useRef(false); // évite les boucles value <-> state
+  const isSettingFromProp = useRef(false);
 
   const country = COUNTRIES[idx];
   const dial = useMemo(() => `+${country.dial}`, [country]);
 
-  // Si le parent passe une valeur E.164 (+xxx...), essaye de la décomposer -> pays + local
+  // Décomposer value -> pays + local si on reçoit une E.164
   useEffect(() => {
     if (!value || !value.startsWith("+")) return;
-    // évite de re-parker si on vient tout juste d'émettre la même valeur
     if (isSettingFromProp.current) {
       isSettingFromProp.current = false;
       return;
     }
 
     const digits = value.replace(/[^\d]/g, "");
-    // trouve le dial code le plus long qui matche le début
     let matchIndex = DEFAULT_INDEX;
-    let rest = "";
     let bestLen = -1;
 
     for (let i = 0; i < COUNTRIES.length; i++) {
@@ -74,13 +71,13 @@ export default function PhoneField({ value, onChange }: Props) {
         matchIndex = i;
       }
     }
-    rest = digits.slice(bestLen);
 
+    const rest = digits.slice(bestLen);
     setIdx(matchIndex);
     setLocal(rest);
   }, [value]);
 
-  // Compose E.164 et renvoie au parent
+  // Compose E.164 et remonte au parent
   useEffect(() => {
     const cleaned = (local || "").replace(/[^\d]/g, "").replace(/^0+/, "");
     const e164 = cleaned ? `+${country.dial}${cleaned}` : "";
@@ -90,7 +87,7 @@ export default function PhoneField({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Sélecteur natif (toute la zone est cliquable) */}
+      {/* Sélecteur pays natif */}
       <div className="relative">
         <select
           value={idx}
@@ -117,6 +114,8 @@ export default function PhoneField({ value, onChange }: Props) {
         <input
           type="tel"
           inputMode="numeric"
+          autoComplete="tel"
+          dir="ltr"
           placeholder="Numéro (sans 0 initial)"
           className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black placeholder-black/40 outline-none"
           value={local}
@@ -125,4 +124,4 @@ export default function PhoneField({ value, onChange }: Props) {
       </div>
     </div>
   );
-}
+      }
