@@ -1,10 +1,16 @@
+// app/page.tsx
 "use client";
 export const runtime = "nodejs";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
-import RgpdBanner from "@/components/RgpdBanner"; // ✅ bandeau RGPD natif unique
+import RgpdBanner from "@/components/RgpdBanner";
+import LegalBar from "@/components/LegalBar";
+
+// ➜ import dynamique des boutons de droite (O bleu / O doré)
+const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
 
 /* =================== Modal de confirmation (Effacer historique) =================== */
 function ConfirmDialog({
@@ -27,15 +33,12 @@ function ConfirmDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (open) {
-      const btn = dialogRef.current?.querySelector<HTMLButtonElement>("button[data-autofocus='true']");
-      btn?.focus();
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onCancel();
-      };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
-    }
+    if (!open) return;
+    const btn = dialogRef.current?.querySelector<HTMLButtonElement>("button[data-autofocus='true']");
+    btn?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, onCancel]);
 
   if (!open) return null;
@@ -68,94 +71,13 @@ function ConfirmDialog({
   );
 }
 
-/* =================== Boutons vitrine O₂ / O₃ =================== */
-function ShowcaseButtons() {
-  const [open, setOpen] = useState<null | "o2" | "o3">(null);
-
-  const MSG_O2 = `One IA — Votre Intelligence personnelle
-
-Une nouvelle ère s’annonce.
-L’intelligence devient personnelle, intime, à votre image.
-
-Votre IA vous accompagne, vous comprend,
-et évolue avec vous.
-
-Coming soon — La génération II.
-L’intelligence qui se souvient de vous, pour vous.`;
-
-  const MSG_O3 = `Mirror IA — L’Internet des intelligences
-
-L’intelligence ne sera plus seule.
-Elle dialoguera avec d’autres, sous votre regard, pour votre monde.
-
-Les IA personnelles se rencontreront,
-coopéreront, et créeront ensemble.
-
-Coming soon — La génération III.
-L’intelligence connectée, au service de l’humain.`;
-
-  return (
-    <>
-      <div className="flex gap-3">
-        {/* O bleu (Gén. II) */}
-        <button
-          type="button"
-          onClick={() => setOpen(open === "o2" ? null : "o2")}
-          className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
-          title="One IA — Génération II"
-          aria-label="One IA"
-        >
-          <span className="inline-block h-5 w-5 rounded-full" style={{ background: "#38bdf8" }} />
-        </button>
-
-        {/* O doré (Gén. III) */}
-        <button
-          type="button"
-          onClick={() => setOpen(open === "o3" ? null : "o3")}
-          className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
-          title="Mirror IA — Génération III"
-          aria-label="Mirror IA"
-        >
-          <span className="inline-block h-5 w-5 rounded-full" style={{ background: "#f5b700" }} />
-        </button>
-      </div>
-
-      {/* Fenêtre native (toggle / OK ferme) */}
-      {open && (
-        <div className="fixed inset-0 z-[70] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(null)} />
-          <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white whitespace-pre-wrap">
-            <h2 className="text-lg font-semibold mb-3">
-              {open === "o2" ? "Génération II — One IA" : "Génération III — Mirror IA"}
-            </h2>
-            <p className="text-sm opacity-95 mb-5">
-              {open === "o2" ? MSG_O2 : MSG_O3}
-            </p>
-            <div className="flex justify-end">
-              <button
-                onClick={() => setOpen(null)}
-                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 /* =================== Types & utils =================== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-const cleanText = (s: string) =>
-  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
+const cleanText = (s: string) => s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 
 function copyToClipboard(text: string) {
-  try {
-    navigator.clipboard.writeText(text);
-  } catch {}
+  try { navigator.clipboard.writeText(text); } catch {}
 }
 
 /* =================== Page =================== */
@@ -181,12 +103,9 @@ export default function Page() {
   // Textarea auto-expansion
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
+    const ta = taRef.current; if (!ta) return;
     ta.style.height = "auto";
-    const max = 3,
-      lineHeight = 24,
-      maxHeight = max * lineHeight + 16;
+    const max = 3, lineHeight = 24, maxHeight = max * lineHeight + 16;
     ta.style.height = Math.min(ta.scrollHeight, maxHeight) + "px";
     ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [input]);
@@ -205,45 +124,25 @@ export default function Page() {
     r.interimResults = false;
     r.maxAlternatives = 1;
 
-    r.onstart = () => {
-      baseInputRef.current = input;
-      setListening(true);
-    };
+    r.onstart = () => { baseInputRef.current = input; setListening(true); };
     r.onresult = (e: any) => {
       let final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
       setInput(cleanText([baseInputRef.current, final].join(" ")));
     };
     const stopUI = () => setListening(false);
-    r.onend = stopUI;
-    r.onspeechend = stopUI;
-    r.onaudioend = stopUI;
-    r.onnomatch = stopUI;
-    r.onerror = stopUI;
+    r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
 
     recogRef.current = r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function toggleMic() {
-    const r = recogRef.current;
-    if (!r) return;
-    if (!listening) {
-      try {
-        r.start();
-      } catch {}
-      return;
-    }
-    try {
-      r.stop();
-    } catch {}
+    const r = recogRef.current; if (!r) return;
+    if (!listening) { try { r.start(); } catch {} return; }
+    try { r.stop(); } catch {}
     setTimeout(() => {
-      if (listening) {
-        try {
-          r.abort?.();
-        } catch {}
-        setListening(false);
-      }
+      if (listening) { try { r.abort?.(); } catch {} setListening(false); }
     }, 600);
   }
 
@@ -255,9 +154,7 @@ export default function Page() {
     } catch {}
   }, []);
   useEffect(() => {
-    try {
-      localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch {}
+    try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
   // Auto-scroll vers le haut à la fin de génération
@@ -326,12 +223,11 @@ export default function Page() {
   // Effacement de l’historique
   function clearHistory() {
     setHistory([]);
-    try {
-      localStorage.removeItem("oneboarding.history");
-    } catch {}
+    try { localStorage.removeItem("oneboarding.history"); } catch {}
     setShowClearModal(false);
   }
 
+  // ✅ ICI: aucun '}' parasite avant le return
   return (
     <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
@@ -351,7 +247,7 @@ export default function Page() {
       </div>
 
       {/* Barre d’entrée */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z={[1] as unknown as string}>
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
         <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <textarea
             ref={taRef}
@@ -372,7 +268,7 @@ export default function Page() {
           </button>
         </div>
 
-        {/* actions sous la barre : 2 à gauche + 2 à droite (miroir vitrine) */}
+        {/* actions sous la barre : 2 à gauche + 2 à droite (miroir) */}
         <div className="mt-3 flex gap-3 items-center">
           {/* GAUCHE — 📎 OCR */}
           <button
@@ -413,9 +309,9 @@ export default function Page() {
             </svg>
           </button>
 
-          {/* DROITE — vitrine O₂/O₃ */}
+          {/* DROITE — miroir, collé à droite */}
           <div className="ml-auto">
-            <ShowcaseButtons />
+            <RightAuthButtons />
           </div>
         </div>
       </form>
@@ -501,8 +397,9 @@ export default function Page() {
         onCancel={() => setShowClearModal(false)}
       />
 
-      {/* ✅ Bandeau RGPD natif */}
+      {/* Bars / banners */}
       <RgpdBanner />
+      <LegalBar />
     </div>
   );
 }
@@ -511,9 +408,7 @@ export default function Page() {
 function StyleGlobals() {
   return (
     <style jsx global>{`
-      html,
-      body,
-      #__next {
+      html, body, #__next {
         min-height: 100dvh;
         width: 100%;
         margin: 0;
@@ -537,7 +432,6 @@ function StyleGlobals() {
         --border: rgba(11, 27, 43, 0.12);
         --accent: #22d3ee;
         --accent-tint: rgba(34, 211, 238, 0.18);
-
         --danger: #ef4444;
         --danger-strong: #dc2626;
       }
@@ -547,93 +441,37 @@ function StyleGlobals() {
         left: 50%;
         top: 96px;
         transform: translateX(-50%) translateZ(0);
-        width: 34rem;
-        height: 34rem;
-        z-index: 0;
-        pointer-events: none;
+        width: 34rem; height: 34rem;
+        z-index: 0; pointer-events: none;
         background: radial-gradient(closest-side, rgba(56, 189, 248, 0.28), rgba(56, 189, 248, 0));
       }
-      body > * {
-        position: relative;
-        z-index: 1;
-      }
-
-      .nowrap-ar {
-        white-space: nowrap;
-      }
+      body > * { position: relative; z-index: 1; }
 
       @keyframes fadeUp {
-        from {
-          opacity: 0;
-          transform: translateY(6px);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: none; }
       }
-      .msg-appear {
-        animation: fadeUp 0.28s ease-out both;
-      }
-      .animate-fadeUp {
-        animation: fadeUp 0.28s ease-out both;
-      }
+      .msg-appear { animation: fadeUp 0.28s ease-out both; }
+      .animate-fadeUp { animation: fadeUp 0.28s ease-out both; }
 
-      @keyframes dots {
-        0% { opacity: 0.2; }
-        20% { opacity: 1; }
-        100% { opacity: 0.2; }
-      }
-      .typing-dots {
-        letter-spacing: 0.25em;
-        display: inline-block;
-        animation: dots 1.2s ease-in-out infinite;
-      }
+      @keyframes dots { 0%{opacity:.2} 20%{opacity:1} 100%{opacity:.2} }
+      .typing-dots { letter-spacing: .25em; display:inline-block; animation: dots 1.2s ease-in-out infinite; }
 
       @keyframes micPulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.25);
-          transform: scale(1);
-        }
-        70% {
-          box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
-          transform: scale(1.02);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
-          transform: scale(1);
-        }
+        0% { box-shadow:0 0 0 0 rgba(34,211,238,.25); transform:scale(1); }
+        70% { box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
+        100% { box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
       }
-      .mic-pulse {
-        animation: micPulse 1.6s ease-out infinite;
-      }
+      .mic-pulse { animation: micPulse 1.6s ease-out infinite; }
 
-      .ocr-skin,
-      .ocr-skin * {
-        color: var(--fg) !important;
-      }
+      .ocr-skin, .ocr-skin * { color: var(--fg) !important; }
       .ocr-skin input[type="file"] {
-        position: absolute !important;
-        left: -10000px !important;
-        width: 1px !important;
-        height: 1px !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        display: none !important;
+        position: absolute !important; left: -10000px !important; width:1px !important; height:1px !important;
+        opacity:0 !important; pointer-events:none !important; display:none !important;
       }
       .ocr-skin input[type="file"]::file-selector-button,
-      .ocr-skin input[type="file"] + *,
-      .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small {
-        display: none !important;
-      }
-      .ocr-skin .truncate,
-      .ocr-skin [class*="file-name"],
-      .ocr-skin [class*="filename"],
-      .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] {
-        display: none !important;
-      }
+      .ocr-skin input[type="file"] + *, .ocr-skin input[type="file"] ~ span,
+      .ocr-skin input[type="file"] ~ small { display:none !important; }
     `}</style>
   );
-}
+      }
