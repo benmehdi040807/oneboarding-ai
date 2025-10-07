@@ -2,16 +2,9 @@
 export const runtime = "nodejs";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 import RgpdBanner from "@/components/RgpdBanner"; // ✅ bandeau RGPD natif unique
-
-// ➜ import dynamique des boutons de droite (➕ / 🔑)
-const RightAuthButtons = dynamic(
-  () => import("@/components/RightAuthButtons"),
-  { ssr: false }
-);
 
 /* =================== Modal de confirmation (Effacer historique) =================== */
 function ConfirmDialog({
@@ -72,6 +65,84 @@ function ConfirmDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+/* =================== Boutons vitrine O₂ / O₃ =================== */
+function ShowcaseButtons() {
+  const [open, setOpen] = useState<null | "o2" | "o3">(null);
+
+  const MSG_O2 = `One IA — Votre Intelligence personnelle
+
+Une nouvelle ère s’annonce.
+L’intelligence devient personnelle, intime, à votre image.
+
+Votre IA vous accompagne, vous comprend,
+et évolue avec vous.
+
+Coming soon — La génération II.
+L’intelligence qui se souvient de vous, pour vous.`;
+
+  const MSG_O3 = `Mirror IA — L’Internet des intelligences
+
+L’intelligence ne sera plus seule.
+Elle dialoguera avec d’autres, sous votre regard, pour votre monde.
+
+Les IA personnelles se rencontreront,
+coopéreront, et créeront ensemble.
+
+Coming soon — La génération III.
+L’intelligence connectée, au service de l’humain.`;
+
+  return (
+    <>
+      <div className="flex gap-3">
+        {/* O bleu (Gén. II) */}
+        <button
+          type="button"
+          onClick={() => setOpen(open === "o2" ? null : "o2")}
+          className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
+          title="One IA — Génération II"
+          aria-label="One IA"
+        >
+          <span className="inline-block h-5 w-5 rounded-full" style={{ background: "#38bdf8" }} />
+        </button>
+
+        {/* O doré (Gén. III) */}
+        <button
+          type="button"
+          onClick={() => setOpen(open === "o3" ? null : "o3")}
+          className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
+          title="Mirror IA — Génération III"
+          aria-label="Mirror IA"
+        >
+          <span className="inline-block h-5 w-5 rounded-full" style={{ background: "#f5b700" }} />
+        </button>
+      </div>
+
+      {/* Fenêtre native (toggle / OK ferme) */}
+      {open && (
+        <div className="fixed inset-0 z-[70] grid place-items-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(null)} />
+          <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white whitespace-pre-wrap">
+            <h2 className="text-lg font-semibold mb-3">
+              {open === "o2" ? "Génération II — One IA" : "Génération III — Mirror IA"}
+            </h2>
+            <p className="text-sm opacity-95 mb-5">
+              {open === "o2" ? MSG_O2 : MSG_O3}
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setOpen(null)}
+                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -280,7 +351,7 @@ export default function Page() {
       </div>
 
       {/* Barre d’entrée */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z={[1] as unknown as string}>
         <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <textarea
             ref={taRef}
@@ -301,7 +372,7 @@ export default function Page() {
           </button>
         </div>
 
-        {/* actions sous la barre : 2 à gauche + 2 à droite (miroir) */}
+        {/* actions sous la barre : 2 à gauche + 2 à droite (miroir vitrine) */}
         <div className="mt-3 flex gap-3 items-center">
           {/* GAUCHE — 📎 OCR */}
           <button
@@ -342,9 +413,9 @@ export default function Page() {
             </svg>
           </button>
 
-          {/* DROITE — miroir, collé à droite */}
+          {/* DROITE — vitrine O₂/O₃ */}
           <div className="ml-auto">
-            <RightAuthButtons />
+            <ShowcaseButtons />
           </div>
         </div>
       </form>
@@ -565,4 +636,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-    }
+}
