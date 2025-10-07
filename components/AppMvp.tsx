@@ -1,12 +1,14 @@
 // components/AppMvp.tsx
 "use client";
-import { useEffect, useState } from "react";
 
-type Item = {
-  role: "user" | "assistant" | "error";
-  text: string;
-  time: string;
-};
+import { useEffect, useMemo, useRef, useState } from "react";
+import Menu from "@/components/Menu";
+import SubscribeModal from "@/components/SubscribeModal";
+import CodeAccessDialog from "@/components/CodeAccessDialog";
+import PaymentModal from "@/components/PaymentModal";
+import RenewalNag from "@/components/RenewalNag";
+
+type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
 export default function AppMvp() {
   const [input, setInput] = useState("");
@@ -14,7 +16,45 @@ export default function AppMvp() {
   const [loading, setLoading] = useState(false);
   const [debug, setDebug] = useState("(prêt)");
 
-  // Charger l'historique local
+  // Modals contrôlés par la page
+  const [openSubscribe, setOpenSubscribe] = useState(false);
+  const [openCodeDialog, setOpenCodeDialog] = useState(false);
+
+  // ---------- helpers état d’accès ----------
+  const isSpaceActive = useMemo(() => {
+    try {
+      const active = localStorage.getItem("oneboarding.spaceActive") === "1";
+      const plan = localStorage.getItem("oneboarding.plan") as
+        | "subscription"
+        | "one-month"
+        | null;
+      if (!active || !plan) return false;
+      if (plan === "subscription") return true;
+      const until = Number(localStorage.getItem("oneboarding.activeUntil") || 0);
+      return until > Date.now();
+    } catch {
+      return false;
+    }
+  }, [history.length]); // recalcul léger à chaque nouveau message
+
+  const freeUsedRef = useRef<number>(0);
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("oneboarding.freeUsed");
+      freeUsedRef.current = s ? parseInt(s) || 0 : 0;
+    } catch {
+      freeUsedRef.current = 0;
+    }
+  }, []);
+
+  function incFreeCount() {
+    try {
+      freeUsedRef.current += 1;
+      localStorage.setItem("oneboarding.freeUsed", String(freeUsedRef.current));
+    } catch {}
+  }
+
+  // Charger / Sauver l'historique local
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
@@ -23,8 +63,6 @@ export default function AppMvp() {
       setDebug(`Erreur lecture localStorage: ${(e as Error).message}`);
     }
   }, []);
-
-  // Sauver l'historique local
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
@@ -33,62 +71,69 @@ export default function AppMvp() {
     }
   }, [history]);
 
-  // ⭐️ ENVOI + AFFICHAGE RÉPONSE
+  // ---------- Ecoute connexion OTP → ouvrir Paiement automatiquement ----------
+  useEffect(() => {
+    const onConnectedChanged = () => {
+      const connected = localStorage.getItem("ob_connected") === "1";
+      if (connected) {
+        const phoneE164 = localStorage.getItem("oneboarding.phoneE164") || undefined;
+        // on déclenche directement le paiement
+        window.dispatchEvent(new CustomEvent("ob:open-payment", { detail: { phoneE164 } }));
+      }
+    };
+    window.addEventListener("ob:connected-changed", onConnectedChanged);
+    return () => window.removeEventListener("ob:connected-changed", onConnectedChanged);
+  }, []);
+
+  // ---------- ENVOI + AFFICHAGE RÉPONSE (avec gating 3 gratuites) ----------
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
     if (!q || loading) return;
 
-    const now = new Date().toISOString();
+    // Gate: si pas actif et déjà 3 réponses données, on bloque et on lance le flux d’activation
+    if (!isSpaceActive && freeUsedRef.current >= 3) {
+      setOpenSubscribe(true); // OTP
+      setDebug("Limite atteinte → OTP requis avant paiement");
+      return;
+    }
 
-    // 1) Afficher le message utilisateur
+    const now = new Date().toISOString();
     setHistory((h) => [{ role: "user", text: q, time: now }, ...h]);
     setInput("");
     setLoading(true);
     setDebug("Appel /api/generate…");
 
     try {
-      // 2) Appel API (POST)
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: q }),
       });
-
-      // 3) Lire le JSON
       const data = await res.json();
 
-      // 4) Gestion des erreurs côté API
       if (!res.ok || !data?.ok) {
         const msg = data?.error || `HTTP ${res.status}`;
         setHistory((h) => [
-          {
-            role: "error",
-            text: `Erreur: ${msg}`,
-            time: new Date().toISOString(),
-          },
+          { role: "error", text: `Erreur: ${msg}`, time: new Date().toISOString() },
           ...h,
         ]);
         setDebug(`Erreur API: ${msg}`);
         return;
       }
 
-      // 5) Afficher la réponse IA (data.text)
-      const aiText: string =
-        (data.text && String(data.text)) || "Réponse vide.";
+      const aiText = String(data.text || "Réponse vide.");
       setHistory((h) => [
         { role: "assistant", text: aiText, time: new Date().toISOString() },
         ...h,
       ]);
       setDebug(`OK (${data.model || "modèle inconnu"})`);
+
+      // Si l’espace n’est pas actif, on compte cette réponse offerte
+      if (!isSpaceActive) incFreeCount();
     } catch (err: any) {
-      // 6) Erreur réseau/JS
       setHistory((h) => [
-        {
-          role: "error",
-          text: `Erreur: ${err?.message || "réseau"}`,
-          time: new Date().toISOString(),
-        },
+        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
         ...h,
       ]);
       setDebug(`Erreur JS: ${err?.message || "réseau"}`);
@@ -97,9 +142,39 @@ export default function AppMvp() {
     }
   }
 
+  // ---------- Flux après fermeture de SubscribeModal ----------
+  // Ici on choisit d’ouvrir le CodeAccessDialog juste après la demande OTP
+  useEffect(() => {
+    // Quand on ferme SubscribeModal, si c'était pour gating, on enchaîne
+    // On détecte la fermeture par la bascule d'état openSubscribe → false
+    // et on regarde si on vient d’envoyer un OTP (pas de flag serveur ici,
+    // mais UX attendue : l’utilisateur vient de cliquer "Recevoir mon code")
+  }, [openSubscribe]);
+
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Modals “globaux” */}
+      <PaymentModal />
+      <RenewalNag />
+      <SubscribeModal
+        open={openSubscribe}
+        onClose={() => {
+          setOpenSubscribe(false);
+          // On ouvre la saisie du code juste après (flux continu)
+          setTimeout(() => setOpenCodeDialog(true), 80);
+        }}
+      />
+      <CodeAccessDialog
+        open={openCodeDialog}
+        onClose={() => setOpenCodeDialog(false)}
+      />
+
       <div className="mx-auto max-w-screen-sm px-4 py-6 flex flex-col items-center">
+        {/* Menu principal (inclut les actions “Se connecter / Activer / Historique / Langue” + “Coming soon” sur O bleu/O doré) */}
+        <div className="w-full mb-4">
+          <Menu />
+        </div>
+
         <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
 
         {/* Champ + bouton */}
@@ -122,7 +197,8 @@ export default function AppMvp() {
 
         {/* Petit panneau debug (optionnel) */}
         <div className="w-full text-xs text-white/60 mb-4">
-          État : {debug}
+          État : {debug} • Offertes consommées: {freeUsedRef.current}/3 •{" "}
+          Accès: {isSpaceActive ? "actif" : "non actif"}
         </div>
 
         {/* Historique */}
@@ -140,12 +216,8 @@ export default function AppMvp() {
             >
               <p className="whitespace-pre-wrap">{item.text}</p>
               <p className="text-xs text-white/50 mt-1">
-                {item.role === "user"
-                  ? "Vous"
-                  : item.role === "assistant"
-                  ? "IA"
-                  : "Erreur"}{" "}
-                • {new Date(item.time).toLocaleString()}
+                {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
+                {new Date(item.time).toLocaleString()}
               </p>
             </div>
           ))}
@@ -153,4 +225,4 @@ export default function AppMvp() {
       </div>
     </div>
   );
-}
+      }
