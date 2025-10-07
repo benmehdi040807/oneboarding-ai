@@ -3,47 +3,97 @@
 import { useEffect, useRef, useState } from "react";
 import PhoneField from "./PhoneField";
 
-type Props = { open: boolean; onClose: () => void };
+type ControlledProps = { open?: boolean; onClose?: () => void };
 
-export default function SubscribeModal({ open, onClose }: Props) {
+export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+
+  // mode contrôlé OU autonome
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = props.open ?? internalOpen;
+  const onClose = () => {
+    if (props.onClose) props.onClose();
+    else setInternalOpen(false);
+  };
+
   const [e164, setE164] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* --------- Ouverture via évènement global --------- */
+  useEffect(() => {
+    const onAct = () => setInternalOpen(true);
+    window.addEventListener("ob:open-activate", onAct);
+    return () => window.removeEventListener("ob:open-activate", onAct);
+  }, []);
+
+  /* --------- Sync <dialog> natif --------- */
   useEffect(() => {
     const d = dialogRef.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
-    else if (!open && d.open) d.close();
-  }, [open]);
+    if (isOpen && !d.open) d.showModal();
+    else if (!isOpen && d.open) d.close();
+  }, [isOpen]);
 
   useEffect(() => {
     const d = dialogRef.current;
     if (!d) return;
-    const onCancel = (e: Event) => { e.preventDefault(); onClose(); };
+    const onCancel = (e: Event) => {
+      e.preventDefault();
+      onClose();
+    };
     d.addEventListener("cancel", onCancel);
     return () => d.removeEventListener("cancel", onCancel);
   }, [onClose]);
 
   const onBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
-    const d = dialogRef.current; if (!d) return;
+    const d = dialogRef.current;
+    if (!d) return;
     const r = d.getBoundingClientRect();
-    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    const inside =
+      e.clientX >= r.left &&
+      e.clientX <= r.right &&
+      e.clientY >= r.top &&
+      e.clientY <= r.bottom;
     if (!inside) onClose();
   };
 
+  /* --------- Envoi OTP (WhatsApp) --------- */
   async function requestOtp() {
     try {
-      setSending(true); setError(null);
+      setSending(true);
+      setError(null);
+
+      if (!e164) {
+        setError("Numéro requis.");
+        return;
+      }
+
       const res = await fetch("/api/otp/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneE164: e164 }),
       });
       const j = await res.json();
-      if (!res.ok || !j.ok) { setError(j.error || "Erreur OTP"); return; }
-      alert("Code envoyé via WhatsApp");
+
+      if (!res.ok || !j?.ok) {
+        setError(j?.error || "Erreur OTP");
+        return;
+      }
+
+      // mémoriser téléphone + fenêtre de validité (5 min)
+      const expiresAt = Date.now() + 5 * 60 * 1000;
+      try {
+        localStorage.setItem("oneboarding.phoneE164", e164);
+        localStorage.setItem("oneboarding.otpExpiresAt", String(expiresAt));
+      } catch {}
+
+      // notifier le reste de l’app (CodeAccessDialog, etc.)
+      window.dispatchEvent(
+        new CustomEvent("ob:otp-sent", { detail: { phoneE164: e164, expiresAt } })
+      );
+
+      alert("Code envoyé via WhatsApp.");
       onClose();
     } catch {
       setError("SERVER_ERROR");
@@ -63,7 +113,7 @@ export default function SubscribeModal({ open, onClose }: Props) {
       >
         <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Créer mon espace</h2>
+            <h2 className="text-xl font-semibold">Créer / activer mon espace</h2>
             <button
               type="button"
               onClick={onClose}
@@ -76,10 +126,16 @@ export default function SubscribeModal({ open, onClose }: Props) {
 
           <div className="space-y-4">
             <div className="text-xs text-black/70">
-              Identité = <strong>numéro de téléphone</strong>. Aucun nom/prénom requis.
+              Identité = <strong>numéro de téléphone</strong> (WhatsApp). Aucun nom/prénom requis.
             </div>
 
-            <PhoneField value={e164} onChange={(v) => { setE164(v); setError(null); }} />
+            <PhoneField
+              value={e164}
+              onChange={(v) => {
+                setE164(v);
+                setError(null);
+              }}
+            />
 
             <div className="pt-2 flex gap-3">
               <button
@@ -101,9 +157,15 @@ export default function SubscribeModal({ open, onClose }: Props) {
             </div>
 
             {error && <div className="text-sm text-red-600">{error}</div>}
+
+            <div className="text-[11px] text-black/55 pt-1">
+              Après validation du code (5 min), vous choisirez votre formule :
+              <br />— Abonnement 5 €/mois • accès continu
+              <br />— Accès libre 5 € • 1 mois sans engagement
+            </div>
           </div>
         </div>
       </dialog>
     </>
   );
-            }
+}
