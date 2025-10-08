@@ -70,6 +70,25 @@ export default function AppMvp() {
     }
   }, [history]);
 
+  // ---------- Raccordement aux événements Menu ----------
+  useEffect(() => {
+    const openConnect = () => setOpenCodeDialog(true);
+    const openActivate = () => setOpenSubscribe(true);
+    const openPayment = (e: Event) => {
+      const custom = e as CustomEvent<{ phoneE164?: string }>;
+      window.dispatchEvent(new CustomEvent("ob:open-payment", { detail: custom?.detail || {} }));
+      // NB: PaymentModal écoute déjà "ob:open-payment" pour s'ouvrir côté composant.
+    };
+    window.addEventListener("ob:open-connect", openConnect);
+    window.addEventListener("ob:open-activate", openActivate);
+    window.addEventListener("ob:open-payment", openPayment);
+    return () => {
+      window.removeEventListener("ob:open-connect", openConnect);
+      window.removeEventListener("ob:open-activate", openActivate);
+      window.removeEventListener("ob:open-payment", openPayment);
+    };
+  }, []);
+
   // Connexion OTP → ouvrir Paiement automatiquement
   useEffect(() => {
     const onConnectedChanged = () => {
@@ -149,6 +168,7 @@ export default function AppMvp() {
         open={openSubscribe}
         onClose={() => {
           setOpenSubscribe(false);
+          // Enchaînement fluide vers la saisie du code OTP
           setTimeout(() => setOpenCodeDialog(true), 80);
         }}
       />
