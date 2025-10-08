@@ -7,6 +7,9 @@ type Plan = "subscription" | "one-month" | null;
 type Lang = "fr" | "en" | "ar";
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
+/** ===================== Const ===================== */
+const CONSENT_KEY = "oneboarding.legalConsent.v1";
+
 /** ===================== Utils ===================== */
 function readJSON<T>(key: string, fallback: T): T {
   try {
@@ -30,7 +33,6 @@ function copy(text: string) {
   }
 }
 function toast(msg: string) {
-  // petit toast natif minimal (cssText évite le typage CSSStyleDeclaration)
   const el = document.createElement("div");
   el.textContent = msg;
   el.style.cssText =
@@ -161,7 +163,6 @@ export default function Menu() {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
       setLang(L);
 
-      // ✅ cohérent avec le reste de l'app (OTP)
       setConnected(localStorage.getItem("ob_connected") === "1");
 
       const act = localStorage.getItem("oneboarding.spaceActive");
@@ -182,7 +183,7 @@ export default function Menu() {
 
   /** ============ Actions OneBoarding AI ============ */
   function handleConnect() {
-    emit("ob:open-connect"); // ex: ouvrir CodeAccessDialog
+    emit("ob:open-connect");
   }
   function handleDisconnect() {
     emit("ob:open-disconnect");
@@ -191,7 +192,7 @@ export default function Menu() {
     setConnected(false);
   }
   function handleActivate() {
-    emit("ob:open-activate"); // ex: ouvrir SubscribeModal -> CodeAccessDialog -> Payment
+    emit("ob:open-activate");
   }
   function handleDeactivate() {
     writeJSON("oneboarding.spaceActive", false);
@@ -264,10 +265,17 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — GRAND, turquoise, très visible */}
+      {/* Bouton flottant principal — ouvre le Menu, puis (si nécessaire) déclenche le modal légal */}
       <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true); // 1) affiche le menu immédiatement
+            const consented = localStorage.getItem(CONSENT_KEY) === "1";
+            if (!consented) {
+              // 2) en parallèle, on demande l’ouverture du modal légal
+              window.dispatchEvent(new CustomEvent("ob:open-legal"));
+            }
+          }}
           className="
             pointer-events-auto px-6 py-4 text-lg rounded-2xl font-semibold shadow-xl border
             border-[rgba(255,255,255,0.18)]
@@ -305,30 +313,23 @@ export default function Menu() {
               onToggle={() => setShowObai((v) => !v)}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {/* Connexion */}
                 {!connected ? (
                   <Btn onClick={handleConnect}>{t.OBAI.CONNECT}</Btn>
                 ) : (
                   <Btn onClick={handleDisconnect}>{t.OBAI.DISCONNECT}</Btn>
                 )}
 
-                {/* Activation */}
                 {!spaceActive ? (
                   <Btn accent onClick={handleActivate}>{t.OBAI.ACTIVATE}</Btn>
                 ) : (
                   <Btn danger onClick={handleDeactivate}>{t.OBAI.DEACTIVATE}</Btn>
                 )}
 
-                {/* Statut (lecture) */}
                 <div className="col-span-1 sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
                   <p className="text-sm font-medium mb-1">{t.OBAI.STATUS}</p>
                   <div className="text-xs opacity-90 leading-6">
-                    <div>
-                      {t.OBAI.SPACE}: <b>{spaceActive ? t.OBAI.ACTIVE : t.OBAI.INACTIVE}</b>
-                    </div>
-                    <div>
-                      {t.OBAI.CONN}: <b>{connected ? t.OBAI.ONLINE : t.OBAI.OFFLINE}</b>
-                    </div>
+                    <div>{t.OBAI.SPACE}: <b>{spaceActive ? t.OBAI.ACTIVE : t.OBAI.INACTIVE}</b></div>
+                    <div>{t.OBAI.CONN}: <b>{connected ? t.OBAI.ONLINE : t.OBAI.OFFLINE}</b></div>
                     <div>
                       {t.OBAI.PLAN}:{" "}
                       <b>
