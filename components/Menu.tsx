@@ -1,3 +1,4 @@
+// components/Menu.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -195,7 +196,7 @@ export default function Menu() {
   const [plan, setPlan] = useState<Plan>(null);
   const [history, setHistory] = useState<Item[]>([]);
 
-  // sections repliables — FERMÉES par défaut (vue d’ensemble neutre)
+  // sections repliables — FERMÉES par défaut
   const [showAcc, setShowAcc] = useState(false);
   const [showHist, setShowHist] = useState(false);
   const [showLang, setShowLang] = useState(false);
@@ -335,13 +336,17 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — large + gradient + safe-area */}
+      {/* Bouton flottant principal — large + gradient + safe-area (inline, pas de classe requise) */}
       <div
         className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       >
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            // Si l’utilisateur n’a pas encore consenti, on ouvre le modal légal automatiquement au premier clic
+            if (!consented) setTimeout(() => setLegalOpen(true), 120);
+          }}
           className="
             pointer-events-auto min-w-[260px] px-8 py-5 text-xl rounded-3xl font-semibold shadow-2xl border
             border-[rgba(255,255,255,0.18)]
@@ -420,7 +425,7 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            {/* 4) CGU / Privacy — un seul bouton : Lire/Lire et accepter */}
+            {/* 4) CGU / Privacy — un seul bouton : Lire / Lire et accepter */}
             <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
@@ -481,7 +486,7 @@ export default function Menu() {
               </button>
             </div>
 
-            <div className="rounded-lg overflow-hidden border border-black/10" style={{height: "70vh"}}>
+            <div className="rounded-lg overflow-hidden border border-black/10" style={{ height: "70vh" }}>
               <iframe
                 title="CGU / Privacy"
                 src={`/legal?lang=${lang}&embed=1`}
@@ -590,4 +595,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-      }
+                  }
