@@ -1,3 +1,4 @@
+// app/legal/page.tsx
 export const runtime = "nodejs";
 
 export const metadata = {
@@ -263,7 +264,7 @@ export default function LegalPage({
   return (
     <main className="px-4 py-8 mx-auto w-full max-w-2xl text-black">
       {/* Lang switcher: liens simples */}
-      <nav className="mb-5 text-sm">
+      <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
         <span className="opacity-70 mr-2">Langue:</span>
         <a
           href="?lang=fr"
@@ -329,4 +330,4 @@ export default function LegalPage({
       </article>
     </main>
   );
-        }
+}
