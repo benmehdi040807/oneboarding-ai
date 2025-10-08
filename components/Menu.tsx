@@ -84,7 +84,7 @@ const I18N: Record<Lang, any> = {
 
     LEGAL: {
       OPEN: "Lire et accepter",
-      VIEWPAGE: "Voir la page",
+      READ: "Lire",
       ACCEPT: "J’accepte",
       LATER: "Plus tard",
       TITLE: "Informations légales",
@@ -130,7 +130,7 @@ const I18N: Record<Lang, any> = {
 
     LEGAL: {
       OPEN: "Read & accept",
-      VIEWPAGE: "Open page",
+      READ: "Read",
       ACCEPT: "Accept",
       LATER: "Later",
       TITLE: "Legal information",
@@ -175,7 +175,7 @@ const I18N: Record<Lang, any> = {
 
     LEGAL: {
       OPEN: "قراءة والموافقة",
-      VIEWPAGE: "عرض الصفحة",
+      READ: "قراءة",
       ACCEPT: "موافقة",
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
@@ -195,8 +195,8 @@ export default function Menu() {
   const [plan, setPlan] = useState<Plan>(null);
   const [history, setHistory] = useState<Item[]>([]);
 
-  // sections repliables
-  const [showAcc, setShowAcc] = useState(true);
+  // sections repliables — FERMÉES par défaut (vue d’ensemble neutre)
+  const [showAcc, setShowAcc] = useState(false);
   const [showHist, setShowHist] = useState(false);
   const [showLang, setShowLang] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
@@ -330,10 +330,12 @@ export default function Menu() {
     toast("Merci, consentement enregistré.");
   }
 
+  const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
+
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — large + gradient “logo-like” + safe-area */}
+      {/* Bouton flottant principal — large + gradient + safe-area */}
       <div
         className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
@@ -371,7 +373,7 @@ export default function Menu() {
               </button>
             </div>
 
-            {/* === Sections === */}
+            {/* === Sections (toutes fermées par défaut) === */}
             <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!connected ? (
@@ -418,16 +420,18 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            {/* 4) CGU / Privacy — 1 seul bouton: Lire et accepter */}
+            {/* 4) CGU / Privacy — un seul bouton : Lire/Lire et accepter */}
             <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
               <div className="grid grid-cols-1 gap-2">
-                <Btn onClick={openLegalModal}>{t.LEGAL.OPEN}</Btn>
+                <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
-              {!consented && <p className="text-xs opacity-80 mt-3">
-                {lang === "fr" ? "Consentement non enregistré."
-                 : lang === "en" ? "Consent not recorded."
-                 : "الموافقة غير مسجّلة."}
-              </p>}
+              {!consented && (
+                <p className="text-xs opacity-80 mt-3">
+                  {lang === "fr" ? "Consentement non enregistré."
+                    : lang === "en" ? "Consent not recorded."
+                    : "الموافقة غير مسجّلة."}
+                </p>
+              )}
             </Accordion>
           </div>
         </div>
@@ -461,35 +465,26 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Modal légal — contenu exact via iframe de /legal?lang= */}
+      {/* Modal légal — contenu exact via iframe de /legal?lang=xx&embed=1 */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setLegalOpen(false)} />
           <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
-              <div className="flex items-center gap-2">
-                <a
-                  href="/legal"
-                  className="text-sm underline underline-offset-4 opacity-80 hover:opacity-100"
-                >
-                  {t.LEGAL.VIEWPAGE}
-                </a>
-                <button
-                  onClick={() => setLegalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-                  aria-label="Fermer"
-                >
-                  ✕
-                </button>
-              </div>
+              <button
+                onClick={() => setLegalOpen(false)}
+                className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
             </div>
 
-            {/* Contenu riche synchronisé */}
             <div className="rounded-lg overflow-hidden border border-black/10" style={{height: "70vh"}}>
               <iframe
                 title="CGU / Privacy"
-                src={`/legal?lang=${lang}`}
+                src={`/legal?lang=${lang}&embed=1`}
                 style={{ width: "100%", height: "100%", border: "0" }}
               />
             </div>
@@ -514,7 +509,7 @@ export default function Menu() {
         </div>
       )}
 
-      {/* styles locaux pour le bouton principal (safe-area/anim) */}
+      {/* styles locaux pour le bouton principal */}
       <style jsx global>{`
         @keyframes ob-float { 0%{transform:translateY(0)} 50%{transform:translateY(-2px)} 100%{transform:translateY(0)} }
         .menu-float:focus-visible { animation: ob-float .9s ease-in-out; outline: none; }
@@ -595,4 +590,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-                                                                            }
+      }
