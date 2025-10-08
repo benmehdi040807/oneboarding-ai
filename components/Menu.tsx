@@ -396,17 +396,20 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — largeur renforcée + gradient “logo-like” */}
-      <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
+      {/* Bouton flottant principal — large + gradient “logo-like” + safe-area */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+      >
         <button
           onClick={() => setOpen(true)}
           className="
-            pointer-events-auto min-w-[240px] px-8 py-5 text-xl rounded-3xl font-semibold shadow-2xl border
+            pointer-events-auto min-w-[260px] px-8 py-5 text-xl rounded-3xl font-semibold shadow-2xl border
             border-[rgba(255,255,255,0.18)]
             bg-gradient-to-br from-cyan-400 via-sky-500 to-blue-600
             hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500
             text-white tracking-wide drop-shadow-[0_0_30px_rgba(56,189,248,.35)]
-            active:scale-[.985]
+            active:scale-[.985] menu-float
           "
           aria-label={t.MENU}
         >
@@ -628,6 +631,12 @@ export default function Menu() {
           </div>
         </div>
       )}
+
+      {/* styles locaux pour le bouton principal (safe-area/anim) */}
+      <style jsx global>{`
+        @keyframes ob-float { 0%{transform:translateY(0)} 50%{transform:translateY(-2px)} 100%{transform:translateY(0)} }
+        .menu-float:focus-visible { animation: ob-float .9s ease-in-out; outline: none; }
+      `}</style>
     </>
   );
 }
@@ -704,4 +713,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-  }
+    }
