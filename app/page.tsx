@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client";
 export const runtime = "nodejs";
 
@@ -11,7 +12,10 @@ import LegalBar from "@/components/LegalBar";
 // Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
 
-/* =================== Modal de confirmation (Effacer historique) =================== */
+/* =================== Const =================== */
+const CONSENT_KEY = "oneboarding.legalConsent.v1";
+
+/* =================== Modal confirmation générique =================== */
 function ConfirmDialog({
   open, title = "Confirmer", description = "", confirmLabel = "Confirmer", cancelLabel = "Annuler",
   onConfirm, onCancel,
@@ -50,9 +54,73 @@ function ConfirmDialog({
   );
 }
 
+/* =================== Modal légal (CGU / Privacy) =================== */
+function LegalModal({
+  open, onClose,
+}: {
+  open: boolean; onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] grid place-items-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        ref={ref}
+        className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">CGU / Privacy</h2>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <p className="text-sm opacity-90 mt-3">
+          OneBoarding AI respecte votre confidentialité. Vos données restent locales sur votre appareil.
+          En poursuivant, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité.
+        </p>
+
+        <div className="mt-4 flex gap-2">
+          <a
+            href="/legal"
+            className="flex-1 text-center px-4 py-2 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
+          >
+            Lire le détail
+          </a>
+          <button
+            onClick={() => { try { localStorage.setItem(CONSENT_KEY, "1"); } catch {} onClose(); }}
+            className="flex-1 px-4 py-2 rounded-xl bg-white text-black font-semibold hover:bg-gray-100"
+          >
+            Accepter
+          </button>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-2 w-full text-center text-sm opacity-80 hover:opacity-100 underline underline-offset-4"
+        >
+          Plus tard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* =================== Types & utils =================== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
-
 const cleanText = (s: string) => s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
 function copyToClipboard(text: string) { try { navigator.clipboard.writeText(text); } catch {} }
 
@@ -73,8 +141,20 @@ export default function Page() {
   const recogRef = useRef<any>(null);
   const baseInputRef = useRef<string>("");
 
-  // 🧹 Modal Effacer (accessible via Menu -> “Supprimer mon historique” si tu veux garder ici aussi)
+  // 🧹 Modal Effacer
   const [showClearModal, setShowClearModal] = useState(false);
+
+  // ⚖️ Modal légal
+  const [showLegal, setShowLegal] = useState(false);
+  useEffect(() => {
+    // écoute l’évènement déclenché par Menu.tsx au 1er clic
+    const onOpenLegal = () => {
+      const consented = localStorage.getItem(CONSENT_KEY) === "1";
+      if (!consented) setShowLegal(true);
+    };
+    window.addEventListener("ob:open-legal", onOpenLegal as EventListener);
+    return () => window.removeEventListener("ob:open-legal", onOpenLegal as EventListener);
+  }, []);
 
   // Textarea auto-expansion (×3 lignes)
   const taRef = useRef<HTMLTextAreaElement | null>(null);
@@ -189,7 +269,7 @@ export default function Page() {
     input?.click();
   }
 
-  // Effacer (si tu veux l’exposer aussi via menu -> on garde le modal utilitaire)
+  // Effacer (utilitaire)
   function clearHistory() {
     setHistory([]);
     try { localStorage.removeItem("oneboarding.history"); } catch {}
@@ -332,7 +412,7 @@ export default function Page() {
         ))}
       </div>
 
-      {/* Modal Effacer (utilitaire si tu déclenches depuis le Menu) */}
+      {/* Modals utilitaires */}
       <ConfirmDialog
         open={showClearModal}
         title="Effacer l’historique ?"
@@ -342,6 +422,7 @@ export default function Page() {
         onConfirm={clearHistory}
         onCancel={() => setShowClearModal(false)}
       />
+      <LegalModal open={showLegal} onClose={() => setShowLegal(false)} />
 
       {/* Boutons flottants bas */}
       <Menu />
@@ -416,4 +497,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-                }
+  }
