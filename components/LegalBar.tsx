@@ -97,7 +97,6 @@ export default function LegalBar() {
 
   const t = useMemo(() => TXT[lang], [lang]);
 
-  // initialisation
   useEffect(() => {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
@@ -106,7 +105,7 @@ export default function LegalBar() {
     } catch {}
   }, []);
 
-  // suivre changement de langue global
+  // écoute des changements de langue
   useEffect(() => {
     const onLang = (e: Event) => {
       const det = (e as CustomEvent).detail as { lang?: Lang };
@@ -114,6 +113,16 @@ export default function LegalBar() {
     };
     window.addEventListener("ob:lang-changed", onLang);
     return () => window.removeEventListener("ob:lang-changed", onLang);
+  }, []);
+
+  // ✅ hook d’ouverture forcée depuis le bouton Menu
+  useEffect(() => {
+    const onOpenLegal = () => {
+      const ok = localStorage.getItem(CONSENT_KEY) === "1";
+      if (!ok) setOpen(true);
+    };
+    window.addEventListener("ob:open-legal", onOpenLegal);
+    return () => window.removeEventListener("ob:open-legal", onOpenLegal);
   }, []);
 
   function accept() {
@@ -124,7 +133,7 @@ export default function LegalBar() {
 
   return (
     <>
-      {/* Petit pill centré (full click), mobile-first */}
+      {/* pill compact, mobile-first */}
       {!consented && (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-[56] flex justify-center">
           <button
@@ -138,12 +147,10 @@ export default function LegalBar() {
         </div>
       )}
 
-      {/* Modal natif (contenu minimal, même rendu mobile/desktop) */}
       {open && (
         <div className="fixed inset-0 z-[90] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
           <div className="relative mx-4 w-full max-w-lg rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
-            {/* header compact + switch Lang */}
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.title}</h2>
               <div className="flex items-center gap-1">
@@ -211,4 +218,4 @@ export default function LegalBar() {
       )}
     </>
   );
-    }
+}
