@@ -1,7 +1,7 @@
+// app/layout.tsx
 export const runtime = "nodejs";
 
 import "./globals.css";
-import RgpdBanner from "@/components/RgpdBanner";
 
 export const metadata = {
   metadataBase: new URL("https://oneboardingai.com"),
@@ -56,9 +56,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">
           {children}
         </div>
-
-        {/* Bandeau RGPD (natif) — rendu en bas de page */}
-        <RgpdBanner />
       </body>
     </html>
   );
