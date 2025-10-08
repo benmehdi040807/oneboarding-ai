@@ -333,6 +333,42 @@ export default function Menu() {
 
   const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
 
+  /** ============ Navigation / bouton Retour ============ */
+  useEffect(() => {
+    if (open) {
+      try { window.history.pushState({ ob: "menu" }, ""); } catch {}
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (legalOpen) {
+      try { window.history.pushState({ ob: "legal" }, ""); } catch {}
+    }
+  }, [legalOpen]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (legalOpen) {
+        setLegalOpen(false);
+        return;
+      }
+      if (open) {
+        setOpen(false);
+        return;
+      }
+      // sinon navigation naturelle
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [open, legalOpen]);
+
+  function closeMenu() {
+    try { window.history.back(); } catch { setOpen(false); }
+  }
+  function closeLegal() {
+    try { window.history.back(); } catch { setLegalOpen(false); }
+  }
+
   /** ============ Rendu ============ */
   return (
     <>
@@ -364,13 +400,13 @@ export default function Menu() {
       {/* Panneau natif */}
       {open && (
         <div className="fixed inset-0 z-[80] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeMenu} />
           <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">{t.MENU}</h2>
               <button
-                onClick={() => setOpen(false)}
+                onClick={closeMenu}
                 className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
                 aria-label="Fermer"
               >
@@ -384,7 +420,14 @@ export default function Menu() {
                 {!connected ? (
                   <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
                 ) : (
-                  <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
+                  <Btn onClick={() => {
+                    emit("ob:open-disconnect");
+                    try { localStorage.setItem("ob_connected", "0"); } catch {}
+                    writeJSON("oneboarding.connected", false);
+                    setConnected(false);
+                  }}>
+                    {t.ACC.DISCONNECT}
+                  </Btn>
                 )}
                 {!spaceActive ? (
                   <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
@@ -473,12 +516,12 @@ export default function Menu() {
       {/* Modal légal — contenu exact via iframe de /legal?lang=xx&embed=1 */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setLegalOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeLegal} />
           <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
               <button
-                onClick={() => setLegalOpen(false)}
+                onClick={closeLegal}
                 className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
                 aria-label="Fermer"
               >
@@ -498,7 +541,7 @@ export default function Menu() {
 
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
-                onClick={() => setLegalOpen(false)}
+                onClick={closeLegal}
                 className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
               >
                 {t.LEGAL.LATER}
@@ -595,4 +638,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-                  }
+      }
