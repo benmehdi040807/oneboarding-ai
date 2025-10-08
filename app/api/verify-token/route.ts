@@ -1,21 +1,18 @@
 // app/api/verify-token/route.ts
+export const runtime = "nodejs";            // 1) HMAC -> Node runtime obligatoire
+export const dynamic = "force-dynamic";     // 2) pas de cache ISR sur cette route
+export const revalidate = 0;
+
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 
 // ---- Helpers ----
 function b64url(input: Buffer | string) {
-  return Buffer
-    .from(input)
+  return Buffer.from(input)
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
-}
-
-function fromB64url(s: string) {
-  s = s.replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4) s += "=";
-  return Buffer.from(s, "base64");
 }
 
 function timingSafeEq(a: string, b: string) {
@@ -30,12 +27,12 @@ function sign(payload: string, secret: string) {
 }
 
 // Expected token format: "<phoneE164>.<iatMs>.<sigB64url>"
-function parse(token: string) {
+function parse(token: string): { phone: string; iat: number; sig: string } | null {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [phone, iatStr, sig] = parts;
   const iat = Number(iatStr);
-  if (!phone || !iat || !Number.isFinite(iat)) return null;
+  if (!phone || !Number.isFinite(iat) || !sig) return null;
   return { phone, iat, sig };
 }
 
@@ -72,7 +69,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "BAD_SIGNATURE" }, { status: 401 });
     }
 
-    // (Option) fenêtre de validité : ex. 30 jours
+    // Fenêtre de validité (ex. 30 jours)
     const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
     const age = Date.now() - parsed.iat;
     if (age < 0 || age > MAX_AGE_MS) {
