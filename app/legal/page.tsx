@@ -234,10 +234,14 @@ const COPY: Record<Lang, Copy> = {
   },
 };
 
+/* ===== Helpers ===== */
 function pickLang(sp?: URLSearchParams): Lang {
   const raw = sp?.get("lang")?.toLowerCase();
   if (raw === "en" || raw === "ar") return raw;
   return "fr";
+}
+function isEmbed(sp?: URLSearchParams): boolean {
+  return sp?.get("embed") === "1";
 }
 
 export default function LegalPage({
@@ -245,6 +249,7 @@ export default function LegalPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
+  // lecture naïve des query params (sans client JS)
   const sp =
     typeof searchParams === "object"
       ? new URLSearchParams(
@@ -255,32 +260,43 @@ export default function LegalPage({
       : undefined;
 
   const lang = pickLang(sp);
+  const embed = isEmbed(sp);
   const t = COPY[lang];
 
   return (
-    <main className="px-4 py-8 mx-auto w-full max-w-2xl text-black">
-      {/* Lang switcher: liens simples */}
-      <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
-        <span className="opacity-70 mr-2">Langue:</span>
-        <a
-          href="?lang=fr"
-          className={`px-2 py-1 rounded border mr-1 ${lang === "fr" ? "bg-black text-white border-black" : "border-black/20"}`}
-        >
-          FR
-        </a>
-        <a
-          href="?lang=en"
-          className={`px-2 py-1 rounded border mr-1 ${lang === "en" ? "bg-black text-white border-black" : "border-black/20"}`}
-        >
-          EN
-        </a>
-        <a
-          href="?lang=ar"
-          className={`px-2 py-1 rounded border ${lang === "ar" ? "bg-black text-white border-black" : "border-black/20"}`}
-        >
-          AR
-        </a>
-      </nav>
+    <main
+      className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}
+    >
+      {/* Lang switcher: seulement hors embed */}
+      {!embed && (
+        <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
+          <span className="opacity-70 mr-2">Langue:</span>
+          <a
+            href="?lang=fr"
+            className={`px-2 py-1 rounded border mr-1 ${
+              lang === "fr" ? "bg-black text-white border-black" : "border-black/20"
+            }`}
+          >
+            FR
+          </a>
+          <a
+            href="?lang=en"
+            className={`px-2 py-1 rounded border mr-1 ${
+              lang === "en" ? "bg-black text-white border-black" : "border-black/20"
+            }`}
+          >
+            EN
+          </a>
+          <a
+            href="?lang=ar"
+            className={`px-2 py-1 rounded border ${
+              lang === "ar" ? "bg-black text-white border-black" : "border-black/20"
+            }`}
+          >
+            AR
+          </a>
+        </nav>
+      )}
 
       <h1 className="text-xl font-bold mb-4">{t.title}</h1>
 
