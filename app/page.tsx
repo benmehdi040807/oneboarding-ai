@@ -1,4 +1,3 @@
-// app/page.tsx
 "use client";
 export const runtime = "nodejs";
 
@@ -6,43 +5,31 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
+import Menu from "@/components/Menu";
+import LegalBar from "@/components/LegalBar";
 
-// Imports dynamiques (client-only)
+// Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
-const LegalBar = dynamic(() => import("@/components/LegalBar"), { ssr: false });
 
 /* =================== Modal de confirmation (Effacer historique) =================== */
 function ConfirmDialog({
-  open,
-  title = "Confirmer",
-  description = "",
-  confirmLabel = "Confirmer",
-  cancelLabel = "Annuler",
-  onConfirm,
-  onCancel,
+  open, title = "Confirmer", description = "", confirmLabel = "Confirmer", cancelLabel = "Annuler",
+  onConfirm, onCancel,
 }: {
-  open: boolean;
-  title?: string;
-  description?: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  open: boolean; title?: string; description?: string; confirmLabel?: string; cancelLabel?: string;
+  onConfirm: () => void; onCancel: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     if (!open) return;
-    const btn = dialogRef.current?.querySelector<HTMLButtonElement>("button[data-autofocus='true']");
-    btn?.focus();
+    dialogRef.current?.querySelector<HTMLButtonElement>("button[data-autofocus='true']")?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onCancel]);
-
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[90] grid place-items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onCancel} />
       <div
         ref={dialogRef}
@@ -51,17 +38,10 @@ function ConfirmDialog({
         <h2 className="text-lg font-semibold mb-2">{title}</h2>
         {description ? <p className="text-sm opacity-90 mb-4">{description}</p> : null}
         <div className="flex items-center justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
-          >
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white">
             {cancelLabel}
           </button>
-          <button
-            onClick={onConfirm}
-            data-autofocus="true"
-            className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
-          >
+          <button onClick={onConfirm} data-autofocus="true" className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]">
             {confirmLabel}
           </button>
         </div>
@@ -73,12 +53,8 @@ function ConfirmDialog({
 /* =================== Types & utils =================== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-const cleanText = (s: string) =>
-  s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
-
-function copyToClipboard(text: string) {
-  try { navigator.clipboard.writeText(text); } catch {}
-}
+const cleanText = (s: string) => s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
+function copyToClipboard(text: string) { try { navigator.clipboard.writeText(text); } catch {} }
 
 /* =================== Page =================== */
 export default function Page() {
@@ -97,7 +73,7 @@ export default function Page() {
   const recogRef = useRef<any>(null);
   const baseInputRef = useRef<string>("");
 
-  // 🧹 Modal Effacer
+  // 🧹 Modal Effacer (accessible via Menu -> “Supprimer mon historique” si tu veux garder ici aussi)
   const [showClearModal, setShowClearModal] = useState(false);
 
   // Textarea auto-expansion (×3 lignes)
@@ -141,23 +117,18 @@ export default function Page() {
     const r = recogRef.current; if (!r) return;
     if (!listening) { try { r.start(); } catch {} return; }
     try { r.stop(); } catch {}
-    setTimeout(() => {
-      if (listening) { try { r.abort?.(); } catch {} setListening(false); }
-    }, 600);
+    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 600);
   }
 
   // historique persist
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("oneboarding.history");
-      if (s) setHistory(JSON.parse(s));
-    } catch {}
+    try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
   }, []);
   useEffect(() => {
     try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
-  // Auto-scroll vers le haut à la fin de génération
+  // Auto-scroll top après génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
     if (prevLoadingRef.current && !loading) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -175,8 +146,7 @@ export default function Page() {
     const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
     if (userShown) setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
 
-    setInput("");
-    setLoading(true);
+    setInput(""); setLoading(true);
 
     const composedPrompt = hasOcr
       ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
@@ -186,8 +156,7 @@ export default function Page() {
 
     try {
       const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: composedPrompt }),
       });
       const data = await res.json();
@@ -220,7 +189,7 @@ export default function Page() {
     input?.click();
   }
 
-  // Effacement de l’historique
+  // Effacer (si tu veux l’exposer aussi via menu -> on garde le modal utilitaire)
   function clearHistory() {
     setHistory([]);
     try { localStorage.removeItem("oneboarding.history"); } catch {}
@@ -228,7 +197,7 @@ export default function Page() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 pb-[120px] selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
@@ -246,7 +215,7 @@ export default function Page() {
       </div>
 
       {/* Barre d’entrée */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[1]">
+      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[10]">
         <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <textarea
             ref={taRef}
@@ -267,9 +236,9 @@ export default function Page() {
           </button>
         </div>
 
-        {/* actions sous la barre : 2 à gauche + 2 à droite (miroir) */}
+        {/* actions sous la barre : 2 à gauche + boutons à droite */}
         <div className="mt-3 flex gap-3 items-center">
-          {/* GAUCHE — 📎 OCR */}
+          {/* 📎 OCR */}
           <button
             type="button"
             onClick={() => setShowOcr((v) => !v)}
@@ -277,20 +246,12 @@ export default function Page() {
             title="Joindre un document (OCR)"
             aria-label="Joindre un document"
           >
-            <svg
-              className="h-6 w-6 text-[var(--fg)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
             </svg>
           </button>
 
-          {/* GAUCHE — 🎤 Micro */}
+          {/* 🎤 Micro */}
           <button
             type="button"
             disabled={!speechSupported}
@@ -308,7 +269,7 @@ export default function Page() {
             </svg>
           </button>
 
-          {/* DROITE — miroir, collé à droite */}
+          {/* ➕ / 🔑 à droite */}
           <div className="ml-auto">
             <RightAuthButtons />
           </div>
@@ -317,7 +278,7 @@ export default function Page() {
 
       {/* Tiroir OCR */}
       {showOcr && (
-        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[1]">
+        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[10]">
           <div className="mb-3 flex gap-2">
             <button
               type="button"
@@ -332,12 +293,10 @@ export default function Page() {
       )}
 
       {/* Historique */}
-      <div className="w-full max-w-md space-y-3 pb-40 z-[1]">
+      <div className="w-full max-w-md space-y-3 pb-10 z-[1]">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
-            <p className="text-[var(--fg)]">
-              <span className="typing-dots" aria-live="polite">•••</span>
-            </p>
+            <p className="text-[var(--fg)]"><span className="typing-dots" aria-live="polite">•••</span></p>
             <p className="text-xs opacity-70 mt-4">IA • {new Date().toLocaleString()}</p>
           </div>
         )}
@@ -373,30 +332,19 @@ export default function Page() {
         ))}
       </div>
 
-      {/* Bouton danger effacer historique */}
-      {history.length > 0 && (
-        <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
-          <button
-            onClick={() => setShowClearModal(true)}
-            className="pointer-events-auto px-5 py-3 rounded-2xl bg-[var(--danger)] hover:bg-[var(--danger-strong)] text-white font-semibold shadow-lg"
-          >
-            Effacer l’historique
-          </button>
-        </div>
-      )}
-
-      {/* Modal Effacer */}
+      {/* Modal Effacer (utilitaire si tu déclenches depuis le Menu) */}
       <ConfirmDialog
         open={showClearModal}
         title="Effacer l’historique ?"
-        description="Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible. Pensez à sauvegarder ce qui vous est utile avant d’effacer."
+        description="Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible."
         confirmLabel="Effacer"
         cancelLabel="Annuler"
         onConfirm={clearHistory}
         onCancel={() => setShowClearModal(false)}
       />
 
-      {/* Barre légale (cliquable pleine largeur) */}
+      {/* Boutons flottants bas */}
+      <Menu />
       <LegalBar />
     </div>
   );
@@ -468,4 +416,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-            }
+                }
