@@ -223,7 +223,7 @@ const COPY: Record<Lang, Copy> = {
         kind: "p",
         html: true,
         text:
-          'تم ابتكار وتطوير OneBoarding AI من طرف <strong style="white-space:nowrap">بنمهدي محمد رضى</strong>، بهدف جعل الذكاء الاصطناعي بسيطًا وسريعًا وعالميًا.',
+          'تم ابتكار وتطوير OneBoarding AI من طرف <strong class="nowrap-ar">بنمهدي محمد رضى</strong>، بهدف جعل الذكاء الاصطناعي بسيطًا وسريعًا وعالميًا.',
       },
     ],
     version: {
@@ -245,7 +245,6 @@ export default function LegalPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // lecture naïve des query params (sans client JS)
   const sp =
     typeof searchParams === "object"
       ? new URLSearchParams(
@@ -325,6 +324,9 @@ export default function LegalPage({
           </p>
         </div>
       </article>
+
+      {/* Petite règle utilitaire pour garder le nom arabe sur une seule ligne */}
+      <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-        }
+}
