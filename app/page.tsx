@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
+import CodeAccessDialog from "@/components/CodeAccessDialog";
+import SubscribeModal from "@/components/SubscribeModal";
 
 // Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
@@ -152,6 +154,20 @@ export default function Page() {
     };
     window.addEventListener("ob:open-legal", onOpenLegal as EventListener);
     return () => window.removeEventListener("ob:open-legal", onOpenLegal as EventListener);
+  }, []);
+
+  // 🔐 Modals natifs: connexion / activation espace
+  const [showConnect, setShowConnect] = useState(false);
+  const [showSubscribe, setShowSubscribe] = useState(false);
+  useEffect(() => {
+    const onOpenConnect = () => setShowConnect(true);
+    const onOpenActivate = () => setShowSubscribe(true);
+    window.addEventListener("ob:open-connect", onOpenConnect as EventListener);
+    window.addEventListener("ob:open-activate", onOpenActivate as EventListener);
+    return () => {
+      window.removeEventListener("ob:open-connect", onOpenConnect as EventListener);
+      window.removeEventListener("ob:open-activate", onOpenActivate as EventListener);
+    };
   }, []);
 
   // Textarea auto-expansion (×3 lignes)
@@ -421,6 +437,10 @@ export default function Page() {
       />
       <LegalModal open={showLegal} onClose={() => setShowLegal(false)} />
 
+      {/* 🔐 Modals connexion/abonnement ouverts via Menu */}
+      <CodeAccessDialog open={showConnect} onClose={() => setShowConnect(false)} />
+      <SubscribeModal open={showSubscribe} onClose={() => setShowSubscribe(false)} />
+
       {/* Bouton Menu flottant */}
       <Menu />
     </div>
@@ -491,6 +511,11 @@ function StyleGlobals() {
       .ocr-skin [class*="filename"],
       .ocr-skin [class*="fileName"],
       .ocr-skin [class*="name"] { display:none !important; }
+
+      /* Safe area + micro-anim du bouton Menu */
+      .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
+      @keyframes float { 0%{transform:translateY(0)} 50%{transform:translateY(-2px)} 100%{transform:translateY(0)} }
+      .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
 }
