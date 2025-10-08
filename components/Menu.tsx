@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-/** ===================== Types locaux ===================== */
+/** ===================== Types ===================== */
 type Plan = "subscription" | "one-month" | null;
 type Lang = "fr" | "en" | "ar";
-
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
-/** ===================== Utils locaux ===================== */
+/** ===================== Utils ===================== */
 function readJSON<T>(key: string, fallback: T): T {
   try {
     const s = localStorage.getItem(key);
@@ -43,7 +42,7 @@ function toast(msg: string) {
   setTimeout(() => el.remove(), 1700);
 }
 
-/** ===================== i18n minimal (menu only) ===================== */
+/** ===================== i18n (inchangé) ===================== */
 const I18N: Record<Lang, any> = {
   fr: {
     MENU: "Menu",
@@ -151,6 +150,11 @@ export default function Menu() {
   const [plan, setPlan] = useState<Plan>(null);
   const [history, setHistory] = useState<Item[]>([]);
 
+  // sections repliables
+  const [showObai, setShowObai] = useState(false);
+  const [showHist, setShowHist] = useState(false);
+  const [showLang, setShowLang] = useState(false);
+
   // init depuis localStorage
   useEffect(() => {
     try {
@@ -160,7 +164,9 @@ export default function Menu() {
       // ✅ cohérent avec le reste de l'app (OTP)
       setConnected(localStorage.getItem("ob_connected") === "1");
 
-      setSpaceActive(!!JSON.parse(localStorage.getItem("oneboarding.spaceActive") || "false"));
+      const act = localStorage.getItem("oneboarding.spaceActive");
+      setSpaceActive(act === "1" || act === "true");
+
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
       setHistory(readJSON<Item[]>("oneboarding.history", []));
     } catch {}
@@ -258,11 +264,18 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal */}
+      {/* Bouton flottant principal — GRAND, turquoise, très visible */}
       <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
         <button
           onClick={() => setOpen(true)}
-          className="pointer-events-auto px-5 py-3 rounded-2xl bg-[var(--panel-strong)] hover:bg-[var(--panel-stronger)] text-white font-semibold shadow-lg border border-[rgba(255,255,255,0.12)]"
+          className="
+            pointer-events-auto px-6 py-4 text-lg rounded-2xl font-semibold shadow-xl border
+            border-[rgba(255,255,255,0.18)]
+            bg-gradient-to-br from-cyan-400 to-sky-600
+            hover:from-cyan-300 hover:to-sky-500
+            text-white
+          "
+          aria-label={t.MENU}
         >
           {t.MENU}
         </button>
@@ -279,13 +292,18 @@ export default function Menu() {
               <button
                 onClick={() => setOpen(false)}
                 className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
+                aria-label="Fermer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Section 1 — OneBoarding AI */}
-            <Section title={t.SECTIONS.OBAI}>
+            {/* === 3 sections repliables === */}
+            <Accordion
+              title={t.SECTIONS.OBAI}
+              open={showObai}
+              onToggle={() => setShowObai((v) => !v)}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {/* Connexion */}
                 {!connected ? (
@@ -324,10 +342,13 @@ export default function Menu() {
                   </div>
                 </div>
               </div>
-            </Section>
+            </Accordion>
 
-            {/* Section 2 — Historique */}
-            <Section title={t.SECTIONS.HIST}>
+            <Accordion
+              title={t.SECTIONS.HIST}
+              open={showHist}
+              onToggle={() => setShowHist((v) => !v)}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
                 <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
@@ -335,10 +356,13 @@ export default function Menu() {
                   {t.HIST.CLEAR}
                 </Btn>
               </div>
-            </Section>
+            </Accordion>
 
-            {/* Section 3 — Langue */}
-            <Section title={t.SECTIONS.LANG}>
+            <Accordion
+              title={t.SECTIONS.LANG}
+              open={showLang}
+              onToggle={() => setShowLang((v) => !v)}
+            >
               <div className="grid grid-cols-3 gap-2">
                 <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>
                   {t.LANG.FR}
@@ -350,7 +374,7 @@ export default function Menu() {
                   {t.LANG.AR}
                 </Toggle>
               </div>
-            </Section>
+            </Accordion>
           </div>
         </div>
       )}
@@ -358,16 +382,7 @@ export default function Menu() {
   );
 }
 
-/** ===================== Sous-composants UI ===================== */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-4">
-      <h3 className="text-sm uppercase tracking-wide opacity-80 mb-2">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
+/** ===================== Sous-composants ===================== */
 function Btn({
   children,
   onClick,
@@ -413,4 +428,30 @@ function Toggle({
       {children}
     </button>
   );
-                    }
+}
+
+function Accordion({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-3">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3"
+        aria-expanded={open}
+      >
+        <span className="text-sm font-semibold">{title}</span>
+        <span className="text-lg leading-none">{open ? "–" : "+"}</span>
+      </button>
+      {open && <div className="pt-3">{children}</div>}
+    </section>
+  );
+      }
