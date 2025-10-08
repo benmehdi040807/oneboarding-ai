@@ -1,7 +1,6 @@
-// components/Menu.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 /** ===================== Types ===================== */
 type Plan = "subscription" | "one-month" | null;
@@ -9,9 +8,6 @@ type Lang = "fr" | "en" | "ar";
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
 /** ===================== Utils ===================== */
-const CONSENT_KEY = "oneboarding.rgpdConsent";
-const HISTORY_KEY = "oneboarding.history";
-
 function readJSON<T>(key: string, fallback: T): T {
   try {
     const s = localStorage.getItem(key);
@@ -24,6 +20,14 @@ function writeJSON(key: string, v: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(v));
   } catch {}
+}
+function copy(text: string) {
+  try {
+    navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 function toast(msg: string) {
   const el = document.createElement("div");
@@ -41,12 +45,13 @@ function toast(msg: string) {
 const I18N: Record<Lang, any> = {
   fr: {
     MENU: "Menu",
-    SECTIONS: { OBAI: "OneBoarding AI", HIST: "Mon historique", LANG: "Ma langue" },
-    OBAI: {
+    SECTIONS: { ACC: "Mon compte", HIST: "Mon historique", LANG: "Ma langue" },
+    ACC: {
       CONNECT: "Se connecter",
       DISCONNECT: "Se déconnecter",
       ACTIVATE: "Activer mon espace",
       DEACTIVATE: "Désactiver mon espace",
+      STATUS_BTN: "Statut du compte",
       STATUS: "Mon statut",
       SPACE: "Espace",
       CONN: "Connexion",
@@ -63,25 +68,26 @@ const I18N: Record<Lang, any> = {
       SHARE: "Partager mon historique",
       SAVE: "Sauvegarder mon historique",
       CLEAR: "Supprimer mon historique",
-      CONFIRM_TITLE: "Effacer l’historique ?",
-      CONFIRM_DESC:
-        "Cette action est irréversible. Pensez à sauvegarder ce qui vous est utile avant d’effacer.",
-      CANCEL: "Plus tard",
-      OK: "Effacer",
-      SAVED: "Historique sauvegardé.",
-      EMPTY: "Aucun message à partager.",
+      SAVED: "Historique sauvegardé (fichier téléchargé).",
       COPIED: "Texte copié.",
+      EMPTY: "Aucun message à partager.",
+      CONFIRM_TITLE: "Effacer l’historique ?",
+      CONFIRM_MSG:
+        "Cette action est irréversible. Pense à partager ou sauvegarder ton contenu si tu veux le conserver.",
+      CANCEL: "Annuler",
+      CONFIRM: "Effacer",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
   },
   en: {
     MENU: "Menu",
-    SECTIONS: { OBAI: "OneBoarding AI", HIST: "My history", LANG: "My language" },
-    OBAI: {
+    SECTIONS: { ACC: "My account", HIST: "My history", LANG: "My language" },
+    ACC: {
       CONNECT: "Sign in",
       DISCONNECT: "Sign out",
       ACTIVATE: "Activate my space",
       DEACTIVATE: "Deactivate my space",
+      STATUS_BTN: "Account status",
       STATUS: "My status",
       SPACE: "Space",
       CONN: "Connection",
@@ -98,25 +104,26 @@ const I18N: Record<Lang, any> = {
       SHARE: "Share my history",
       SAVE: "Save my history",
       CLEAR: "Delete my history",
-      CONFIRM_TITLE: "Delete history?",
-      CONFIRM_DESC:
-        "This action is irreversible. Save anything important before deleting.",
-      CANCEL: "Later",
-      OK: "Delete",
-      SAVED: "History saved.",
-      EMPTY: "No messages to share.",
+      SAVED: "History saved (file downloaded).",
       COPIED: "Text copied.",
+      EMPTY: "No messages to share.",
+      CONFIRM_TITLE: "Clear history?",
+      CONFIRM_MSG:
+        "This action is irreversible. Consider sharing or saving if you want to keep your content.",
+      CANCEL: "Cancel",
+      CONFIRM: "Delete",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
   },
   ar: {
     MENU: "القائمة",
-    SECTIONS: { OBAI: "ون بوردنغ AI", HIST: "سِجِلّي", LANG: "لغتي" },
-    OBAI: {
+    SECTIONS: { ACC: "حسابي", HIST: "سِجِلّي", LANG: "لغتي" },
+    ACC: {
       CONNECT: "تسجيل الدخول",
       DISCONNECT: "تسجيل الخروج",
       ACTIVATE: "تفعيل مساحتي",
       DEACTIVATE: "إيقاف مساحتي",
+      STATUS_BTN: "حالة الحساب",
       STATUS: "حالتي",
       SPACE: "المساحة",
       CONN: "الاتصال",
@@ -133,14 +140,13 @@ const I18N: Record<Lang, any> = {
       SHARE: "مشاركة السجل",
       SAVE: "حفظ السجل",
       CLEAR: "حذف السجل",
-      CONFIRM_TITLE: "حذف السجل؟",
-      CONFIRM_DESC:
-        "هذا الإجراء لا رجعة فيه. احفظ ما تحتاجه قبل الحذف.",
-      CANCEL: "لاحقًا",
-      OK: "حذف",
-      SAVED: "تم حفظ السجل.",
-      EMPTY: "لا توجد رسائل للمشاركة.",
+      SAVED: "تم حفظ السجل (تم تنزيل الملف).",
       COPIED: "تم النسخ.",
+      EMPTY: "لا توجد رسائل للمشاركة.",
+      CONFIRM_TITLE: "حذف السجل؟",
+      CONFIRM_MSG: "هذه العملية لا رجوع فيها. من الأفضل مشاركة أو حفظ المحتوى قبل الحذف.",
+      CANCEL: "إلغاء",
+      CONFIRM: "حذف",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
   },
@@ -151,66 +157,65 @@ export default function Menu() {
   const [open, setOpen] = useState(false);
   const [lang, setLang] = useState<Lang>("fr");
 
-  // lecture localStorage
-  const [connected, setConnected] = useState(false);
-  const [spaceActive, setSpaceActive] = useState(false);
+  // état lecture
+  const [connected, setConnected] = useState<boolean>(false);
+  const [spaceActive, setSpaceActive] = useState<boolean>(false);
   const [plan, setPlan] = useState<Plan>(null);
+  const [history, setHistory] = useState<Item[]>([]);
 
-  // accordéons
-  const [showObai, setShowObai] = useState(true);
+  // sections repliables
+  const [showAcc, setShowAcc] = useState(true);
   const [showHist, setShowHist] = useState(false);
   const [showLang, setShowLang] = useState(false);
 
-  // confirm modal (suppr historique)
-  const [askClear, setAskClear] = useState(false);
+  // statut déroulant
+  const [showStatus, setShowStatus] = useState(false);
+
+  // confirm effacement
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmRef = useRef<HTMLDivElement | null>(null);
+
+  // init depuis localStorage
+  useEffect(() => {
+    try {
+      const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
+      setLang(L);
+
+      setConnected(localStorage.getItem("ob_connected") === "1");
+      const act = localStorage.getItem("oneboarding.spaceActive");
+      setSpaceActive(act === "1" || act === "true");
+
+      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
+      setHistory(readJSON<Item[]>("oneboarding.history", []));
+    } catch {}
+  }, []);
 
   // i18n
   const t = useMemo(() => I18N[lang], [lang]);
 
-  useEffect(() => {
-    try {
-      setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
-      const conn = localStorage.getItem("ob_connected");
-      setConnected(conn === "1");
-      const act = localStorage.getItem("oneboarding.spaceActive");
-      setSpaceActive(act === "1" || act === "true");
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
-    } catch {}
-  }, []);
-
-  // helpers d’évènements (OTP / Activation / Paiement)
+  // helpers d’évènements
   function emit(name: string, detail?: any) {
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }
 
-  /** ============ Bouton principal ============ */
-  function onOpenClick() {
-    // si pas de consentement, ouvrir d’abord le modal légal (et ne pas ouvrir le menu)
-    const consent = typeof localStorage !== "undefined" && localStorage.getItem(CONSENT_KEY) === "1";
-    if (!consent) {
-      window.dispatchEvent(new CustomEvent("ob:ensure-consent"));
-      return;
-    }
-    setOpen(true);
-  }
-
-  /** ============ Actions OneBoarding AI ============ */
+  /** ============ Actions compte ============ */
   function handleConnect() {
     emit("ob:open-connect");
   }
   function handleDisconnect() {
     emit("ob:open-disconnect");
-    try { localStorage.setItem("ob_connected", "0"); } catch {}
+    try {
+      localStorage.setItem("ob_connected", "0");
+    } catch {}
+    writeJSON("oneboarding.connected", false);
     setConnected(false);
   }
   function handleActivate() {
     emit("ob:open-activate");
   }
   function handleDeactivate() {
-    try {
-      localStorage.setItem("oneboarding.spaceActive", "false");
-      localStorage.removeItem("oneboarding.plan");
-    } catch {}
+    writeJSON("oneboarding.spaceActive", false);
+    writeJSON("oneboarding.plan", null);
     setSpaceActive(false);
     setPlan(null);
     emit("ob:space-deactivated");
@@ -218,40 +223,37 @@ export default function Menu() {
   }
 
   /** ============ Historique ============ */
-  function shareHistory() {
-    const msgs = readJSON<Item[]>(HISTORY_KEY, []);
-    if (!msgs.length) return toast(t.HIST.EMPTY);
-    const blob = new Blob(
-      [
-        msgs
-          .slice()
-          .reverse()
-          .map((m) => {
-            const who = m.role === "user" ? "Vous" : m.role === "assistant" ? "IA" : "Erreur";
-            return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
-          })
-          .join("\n\n— — —\n\n"),
-      ],
-      { type: "text/plain;charset=utf-8" }
-    );
-    const url = URL.createObjectURL(blob);
-    if (navigator.share) {
-      // partage direct texte si possible
-      blob.text().then((text) => navigator.share({ title: "OneBoarding AI — Historique", text }).catch(() => {}));
-    } else {
-      // fallback: téléchargement .txt
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `oneboarding-history-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+  async function shareHistory() {
+    const msgs = readJSON<Item[]>("oneboarding.history", []);
+    if (!msgs.length) {
+      toast(t.HIST.EMPTY);
+      return;
     }
-    URL.revokeObjectURL(url);
+    const full = msgs
+      .slice()
+      .reverse()
+      .map((m) => {
+        const who = m.role === "user" ? "Vous" : m.role === "assistant" ? "IA" : "Erreur";
+        return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
+      })
+      .join("\n\n— — —\n\n");
+
+    const title = "OneBoarding AI — Historique";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: full });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(full);
+        toast(t.HIST.COPIED);
+      } else {
+        const ok = copy(full);
+        if (ok) toast(t.HIST.COPIED);
+      }
+    } catch {}
   }
 
   function saveHistory() {
-    const msgs = readJSON<Item[]>(HISTORY_KEY, []);
+    const msgs = readJSON<Item[]>("oneboarding.history", []);
     const blob = new Blob([JSON.stringify(msgs, null, 2)], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -264,35 +266,36 @@ export default function Menu() {
     toast(t.HIST.SAVED);
   }
 
-  function reallyClearHistory() {
-    try {
-      localStorage.removeItem(HISTORY_KEY);
-    } catch {}
-    // notifier la page pour rafraîchir l’UI de la conversation
-    window.dispatchEvent(new CustomEvent("ob:history-cleared"));
+  function clearHistoryConfirmed() {
+    writeJSON("oneboarding.history", []);
+    setHistory([]);
+    emit("ob:history-cleared");
+    setConfirmOpen(false);
     toast("Historique supprimé.");
-    setAskClear(false);
   }
 
   /** ============ Langue ============ */
   function setLangAndPersist(l: Lang) {
     setLang(l);
-    try { localStorage.setItem("oneboarding.lang", l); } catch {}
+    localStorage.setItem("oneboarding.lang", l);
     emit("ob:lang-changed", { lang: l });
   }
 
-  /** ============ UI ============ */
+  /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — GRAND + futuriste */}
-      <div className="fixed inset-x-0 bottom-20 z-[55] flex justify-center pointer-events-none sm:bottom-8">
+      {/* Bouton flottant principal — massif, futuriste */}
+      <div className="fixed inset-x-0 bottom-6 z-[55] flex justify-center pointer-events-none">
         <button
-          onClick={onOpenClick}
-          className="pointer-events-auto px-7 py-4 text-lg rounded-2xl font-semibold
-                     text-white shadow-[0_10px_30px_rgba(0,0,0,.25)]
-                     border border-white/20
-                     bg-[radial-gradient(120%_120%_at_0%_0%,#22d3ee_0%,#0284c7_60%,#0ea5e9_100%)]
-                     hover:brightness-110 active:scale-[.99] transition"
+          onClick={() => setOpen(true)}
+          className="
+            pointer-events-auto px-7 py-4 text-lg rounded-2xl font-semibold shadow-xl border
+            border-[rgba(255,255,255,0.18)]
+            bg-gradient-to-br from-cyan-400 to-sky-600
+            hover:from-cyan-300 hover:to-sky-500
+            text-white tracking-wide
+            active:scale-[.99]
+          "
           aria-label={t.MENU}
         >
           {t.MENU}
@@ -302,11 +305,11 @@ export default function Menu() {
       {/* Panneau natif */}
       {open && (
         <div className="fixed inset-0 z-[80] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
-          <div className="relative mx-4 w-full max-w-md rounded-2xl border border-white/15 bg-[rgba(12,16,28,.92)] p-5 shadow-2xl text-white">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+          <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">OneBoarding AI</h2>
+              <h2 className="text-lg font-semibold">{t.MENU}</h2>
               <button
                 onClick={() => setOpen(false)}
                 className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
@@ -316,73 +319,99 @@ export default function Menu() {
               </button>
             </div>
 
-            {/* Statut — section standalone (hors boutons) */}
-            <section className="mb-4 rounded-xl border border-white/12 bg-white/5 p-3">
-              <p className="text-sm font-medium mb-1">{t.OBAI.STATUS}</p>
-              <div className="text-xs opacity-90 leading-6">
-                <div>{t.OBAI.SPACE}: <b>{spaceActive ? t.OBAI.ACTIVE : t.OBAI.INACTIVE}</b></div>
-                <div>{t.OBAI.CONN}: <b>{connected ? t.OBAI.ONLINE : t.OBAI.OFFLINE}</b></div>
-                <div>
-                  {t.OBAI.PLAN}:{" "}
-                  <b>{plan === "subscription" ? t.OBAI.SUB : plan === "one-month" ? t.OBAI.ONEOFF : t.OBAI.NONE}</b>
-                </div>
-              </div>
-            </section>
-
-            {/* 1 — OneBoarding AI */}
-            <Accordion title={t.SECTIONS.OBAI}>
+            {/* === Sections === */}
+            <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Connexion */}
                 {!connected ? (
-                  <Btn onClick={handleConnect}>{t.OBAI.CONNECT}</Btn>
+                  <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
                 ) : (
-                  <Btn onClick={handleDisconnect}>{t.OBAI.DISCONNECT}</Btn>
+                  <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
                 )}
+
+                {/* Activation */}
                 {!spaceActive ? (
-                  <Btn accent onClick={handleActivate}>{t.OBAI.ACTIVATE}</Btn>
+                  <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
                 ) : (
-                  <Btn danger onClick={handleDeactivate}>{t.OBAI.DEACTIVATE}</Btn>
+                  <Btn danger onClick={handleDeactivate}>{t.ACC.DEACTIVATE}</Btn>
+                )}
+
+                {/* Statut du compte (toggle) */}
+                <Btn className="sm:col-span-2" onClick={() => setShowStatus((v) => !v)}>
+                  {t.ACC.STATUS_BTN} {showStatus ? "—" : "+"}
+                </Btn>
+
+                {showStatus && (
+                  <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
+                    <p className="text-sm font-medium mb-1">{t.ACC.STATUS}</p>
+                    <div className="text-xs opacity-90 leading-6">
+                      <div>
+                        {t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
+                      </div>
+                      <div>
+                        {t.ACC.CONN}: <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
+                      </div>
+                      <div>
+                        {t.ACC.PLAN}:{" "}
+                        <b>
+                          {plan === "subscription"
+                            ? t.ACC.SUB
+                            : plan === "one-month"
+                            ? t.ACC.ONEOFF
+                            : t.ACC.NONE}
+                        </b>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </Accordion>
 
-            {/* 2 — Historique */}
-            <Accordion title={t.SECTIONS.HIST}>
+            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
                 <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
-                <Btn danger onClick={() => setAskClear(true)} className="sm:col-span-2">
+                <Btn danger onClick={() => setConfirmOpen(true)} className="sm:col-span-2">
                   {t.HIST.CLEAR}
                 </Btn>
               </div>
             </Accordion>
 
-            {/* 3 — Langue */}
-            <Accordion title={t.SECTIONS.LANG}>
+            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
               <div className="grid grid-cols-3 gap-2">
                 <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>{t.LANG.FR}</Toggle>
                 <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>{t.LANG.EN}</Toggle>
                 <Toggle active={lang === "ar"} onClick={() => setLangAndPersist("ar")}>{t.LANG.AR}</Toggle>
               </div>
             </Accordion>
+          </div>
+        </div>
+      )}
 
-            {/* Confirm clear */}
-            {askClear && (
-              <div className="fixed inset-0 z-[90] grid place-items-center" role="dialog" aria-modal="true">
-                <div className="absolute inset-0 bg-black/55" onClick={() => setAskClear(false)} />
-                <div className="relative mx-4 w-full max-w-sm rounded-2xl border border-white/15 bg-[rgba(12,16,28,.96)] p-5 text-white shadow-xl">
-                  <h3 className="text-base font-semibold mb-2">{t.HIST.CONFIRM_TITLE}</h3>
-                  <p className="text-sm opacity-90 mb-4">{t.HIST.CONFIRM_DESC}</p>
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setAskClear(false)} className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15">
-                      {t.HIST.CANCEL}
-                    </button>
-                    <button onClick={reallyClearHistory} className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold">
-                      {t.HIST.OK}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* Modal de confirmation (interne au Menu) */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[100] grid place-items-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setConfirmOpen(false)} />
+          <div
+            ref={confirmRef}
+            className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
+          >
+            <h2 className="text-lg font-semibold mb-2">{t.HIST.CONFIRM_TITLE}</h2>
+            <p className="text-sm opacity-90 mb-4">{t.HIST.CONFIRM_MSG}</p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+              >
+                {t.HIST.CANCEL}
+              </button>
+              <button
+                onClick={clearHistoryConfirmed}
+                className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
+              >
+                {t.HIST.CONFIRM}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -391,25 +420,12 @@ export default function Menu() {
 }
 
 /** ===================== Sous-composants ===================== */
-function Accordion({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <section className="mb-3">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3"
-        aria-expanded={open}
-      >
-        <span className="text-sm font-semibold">{title}</span>
-        <span className="text-lg leading-none">{open ? "–" : "+"}</span>
-      </button>
-      {open && <div className="pt-3">{children}</div>}
-    </section>
-  );
-}
-
 function Btn({
-  children, onClick, className = "", accent, danger,
+  children,
+  onClick,
+  className = "",
+  accent,
+  danger,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -419,17 +435,21 @@ function Btn({
 }) {
   const base = "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
   const tone = danger
-    ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/25"
+    ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/22"
     : accent
     ? "border-cyan-300/30 bg-cyan-400/15 hover:bg-cyan-400/25"
     : "border-white/15 bg-white/10 hover:bg-white/15";
   return (
-    <button onClick={onClick} className={`${base} ${tone} ${className}`}>{children}</button>
+    <button onClick={onClick} className={`${base} ${tone} ${className}`}>
+      {children}
+    </button>
   );
 }
 
 function Toggle({
-  children, active, onClick,
+  children,
+  active,
+  onClick,
 }: {
   children: React.ReactNode;
   active?: boolean;
@@ -446,3 +466,29 @@ function Toggle({
     </button>
   );
 }
+
+function Accordion({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-3">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3"
+        aria-expanded={open}
+      >
+        <span className="text-sm font-semibold">{title}</span>
+        <span className="text-lg leading-none">{open ? "–" : "+"}</span>
+      </button>
+      {open && <div className="pt-3">{children}</div>}
+    </section>
+  );
+          }
