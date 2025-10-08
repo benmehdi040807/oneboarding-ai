@@ -3,7 +3,32 @@
 @tailwind utilities;
 
 /* === Dégradé ciel à l’aube : plein écran, toutes couches === */
-:root { --bg: transparent; } /* empêche les bg-[var(--bg)] de remettre du sombre */
+:root {
+  --bg: transparent; /* empêche les bg-[var(--bg)] de remettre du sombre */
+
+  /* === Variables UI globales (utilisées par Menu, modals, etc.) === */
+  --fg: #0b1b2b;
+  --panel: rgba(12, 16, 28, 0.86);
+  --panel-strong: rgba(12, 16, 28, 0.92);
+  --panel-stronger: rgba(12, 16, 28, 0.98);
+
+  --user-bg: rgba(255, 255, 255, 0.55);
+  --assistant-bg: rgba(255, 255, 255, 0.38);
+  --assistant-border: rgba(11, 27, 43, 0.18);
+
+  --error-bg: rgba(220, 38, 38, 0.10);
+  --error-border: rgba(220, 38, 38, 0.35);
+
+  --chip-bg: rgba(255, 255, 255, 0.60);
+  --chip-hover: rgba(255, 255, 255, 0.78);
+
+  --border: rgba(11, 27, 43, 0.12);
+  --accent: #22d3ee;
+  --accent-tint: rgba(34, 211, 238, 0.18);
+
+  --danger: #ef4444;
+  --danger-strong: #dc2626;
+}
 
 html,
 body,
@@ -11,7 +36,7 @@ body,
 body > div:first-child {
   background: linear-gradient(to bottom, #B3E5FC, #E0F7FA) !important;
   background-attachment: fixed !important;
-  color: #fff;
+  color: var(--fg);
   overflow-x: hidden;
   min-height: 100dvh;
   margin: 0;
@@ -24,9 +49,35 @@ body > div:first-child {
   background-attachment: fixed !important;
 }
 
-/* Fade-in existant */
+/* ===== Petites utilités réutilisées ===== */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .fade-in { animation: fadeIn 280ms ease-out; }
+
+@keyframes dots { 0%{opacity:.2} 20%{opacity:1} 100%{opacity:.2} }
+.typing-dots { letter-spacing: .25em; display:inline-block; animation: dots 1.2s ease-in-out infinite; }
+
+@keyframes micPulse {
+  0% { box-shadow:0 0 0 0 rgba(34,211,238,.25); transform:scale(1); }
+  70%{ box-shadow:0 0 0 10px rgba(34,211,238,0); transform:scale(1.02); }
+  100%{ box-shadow:0 0 0 0 rgba(34,211,238,0); transform:scale(1); }
+}
+.mic-pulse { animation: micPulse 1.6s ease-out infinite; }
+
+/* Skin OCR pour masquer l’input file natif */
+.ocr-skin, .ocr-skin * { color: var(--fg) !important; }
+.ocr-skin input[type="file"] {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  display: none !important;
+}
+.ocr-skin input[type="file"]::file-selector-button,
+.ocr-skin input[type="file"] + *,
+.ocr-skin input[type="file"] ~ span,
+.ocr-skin input[type="file"] ~ small { display: none !important; }
