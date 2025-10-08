@@ -7,7 +7,6 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
-import LegalBar from "@/components/LegalBar";
 
 // Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
@@ -144,10 +143,9 @@ export default function Page() {
   // 🧹 Modal Effacer
   const [showClearModal, setShowClearModal] = useState(false);
 
-  // ⚖️ Modal légal
+  // ⚖️ Modal légal (ouvert si Menu émet ob:open-legal et qu’aucun consentement)
   const [showLegal, setShowLegal] = useState(false);
   useEffect(() => {
-    // écoute l’évènement déclenché par Menu.tsx au 1er clic
     const onOpenLegal = () => {
       const consented = localStorage.getItem(CONSENT_KEY) === "1";
       if (!consented) setShowLegal(true);
@@ -190,7 +188,6 @@ export default function Page() {
     r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
 
     recogRef.current = r;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function toggleMic() {
@@ -424,9 +421,8 @@ export default function Page() {
       />
       <LegalModal open={showLegal} onClose={() => setShowLegal(false)} />
 
-      {/* Boutons flottants bas */}
+      {/* Bouton Menu flottant */}
       <Menu />
-      <LegalBar />
     </div>
   );
 }
@@ -497,4 +493,4 @@ function StyleGlobals() {
       .ocr-skin [class*="name"] { display:none !important; }
     `}</style>
   );
-  }
+}
