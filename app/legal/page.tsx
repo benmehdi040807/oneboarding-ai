@@ -47,7 +47,7 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         text:
-          "2) Responsabilité de l’utilisateur : les contenus générés ne sont pas des conseils professionnels personnalisés. Vérifications requises avant toute décision engageante.",
+          "2) Responsabilité de l’utilisateur : les contenus générés ne constituent pas des conseils professionnels personnalisés. Vérifications requises avant toute décision engageante.",
       },
       {
         kind: "p",
@@ -70,10 +70,9 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "ul",
         items: [
-          "Stockage local : historique et consentements sur votre appareil.",
-          "Sous-traitants techniques : acheminement des requêtes IA — aucune vente/partage publicitaire de données personnelles.",
-          "Monétisation : porte sur l’accès au service (abonnements, crédits), jamais la cession de données.",
-          "Statistiques : mesures agrégées et anonymisées pour améliorer le service.",
+          "Stockage local : historique et consentements enregistrés uniquement sur votre appareil.",
+          "Sous-traitants techniques : acheminement des requêtes IA sans conservation ni corrélation d’identité personnelle.",
+          "Statistiques : mesures agrégées et anonymisées destinées à améliorer le service.",
           "Effacement : suppression possible à tout moment des données locales.",
         ],
       },
@@ -83,12 +82,12 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         text:
-          "OneBoarding AI, créé par Benmehdi Mohamed Rida, vise à rendre l’IA simple, rapide et universelle.",
+          "OneBoarding AI est conçu, développé et dirigé par Benmehdi Mohamed Rida, avec pour vocation de rendre l’IA simple, rapide et universelle.",
       },
     ],
     version: {
       h: "Version & mise à jour",
-      v: "Version 1.0 — Septembre 2025",
+      v: "Version 1.0.0 — Octobre 2025",
       note: "Un changelog discret indiquera les futures évolutions.",
     },
   },
@@ -100,14 +99,14 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         text:
-          "OneBoarding AI is an interactive AI platform providing an educational, enriching experience to each user.",
+          "OneBoarding AI is an interactive AI platform designed to offer every user an educational and enriching experience.",
       },
       {
         kind: "ul",
         items: [
-          "🛡️ Clarity & safety: users control usage and remain responsible for choices.",
-          "🌐 Universality: respect for mandatory public-order rules in each country.",
-          "⚖️ Balance: reasonable means by the publisher, responsible use by the user.",
+          "🛡️ Clarity & safety: users remain in control and responsible for their choices.",
+          "🌐 Universality: respect for public-order rules in each country.",
+          "⚖️ Balance: reasonable means on the publisher’s side, responsible use on the user’s side.",
           "🤝 Trust & transparency: confidentiality, mutual respect, and good faith.",
         ],
       },
@@ -118,17 +117,17 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         text:
-          "2) User responsibility: generated content isn’t personalized professional advice. Verify before any binding decision.",
+          "2) User responsibility: generated content does not constitute personalized professional advice. Verification required before any binding decision.",
       },
       {
         kind: "p",
         text:
-          "3) Indemnification: user holds OneBoarding AI harmless in case of non-compliant use or rights violations.",
+          "3) Indemnification: users hold OneBoarding AI harmless in case of misuse or rights violations.",
       },
       {
         kind: "p",
         text:
-          "4) Limitation of liability: within the law, no liability for indirect damages (profits, data, business…).",
+          "4) Limitation of liability: within legal limits, no liability for indirect damages (loss of profit, data, etc.).",
       },
       {
         kind: "p",
@@ -141,11 +140,10 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "ul",
         items: [
-          "Local storage: history and consents on your device.",
-          "Processors: AI requests routed via technical providers; no selling/sharing for ads.",
-          "Monetisation: access to service (subscriptions/credits), never data transfer.",
-          "Statistics: aggregated, anonymised metrics to improve the service.",
-          "Erasure: delete local data anytime.",
+          "Local storage: history and consents remain on the user’s device only.",
+          "Technical processors: routing of AI requests without personal identity linkage or storage.",
+          "Statistics: aggregated and anonymized metrics to improve the service.",
+          "Erasure: users can delete local data at any time.",
         ],
       },
 
@@ -154,12 +152,12 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         text:
-          "Built by Benmehdi Mohamed Rida to make AI simple, fast and universal.",
+          "OneBoarding AI was conceived, developed, and authored by Benmehdi Mohamed Rida, aiming to make AI simple, fast, and universal.",
       },
     ],
     version: {
       h: "Version & Updates",
-      v: "Version 1.0 — September 2025",
+      v: "Version 1.0.0 — October 2025",
       note: "A discreet changelog will indicate future evolutions.",
     },
   },
@@ -171,25 +169,25 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         text:
-          "منصّة OneBoarding AI منصّة ذكاء اصطناعي تفاعلية تهدف إلى تقديم تجربة تعليمية مُثرية لكل مستخدم.",
+          "منصّة OneBoarding AI منصّة ذكاءٍ اصطناعيٍّ تفاعلية تهدف إلى تقديم تجربة تعليمية مُثرية لكل مستخدم.",
       },
       {
         kind: "ul",
         items: [
-          "🛡️ الوضوح والأمان: يبقى المستخدم مسيطرًا ومسؤولًا عن اختياراته.",
+          "🛡️ الوضوح والأمان: يبقى المستخدم متحكّمًا ومسؤولًا عن اختياراته.",
           "🌐 العالمية: احترام قواعد النظام العام في كل بلد.",
-          "⚖️ توازن: وسائل معقولة من الناشر، ومسؤولية الاستخدام على عاتق المستخدم.",
+          "⚖️ التوازن: وسائل معقولة من الناشر، ومسؤولية الاستخدام على عاتق المستخدم.",
           "🤝 الثقة والشفافية: سرّية واحترام متبادل وحسن نية.",
         ],
       },
 
       { kind: "hr" },
       { kind: "h2", text: "شروط الاستخدام" },
-      { kind: "p", text: "1) الهدف: مساعدة قائمة على الذكاء الاصطناعي، عون لاتخاذ القرار." },
+      { kind: "p", text: "1) الهدف: مساعدة قائمة على الذكاء الاصطناعي ودعم اتخاذ القرار." },
       {
         kind: "p",
         text:
-          "2) مسؤولية المستخدم: المحتوى المُولّد ليس استشارة مهنية مُخصّصة. يلزم التحقّق قبل أي قرار مُلزِم.",
+          "2) مسؤولية المستخدم: المحتوى المُولَّد لا يُعتبر استشارة مهنية مُخصَّصة. يلزم التحقّق قبل أي قرار مُلزِم.",
       },
       {
         kind: "p",
@@ -212,11 +210,10 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "ul",
         items: [
-          "تخزين محلي: السجلّ والموافقات على جهازك.",
-          "معالِجون تقنيون: تمرّ الطلبات عبر مزوّدي خدمة؛ بلا بيع/مشاركة لأغراض إعلانية.",
-          "الربحية: تتعلق بالوصول إلى الخدمة (اشتراكات/أرصدة) وليس بالتنازل عن البيانات.",
-          "إحصاءات مُجهّلة: قياسات مُجمّعة لتحسين الخدمة دون تحديد المستخدم.",
-          "الحذف: يمكنك حذف البيانات المحلية في أي وقت.",
+          "تخزين محلي: السجلّ والموافقات محفوظة فقط على جهاز المستخدم.",
+          "معالِجون تقنيون: تمرير الطلبات دون حفظٍ أو ربطٍ بالهوية الشخصية.",
+          "إحصاءات مُجهَّلة: قياسات مُجمَّعة لتحسين الخدمة.",
+          "الحذف: يمكنك حذف البيانات المحليّة في أي وقت.",
         ],
       },
 
@@ -226,13 +223,13 @@ const COPY: Record<Lang, Copy> = {
         kind: "p",
         html: true,
         text:
-          'تسعى OneBoarding AI، المطوَّرة من طرف <span class="nowrap-ar">بنمهدي محمد رضى</span>، إلى تبسيط التفاعل مع الذكاء الاصطناعي بطريقة سريعة وعالمية.',
+          'تم ابتكار وتطوير OneBoarding AI من طرف <strong style="white-space:nowrap">بنمهدي محمد رضى</strong>، بهدف جعل الذكاء الاصطناعي بسيطًا وسريعًا وعالميًا.',
       },
     ],
     version: {
       h: "الإصدار والتحديث",
-      v: "الإصدار 1.0 — سبتمبر 2025",
-      note: "سيعرض سجل تغييرات مُصغّر التطورات المستقبلية.",
+      v: "الإصدار 1.0.0 — أكتوبر 2025",
+      note: "سيُعرض سجلّ تغييرات موجز للتحديثات القادمة.",
     },
   },
 };
@@ -323,11 +320,11 @@ export default function LegalPage({
 
         <div className="mt-6 text-sm opacity-70">
           <p>
-            En accédant au service, vous reconnaissez avoir pris connaissance de ces informations. Les règles
-            d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.
+            En accédant au service, vous reconnaissez avoir pris connaissance de ces informations.
+            Les règles d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.
           </p>
         </div>
       </article>
     </main>
   );
-}
+        }
