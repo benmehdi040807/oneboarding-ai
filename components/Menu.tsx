@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /** ===================== Types locaux ===================== */
-type Plan = "subscription" | "oneoff" | null;
+type Plan = "subscription" | "one-month" | null;
 type Lang = "fr" | "en" | "ar";
 
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
@@ -31,23 +31,14 @@ function copy(text: string) {
   }
 }
 function toast(msg: string) {
-  // petit toast natif minimal
+  // petit toast natif minimal (cssText évite le typage CSSStyleDeclaration)
   const el = document.createElement("div");
   el.textContent = msg;
-  Object.assign(el.style, {
-    position: "fixed",
-    left: "50%",
-    transform: "translateX(-50%)",
-    bottom: "20px",
-    background: "rgba(12,16,28,0.92)",
-    color: "#fff",
-    padding: "10px 14px",
-    borderRadius: "14px",
-    border: "1px solid rgba(255,255,255,0.16)",
-    zIndex: 100000,
-    fontSize: "14px",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-  } as CSSStyleDeclaration);
+  el.style.cssText =
+    "position:fixed;left:50%;transform:translateX(-50%);bottom:20px;" +
+    "background:rgba(12,16,28,.92);color:#fff;padding:10px 14px;" +
+    "border-radius:14px;border:1px solid rgba(255,255,255,.16);" +
+    "z-index:100000;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)";
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1700);
 }
@@ -56,12 +47,7 @@ function toast(msg: string) {
 const I18N: Record<Lang, any> = {
   fr: {
     MENU: "Menu",
-    SECTIONS: {
-      OBAI: "OneBoarding AI",
-      HIST: "Mon historique",
-      LANG: "Ma langue",
-      COMING: "À venir",
-    },
+    SECTIONS: { OBAI: "OneBoarding AI", HIST: "Mon historique", LANG: "Ma langue", COMING: "À venir" },
     OBAI: {
       CONNECT: "Se connecter",
       DISCONNECT: "Se déconnecter",
@@ -88,11 +74,7 @@ const I18N: Record<Lang, any> = {
       EMPTY: "Aucun message à partager.",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
-    COMING: {
-      O2: "Génération II — One IA (bientôt)",
-      O3: "Génération III — Mirror IA (bientôt)",
-      OK: "OK",
-    },
+    COMING: { O2: "Génération II — One IA (bientôt)", O3: "Génération III — Mirror IA (bientôt)", OK: "OK" },
   },
   en: {
     MENU: "Menu",
@@ -174,7 +156,10 @@ export default function Menu() {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
       setLang(L);
-      setConnected(!!JSON.parse(localStorage.getItem("oneboarding.connected") || "false"));
+
+      // ✅ cohérent avec le reste de l'app (OTP)
+      setConnected(localStorage.getItem("ob_connected") === "1");
+
       setSpaceActive(!!JSON.parse(localStorage.getItem("oneboarding.spaceActive") || "false"));
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
       setHistory(readJSON<Item[]>("oneboarding.history", []));
@@ -191,19 +176,18 @@ export default function Menu() {
 
   /** ============ Actions OneBoarding AI ============ */
   function handleConnect() {
-    emit("ob:open-connect");
-    // la logique réelle se fera ailleurs (OTP). Ici juste feedback UI.
+    emit("ob:open-connect"); // ex: ouvrir CodeAccessDialog
   }
   function handleDisconnect() {
     emit("ob:open-disconnect");
+    try { localStorage.setItem("ob_connected", "0"); } catch {}
     writeJSON("oneboarding.connected", false);
     setConnected(false);
   }
   function handleActivate() {
-    emit("ob:open-activate"); // ouvre le flux “activer espace” (OTP → paiement)
+    emit("ob:open-activate"); // ex: ouvrir SubscribeModal -> CodeAccessDialog -> Payment
   }
   function handleDeactivate() {
-    // Désactivation volontaire (supprime téléphone de la base côté serveur dans le flux réel)
     writeJSON("oneboarding.spaceActive", false);
     writeJSON("oneboarding.plan", null);
     setSpaceActive(false);
@@ -322,8 +306,7 @@ export default function Menu() {
                   <p className="text-sm font-medium mb-1">{t.OBAI.STATUS}</p>
                   <div className="text-xs opacity-90 leading-6">
                     <div>
-                      {t.OBAI.SPACE}:{" "}
-                      <b>{spaceActive ? t.OBAI.ACTIVE : t.OBAI.INACTIVE}</b>
+                      {t.OBAI.SPACE}: <b>{spaceActive ? t.OBAI.ACTIVE : t.OBAI.INACTIVE}</b>
                     </div>
                     <div>
                       {t.OBAI.CONN}: <b>{connected ? t.OBAI.ONLINE : t.OBAI.OFFLINE}</b>
@@ -333,7 +316,7 @@ export default function Menu() {
                       <b>
                         {plan === "subscription"
                           ? t.OBAI.SUB
-                          : plan === "oneoff"
+                          : plan === "one-month"
                           ? t.OBAI.ONEOFF
                           : t.OBAI.NONE}
                       </b>
@@ -398,8 +381,7 @@ function Btn({
   accent?: boolean;
   danger?: boolean;
 }) {
-  const base =
-    "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
+  const base = "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
   const tone = danger
     ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/22"
     : accent
@@ -425,12 +407,10 @@ function Toggle({
     <button
       onClick={onClick}
       className={`px-3 py-2 rounded-xl border text-sm ${
-        active
-          ? "bg-white/20 border-white/30 text-white"
-          : "bg-white/8 border-white/15 text-white/90 hover:bg-white/14"
+        active ? "bg-white/20 border-white/30 text-white" : "bg-white/8 border-white/15 text-white/90 hover:bg-white/14"
       }`}
     >
       {children}
     </button>
   );
-                 }
+                    }
