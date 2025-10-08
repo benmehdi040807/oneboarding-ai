@@ -83,32 +83,11 @@ const I18N: Record<Lang, any> = {
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
 
     LEGAL: {
-      OPEN: "Ouvrir",
+      OPEN: "Lire et accepter",
       VIEWPAGE: "Voir la page",
       ACCEPT: "J’accepte",
       LATER: "Plus tard",
       TITLE: "Informations légales",
-      M_TITLE: "Manifeste de Confiance — OneBoarding AI",
-      M_ITEMS: [
-        "Clarté & sécurité : l’utilisateur reste maître de son usage et responsable de ses choix.",
-        "Universalité : respect des règles d’ordre public de chaque pays.",
-        "Équilibre : moyens raisonnables côté éditeur, responsabilité d’usage côté utilisateur.",
-        "Confiance & transparence : confidentialité, respect mutuel et bonne foi.",
-      ],
-      T_TITLE: "Conditions Générales d’Utilisation (CGU)",
-      T_ITEMS: [
-        "Objet : assistance alimentée par IA — aide à la décision.",
-        "Responsabilité : les contenus générés ne sont pas des conseils professionnels personnalisés.",
-        "Indemnisation : l’utilisateur indemnise l’éditeur en cas d’usage contraire à la loi.",
-        "Limitation : pas de responsabilité pour dommages indirects, dans les limites légales.",
-      ],
-      P_TITLE: "Politique de Confidentialité",
-      P_ITEMS: [
-        "Stockage local : historique et consentements restent sur votre appareil.",
-        "Sous-traitants techniques : acheminement des requêtes IA — pas de vente/partage publicitaire.",
-        "Statistiques : mesures agrégées et anonymisées pour améliorer le service.",
-        "Effacement : suppression possible à tout moment des données locales.",
-      ],
       CONSENT_NOTE: "En cliquant sur « J’accepte », vous confirmez avoir pris connaissance de ces informations.",
     },
   },
@@ -150,32 +129,11 @@ const I18N: Record<Lang, any> = {
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
 
     LEGAL: {
-      OPEN: "Open",
+      OPEN: "Read & accept",
       VIEWPAGE: "Open page",
       ACCEPT: "Accept",
       LATER: "Later",
       TITLE: "Legal information",
-      M_TITLE: "Trust Manifesto — OneBoarding AI",
-      M_ITEMS: [
-        "Clarity & safety: you control usage and remain responsible for your choices.",
-        "Universality: comply with each country’s public-order rules.",
-        "Balance: reasonable means on publisher’s side; responsible use on user’s side.",
-        "Trust & transparency: confidentiality, mutual respect, good faith.",
-      ],
-      T_TITLE: "Terms of Service",
-      T_ITEMS: [
-        "Purpose: AI-powered assistance — decision support.",
-        "Responsibility: generated content isn’t personalized professional advice.",
-        "Indemnification: user indemnifies the publisher for unlawful use.",
-        "Limitation: no liability for indirect damages within the law.",
-      ],
-      P_TITLE: "Privacy Policy",
-      P_ITEMS: [
-        "Local storage: your history and consents stay on your device.",
-        "Processors: routing of AI requests — no advertising sale/sharing.",
-        "Statistics: aggregated, anonymized metrics to improve the service.",
-        "Erasure: you can delete local data at any time.",
-      ],
       CONSENT_NOTE: "By clicking “Accept”, you acknowledge having read this information.",
     },
   },
@@ -216,32 +174,11 @@ const I18N: Record<Lang, any> = {
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
 
     LEGAL: {
-      OPEN: "فتح",
+      OPEN: "قراءة والموافقة",
       VIEWPAGE: "عرض الصفحة",
       ACCEPT: "موافقة",
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
-      M_TITLE: "بيان الثقة — OneBoarding AI",
-      M_ITEMS: [
-        "الوضوح والأمان: أنت المتحكم بالاستخدام ومسؤول عن اختياراتك.",
-        "العالمية: احترام القواعد العامة في كل بلد.",
-        "التوازن: وسائل معقولة من الناشر ومسؤولية الاستخدام على المستخدم.",
-        "الثقة والشفافية: سرّية واحترام متبادل وحسن نية.",
-      ],
-      T_TITLE: "شروط الاستخدام",
-      T_ITEMS: [
-        "الهدف: مساعدة مدعومة بالذكاء الاصطناعي — دعم اتخاذ القرار.",
-        "المسؤولية: المحتوى المُولّد ليس استشارة مهنية شخصية.",
-        "التعويض: المستخدم يعوض الناشر عند الاستخدام المخالف للقانون.",
-        "التحديد: لا مسؤولية عن الأضرار غير المباشرة وفق القانون.",
-      ],
-      P_TITLE: "سياسة الخصوصية",
-      P_ITEMS: [
-        "تخزين محلي: السجلّ والموافقات تبقى على جهازك.",
-        "معالِجون تقنيون: تمرير الطلبات — بلا بيع/مشاركة إعلانية.",
-        "إحصاءات: قياسات مُجمّعة ومجهّلة لتحسين الخدمة.",
-        "المحو: يمكنك حذف البيانات المحلية في أي وقت.",
-      ],
       CONSENT_NOTE: "بالنقر على «موافقة» فأنت تقر بأنك اطّلعت على هذه المعلومات.",
     },
   },
@@ -437,45 +374,26 @@ export default function Menu() {
             {/* === Sections === */}
             <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {/* Connexion */}
                 {!connected ? (
                   <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
                 ) : (
                   <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
                 )}
-
-                {/* Activation */}
                 {!spaceActive ? (
                   <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
                 ) : (
                   <Btn danger onClick={handleDeactivate}>{t.ACC.DEACTIVATE}</Btn>
                 )}
-
-                {/* Statut du compte (toggle) */}
                 <Btn className="sm:col-span-2" onClick={() => setShowStatus((v) => !v)}>
                   {t.ACC.STATUS_BTN} {showStatus ? "—" : "+"}
                 </Btn>
-
                 {showStatus && (
                   <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
                     <p className="text-sm font-medium mb-1">{t.ACC.STATUS}</p>
                     <div className="text-xs opacity-90 leading-6">
-                      <div>
-                        {t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
-                      </div>
-                      <div>
-                        {t.ACC.CONN}: <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
-                      </div>
-                      <div>
-                        {t.ACC.PLAN}:{" "}
-                        <b>
-                          {plan === "subscription"
-                            ? t.ACC.SUB
-                            : plan === "one-month"
-                            ? t.ACC.ONEOFF
-                            : t.ACC.NONE}
-                        </b>
-                      </div>
+                      <div>{t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b></div>
+                      <div>{t.ACC.CONN}: <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b></div>
+                      <div>{t.ACC.PLAN}: <b>{plan === "subscription" ? t.ACC.SUB : plan === "one-month" ? t.ACC.ONEOFF : t.ACC.NONE}</b></div>
                     </div>
                   </div>
                 )}
@@ -494,32 +412,22 @@ export default function Menu() {
 
             <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
               <div className="grid grid-cols-3 gap-2">
-                <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>{t.LANG.FR}</Toggle>
-                <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>{t.LANG.EN}</Toggle>
-                <Toggle active={lang === "ar"} onClick={() => setLangAndPersist("ar")}>{t.LANG.AR}</Toggle>
+                <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>{I18N.fr.LANG.FR}</Toggle>
+                <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>{I18N.en.LANG.EN}</Toggle>
+                <Toggle active={lang === "ar"} onClick={() => setLangAndPersist("ar")}>{I18N.ar.LANG.AR}</Toggle>
               </div>
             </Accordion>
 
-            {/* 4) CGU / Privacy */}
+            {/* 4) CGU / Privacy — 1 seul bouton: Lire et accepter */}
             <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{t.LEGAL.OPEN}</Btn>
-                <a
-                  href="/legal"
-                  className="px-4 py-2 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 text-sm font-medium text-white grid place-items-center"
-                >
-                  {t.LEGAL.VIEWPAGE}
-                </a>
               </div>
-              {!consented && (
-                <p className="text-xs opacity-80 mt-3">
-                  {lang === "fr"
-                    ? "Consentement non enregistré."
-                    : lang === "en"
-                    ? "Consent not recorded."
-                    : "الموافقة غير مسجّلة."}
-                </p>
-              )}
+              {!consented && <p className="text-xs opacity-80 mt-3">
+                {lang === "fr" ? "Consentement non enregistré."
+                 : lang === "en" ? "Consent not recorded."
+                 : "الموافقة غير مسجّلة."}
+              </p>}
             </Accordion>
           </div>
         </div>
@@ -553,29 +461,23 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Modal légal (ouvert via la 4e section) */}
+      {/* Modal légal — contenu exact via iframe de /legal?lang= */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setLegalOpen(false)} />
-          <div className="relative mx-4 w-full max-w-lg rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
+          <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
-              <div className="flex items-center gap-1">
-                {(["fr","en","ar"] as Lang[]).map((l) => (
-                  <button
-                    key={l}
-                    onClick={() => setLang(l)}
-                    className={`px-2.5 py-1 rounded-md text-xs border ${
-                      lang === l ? "bg-black text-white border-black" : "bg-white text-black border-black/20"
-                    }`}
-                    aria-label={l.toUpperCase()}
-                  >
-                    {l.toUpperCase()}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <a
+                  href="/legal"
+                  className="text-sm underline underline-offset-4 opacity-80 hover:opacity-100"
+                >
+                  {t.LEGAL.VIEWPAGE}
+                </a>
                 <button
                   onClick={() => setLegalOpen(false)}
-                  className="ml-1 px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
+                  className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
                   aria-label="Fermer"
                 >
                   ✕
@@ -583,38 +485,18 @@ export default function Menu() {
               </div>
             </div>
 
-            <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
-              <section>
-                <h3 className="font-semibold mb-1">{t.LEGAL.M_TITLE}</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  {t.LEGAL.M_ITEMS.map((li: string, i: number) => <li key={i}>{li}</li>)}
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="font-semibold mb-1">{t.LEGAL.T_TITLE}</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  {t.LEGAL.T_ITEMS.map((li: string, i: number) => <li key={i}>{li}</li>)}
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="font-semibold mb-1">{t.LEGAL.P_TITLE}</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  {t.LEGAL.P_ITEMS.map((li: string, i: number) => <li key={i}>{li}</li>)}
-                </ul>
-              </section>
-
-              <p className="text-xs opacity-70">{t.LEGAL.CONSENT_NOTE}</p>
+            {/* Contenu riche synchronisé */}
+            <div className="rounded-lg overflow-hidden border border-black/10" style={{height: "70vh"}}>
+              <iframe
+                title="CGU / Privacy"
+                src={`/legal?lang=${lang}`}
+                style={{ width: "100%", height: "100%", border: "0" }}
+              />
             </div>
 
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <a
-                href="/legal"
-                className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-              >
-                {t.LEGAL.VIEWPAGE}
-              </a>
+            <p className="text-xs opacity-70 mt-3">{t.LEGAL.CONSENT_NOTE}</p>
+
+            <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 onClick={() => setLegalOpen(false)}
                 className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
@@ -713,4 +595,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-    }
+                                                                            }
