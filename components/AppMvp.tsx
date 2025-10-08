@@ -7,6 +7,7 @@ import SubscribeModal from "@/components/SubscribeModal";
 import CodeAccessDialog from "@/components/CodeAccessDialog";
 import PaymentModal from "@/components/PaymentModal";
 import RenewalNag from "@/components/RenewalNag";
+import { attachAutoTokenGuard } from "@/lib/validateToken";
 
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
@@ -19,6 +20,12 @@ export default function AppMvp() {
   // Modals contrôlés par la page
   const [openSubscribe, setOpenSubscribe] = useState(false);
   const [openCodeDialog, setOpenCodeDialog] = useState(false);
+
+  // ✅ Garde auto: revalide le token au chargement et à chaque changement de connexion
+  useEffect(() => {
+    const dispose = attachAutoTokenGuard();
+    return dispose;
+  }, []);
 
   // ---------- helpers état d’accès ----------
   const isSpaceActive = useMemo(() => {
