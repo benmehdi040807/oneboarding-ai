@@ -96,12 +96,13 @@ const I18N: Record<Lang, any> = {
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
     LEGAL: {
-      OPEN: "Lire et accepter",
+      OPEN: "Lire et approuver",
       READ: "Lire",
-      ACCEPT: "J’accepte",
+      ACCEPT: "Lu et approuvé",
       LATER: "Plus tard",
       TITLE: "Informations légales",
-      CONSENT_NOTE: "En cliquant sur « J’accepte », vous confirmez avoir pris connaissance de ces informations.",
+      CONSENT_NOTE:
+        "En cliquant sur « Lu et approuvé », vous confirmez avoir pris connaissance de ces informations.",
       NOT_REC: "Consentement non enregistré.",
     },
   },
@@ -141,12 +142,12 @@ const I18N: Record<Lang, any> = {
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
     LEGAL: {
-      OPEN: "Read & accept",
+      OPEN: "Read & approve",
       READ: "Read",
-      ACCEPT: "Accept",
+      ACCEPT: "Read & approved",
       LATER: "Later",
       TITLE: "Legal information",
-      CONSENT_NOTE: "By clicking “Accept”, you acknowledge having read this information.",
+      CONSENT_NOTE: "By clicking “Read & approved”, you acknowledge having read this information.",
       NOT_REC: "Consent not recorded.",
     },
   },
@@ -188,10 +189,10 @@ const I18N: Record<Lang, any> = {
     LEGAL: {
       OPEN: "قراءة والموافقة",
       READ: "قراءة",
-      ACCEPT: "موافقة",
+      ACCEPT: "قُرِئ وتمت الموافقة",
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
-      CONSENT_NOTE: "بالنقر على «موافقة» فأنت تقر بأنك اطّلعت على هذه المعلومات.",
+      CONSENT_NOTE: "بالنقر على «قُرِئ وتمت الموافقة» فأنت تُقرّ بأنك اطّلعت على هذه المعلومات.",
       NOT_REC: "الموافقة غير مسجّلة.",
     },
   },
@@ -239,7 +240,7 @@ export default function Menu() {
     } catch {}
   }, []);
 
-  // écoute des événements cross-composants
+  // écoute des événements cross-composants (inclut consentement)
   useEffect(() => {
     const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
     const onSpaceActivated = () => {
@@ -248,15 +249,20 @@ export default function Menu() {
     };
     const onPlanChanged = () => setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
     const onHistoryCleared = () => setHistory([]);
+    const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
+
     window.addEventListener("ob:connected-changed", onAuthChanged);
     window.addEventListener("ob:space-activated", onSpaceActivated);
     window.addEventListener("ob:plan-changed", onPlanChanged);
     window.addEventListener("ob:history-cleared", onHistoryCleared);
+    window.addEventListener("ob:consent-updated", onConsentUpdated);
+
     return () => {
       window.removeEventListener("ob:connected-changed", onAuthChanged);
       window.removeEventListener("ob:space-activated", onSpaceActivated);
       window.removeEventListener("ob:plan-changed", onPlanChanged);
       window.removeEventListener("ob:history-cleared", onHistoryCleared);
+      window.removeEventListener("ob:consent-updated", onConsentUpdated);
     };
   }, []);
 
@@ -350,13 +356,17 @@ export default function Menu() {
     setLegalOpen(true);
   }
   function acceptLegal() {
-    try {
-      localStorage.setItem(CONSENT_KEY, "1");
-      localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
-    } catch {}
-    setConsented(true);
+    // bouton “Lu et approuvé” (même libellé avant/après). S’il n’était pas consenti, on enregistre.
+    if (!consented) {
+      try {
+        localStorage.setItem(CONSENT_KEY, "1");
+        localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
+      } catch {}
+      setConsented(true);
+      window.dispatchEvent(new Event("ob:consent-updated"));
+      toast("Merci, consentement enregistré.");
+    }
     setLegalOpen(false);
-    toast("Merci, consentement enregistré.");
   }
 
   const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
@@ -487,7 +497,7 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Modal légal — après consentement, plus de bouton “J’accepte” */}
+      {/* Modal légal (wrapper + iframe) */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setLegalOpen(false)} />
@@ -520,14 +530,12 @@ export default function Menu() {
               >
                 {t.LEGAL.LATER}
               </button>
-              {!consented && (
-                <button
-                  onClick={acceptLegal}
-                  className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
-                >
-                  {t.LEGAL.ACCEPT}
-                </button>
-              )}
+              <button
+                onClick={acceptLegal}
+                className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
+              >
+                {t.LEGAL.ACCEPT}
+              </button>
             </div>
           </div>
         </div>
@@ -614,4 +622,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-      }
+    }
