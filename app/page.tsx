@@ -55,37 +55,80 @@ function ConfirmDialog({
   );
 }
 
-/* =================== Modal légal (CGU / Privacy) =================== */
-function LegalModal({
-  open, onClose,
+/* =================== Mini-modal CGU / Privacy =================== */
+function CguPrivacyModal({
+  open, onRequestClose,
 }: {
-  open: boolean; onClose: () => void;
+  open: boolean; onRequestClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [consented, setConsented] = useState(false);
+  const didPushRef = useRef(false);
 
+  // Gestion native du bouton Retour : on pousse 1 entrée à l’ouverture, on ferme sur popstate,
+  // et quand on ferme par un bouton on appelle history.back() si on l’a poussée.
   useEffect(() => {
     if (!open) return;
-    setConsented(localStorage.getItem(CONSENT_KEY) === "1");
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+
+    // état consentement au moment de l’ouverture
+    try { setConsented(localStorage.getItem(CONSENT_KEY) === "1"); } catch {}
+
+    const onPop = () => {
+      // ferme le modal quand l’utilisateur clique Retour
+      cleanupListeners();
+      didPushRef.current = false;
+      onRequestClose();
+    };
+
+    // Pousser une seule fois
+    if (!didPushRef.current) {
+      history.pushState({ obModal: "legal" }, "", typeof window !== "undefined" ? window.location.href : undefined);
+      didPushRef.current = true;
+    }
+    window.addEventListener("popstate", onPop);
+
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") handleCloseViaUI(); };
+    window.addEventListener("keydown", onEsc);
+
+    function cleanupListeners() {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("keydown", onEsc);
+    }
+
+    // fermeture programmée via close button / overlay
+    function handleCloseViaUI() {
+      cleanupListeners();
+      if (didPushRef.current) {
+        didPushRef.current = false;
+        history.back(); // retourne à l’état précédent et déclenche onPop si nécessaire
+      } else {
+        onRequestClose();
+      }
+    }
+
+    // Expose la fermeture UI via dataset pour les handlers inline
+    (ref as any).currentClose = handleCloseViaUI;
+
+    return () => cleanupListeners();
+  }, [open, onRequestClose]);
 
   if (!open) return null;
 
-  const onPrimary = () => {
+  const accept = () => {
     if (!consented) {
       try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
       setConsented(true);
       window.dispatchEvent(new Event("ob:consent-updated"));
     }
-    onClose();
+    // referme via la logique UI afin de rester sync avec l'historique
+    (ref as any).currentClose?.();
   };
+
+  const close = () => (ref as any).currentClose?.();
 
   return (
     <div className="fixed inset-0 z-[120] grid place-items-center" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={close} />
       <div
         ref={ref}
         className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
@@ -93,7 +136,7 @@ function LegalModal({
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">CGU / Privacy</h2>
           <button
-            onClick={onClose}
+            onClick={close}
             className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
             aria-label="Fermer"
           >
@@ -103,7 +146,6 @@ function LegalModal({
 
         <p className="text-sm opacity-90 mt-3">
           OneBoarding AI respecte votre confidentialité. Vos données restent locales sur votre appareil.
-          En poursuivant, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité.
         </p>
 
         <div className="mt-4 flex gap-2">
@@ -114,25 +156,27 @@ function LegalModal({
             Lire le détail
           </a>
           <button
-            onClick={onPrimary}
-            className="flex-1 px-4 py-2 rounded-xl bg-white text-black font-semibold hover:bg-gray-100"
+            onClick={accept}
+            className="flex-1 px-4 py-2 rounded-2xl bg-white text-black font-semibold hover:bg-gray-100"
           >
             Lu et approuvé
           </button>
         </div>
 
-        {consented && (
-          <p className="mt-2 text-xs opacity-80">
-            Consentement déjà enregistré. Cliquer sur « Lu et approuvé » ferme simplement cette fenêtre.
-          </p>
-        )}
+        <p className="mt-2 text-xs opacity-80">
+          {consented
+            ? "Consentement enregistré."
+            : "En cliquant sur « Lu et approuvé », vous confirmez avoir pris connaissance de ces informations."}
+        </p>
 
-        <button
-          onClick={onClose}
-          className="mt-2 w-full text-center text-sm opacity-80 hover:opacity-100 underline underline-offset-4"
-        >
-          Plus tard
-        </button>
+        {!consented && (
+          <button
+            onClick={close}
+            className="mt-2 w-full text-center text-sm opacity-80 hover:opacity-100 underline underline-offset-4"
+          >
+            Plus tard
+          </button>
+        )}
       </div>
     </div>
   );
@@ -184,15 +228,15 @@ export default function Page() {
   // 🧹 Modal Effacer
   const [showClearModal, setShowClearModal] = useState(false);
 
-  // ⚖️ Modal légal (ouvert si Menu émet ob:open-legal et qu’aucun consentement)
+  // ⚖️ CGU/Privacy (ouvert si Menu émet ob:open-legal ET pas de consentement)
   const [showLegal, setShowLegal] = useState(false);
   useEffect(() => {
-    const onOpenLegal = () => {
+    const onOpen = () => {
       const consented = localStorage.getItem(CONSENT_KEY) === "1";
       if (!consented) setShowLegal(true);
     };
-    window.addEventListener("ob:open-legal", onOpenLegal as EventListener);
-    return () => window.removeEventListener("ob:open-legal", onOpenLegal as EventListener);
+    window.addEventListener("ob:open-legal", onOpen as EventListener);
+    return () => window.removeEventListener("ob:open-legal", onOpen as EventListener);
   }, []);
 
   // 🔐 Modals natifs: connexion / activation espace
@@ -498,7 +542,7 @@ export default function Page() {
         onConfirm={clearHistory}
         onCancel={() => setShowClearModal(false)}
       />
-      <LegalModal open={showLegal} onClose={() => setShowLegal(false)} />
+      <CguPrivacyModal open={showLegal} onRequestClose={() => setShowLegal(false)} />
 
       {/* 🔐 Modals connexion/abonnement ouverts via Menu */}
       <CodeAccessDialog open={showConnect} onClose={() => setShowConnect(false)} />
