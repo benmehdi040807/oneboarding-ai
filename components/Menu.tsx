@@ -490,4 +490,4 @@ function Accordion({ title, open, onToggle, children }:{
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-      }
+}
