@@ -1,7 +1,7 @@
 // components/PaymentModal.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   open?: boolean;
@@ -16,38 +16,34 @@ const UNTIL_KEY = "oneboarding.activeUntil";
 const NAG_AT_KEY = "oneboarding.renewalNagAt";
 const PHONE_KEY = "oneboarding.phoneE164";
 
-// 30 jours (approx. 30 * 24h)
+// 30 jours
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-// Abonnement : on met loin (10 ans)
-const SUBSCRIPTION_HORIZON_MS = 3650 * 24 * 60 * 60 * 1000; // ≈ 10 ans
+// Abonnement : horizon long (≈ 10 ans)
+const SUBSCRIPTION_HORIZON_MS = 3650 * 24 * 60 * 60 * 1000;
 
 export default function PaymentModal(props: Props) {
-  const controlled = typeof props.open === "boolean"; // si prop fournie, on la respecte
+  const controlled = typeof props.open === "boolean";
   const [open, setOpen] = useState<boolean>(Boolean(props.open));
   const [pickedPlan, setPickedPlan] = useState<"subscription" | "one-month">(
     props.plan || "subscription"
   );
   const [e164, setE164] = useState<string>(props.phoneE164 || "");
-
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
-  // s’ouvrir via event global: window.dispatchEvent(new CustomEvent("ob:open-payment", { detail:{ phoneE164? }}))
+  // s’ouvrir via event global
   useEffect(() => {
     const handler = (e: Event) => {
-      // si contrôlé par prop, on ignore l’event
       if (controlled) return;
       const ce = e as CustomEvent<{ phoneE164?: string }>;
       if (ce.detail?.phoneE164) setE164(ce.detail.phoneE164);
       setOpen(true);
-      setTimeout(() => {
-        dialogRef.current?.showModal();
-      }, 0);
+      setTimeout(() => dialogRef.current?.showModal(), 0);
     };
     window.addEventListener("ob:open-payment", handler as EventListener);
     return () => window.removeEventListener("ob:open-payment", handler as EventListener);
   }, [controlled]);
 
-  // suivre props.open quand on est en mode contrôlé
+  // suivre props.open en mode contrôlé
   useEffect(() => {
     if (!controlled) return;
     if (props.open && !dialogRef.current?.open) {
@@ -59,27 +55,22 @@ export default function PaymentModal(props: Props) {
     }
   }, [controlled, props.open]);
 
-  // fermer côté interne
   function closeInternal() {
-    if (controlled) {
-      props.onClose?.();
-    } else {
+    if (controlled) props.onClose?.();
+    else {
       setOpen(false);
       dialogRef.current?.close();
     }
   }
 
-  // backdrop click
   function onBackdropClick(e: React.MouseEvent<HTMLDialogElement>) {
     const d = dialogRef.current;
     if (!d) return;
     const r = d.getBoundingClientRect();
-    const inside =
-      e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
     if (!inside) closeInternal();
   }
 
-  // ESC/CANCEL
   useEffect(() => {
     const d = dialogRef.current;
     if (!d) return;
@@ -91,14 +82,13 @@ export default function PaymentModal(props: Props) {
     return () => d.removeEventListener("cancel", onCancel);
   }, []);
 
-  // quand on passe en open=true (non contrôlé), ouvrir le <dialog>
   useEffect(() => {
     if (!controlled && open && !dialogRef.current?.open) {
       dialogRef.current?.showModal();
     }
   }, [controlled, open]);
 
-  // ---------- “Simulation” paiement (à remplacer par PayPal plus tard) ----------
+  // ---------- Simulation paiement ----------
   function confirmPayment() {
     const now = Date.now();
 
@@ -108,43 +98,40 @@ export default function PaymentModal(props: Props) {
 
     if (plan === "subscription") {
       activeUntil = now + SUBSCRIPTION_HORIZON_MS;
-      nagAt = null; // pas de rappel pour abonnement
+      nagAt = null;
     }
 
     try {
       localStorage.setItem(PLAN_KEY, plan);
       localStorage.setItem(ACTIVE_KEY, "1");
       localStorage.setItem(UNTIL_KEY, String(activeUntil));
-      if (nagAt) {
-        localStorage.setItem(NAG_AT_KEY, String(nagAt));
-      } else {
-        localStorage.removeItem(NAG_AT_KEY);
-      }
+      if (nagAt) localStorage.setItem(NAG_AT_KEY, String(nagAt));
+      else localStorage.removeItem(NAG_AT_KEY);
       if (e164) localStorage.setItem(PHONE_KEY, e164);
 
-      // pour homogénéité d’UI si d’autres composants écoutent :
+      // 🔔 Événements normalisés pour le Menu
       window.dispatchEvent(new Event("ob:space-activated"));
-      window.dispatchEvent(new Event("ob:connected-changed"));
+      window.dispatchEvent(new Event("ob:plan-changed"));
+      window.dispatchEvent(new Event("ob:connected"));     // au cas où
 
-      // feedback simple pour cette étape “stub”
-      alert(
-        plan === "subscription"
-          ? "✅ Espace activé (abonnement)."
-          : "✅ Espace activé pour 1 mois."
-      );
+      // alias large si d’autres composants écoutent
+      window.dispatchEvent(new Event("ob:auth-changed"));
     } catch {
       // noop
     }
 
+    alert(
+      plan === "subscription"
+        ? "✅ Espace activé (abonnement)."
+        : "✅ Espace activé pour 1 mois."
+    );
+
     closeInternal();
   }
 
-  // Texte principal
   const title = "Activer mon espace";
-  const subtitle =
-    "Choisissez librement votre formule. L’accès est le même, la liberté aussi.";
+  const subtitle = "Choisissez librement votre formule. L’accès est le même, la liberté aussi.";
 
-  // Couleurs bouton primaire
   const primaryBg =
     pickedPlan === "subscription"
       ? "linear-gradient(135deg,#0EA5E9,#0284C7)"
@@ -186,7 +173,6 @@ export default function PaymentModal(props: Props) {
             </p>
           ) : null}
 
-          {/* Choix des plans */}
           <div className="space-y-3 mb-4">
             <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-3 hover:bg-black/[0.03] cursor-pointer">
               <input
@@ -212,14 +198,11 @@ export default function PaymentModal(props: Props) {
               />
               <div>
                 <div className="font-semibold">Accès libre — 5 €</div>
-                <div className="text-xs text-black/60">
-                  Un mois complet, sans engagement.
-                </div>
+                <div className="text-xs text-black/60">Un mois complet, sans engagement.</div>
               </div>
             </label>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-1">
             <button
               type="button"
@@ -238,7 +221,6 @@ export default function PaymentModal(props: Props) {
             </button>
           </div>
 
-          {/* Note “stub” (à enlever quand PayPal branché) */}
           <p className="text-[11px] text-black/50 mt-3">
             Mode démo (sans paiement). Les clés d’activation sont posées localement.
           </p>
@@ -246,4 +228,4 @@ export default function PaymentModal(props: Props) {
       </dialog>
     </>
   );
-    }
+}
