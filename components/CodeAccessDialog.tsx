@@ -119,12 +119,15 @@ export default function CodeAccessDialog(props: ControlledProps) {
       localStorage.setItem("oneboarding.phoneE164", phoneE164);
     } catch {}
 
+    // 🔔 Normaliser les events pour le Menu
+    window.dispatchEvent(new Event("ob:connected"));
+    window.dispatchEvent(new Event("ob:auth-changed"));
+
     // ouvrir le paiement (abonnement / libre)
     window.dispatchEvent(
       new CustomEvent("ob:open-payment", { detail: { phoneE164 } })
     );
 
-    window.dispatchEvent(new Event("ob:connected-changed"));
     close();
   }
 
