@@ -686,4 +686,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-              }
+}
