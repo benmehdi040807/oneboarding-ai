@@ -209,8 +209,9 @@ export default function Menu() {
   // état lecture
   const [connected, setConnected] = useState<boolean>(false);
   const [spaceActive, setSpaceActive] = useState<boolean>(false);
-  const [plan, setPlan] = useState<Plan>(null);
   const [history, setHistory] = useState<Item[]>([]);
+
+  const [plan, setPlan] = useState<Plan>(null);
 
   // sections repliables — fermées par défaut
   const [showAcc, setShowAcc] = useState(false);
@@ -361,11 +362,9 @@ export default function Menu() {
   /** ============ Consentement légal ============ */
   function openLegalModal() {
     setLegalOpen(true);
-    // si le menu n’a pas déjà poussé (mais il l’a), on reste tel quel
     pushHistoryFor("legal");
   }
   function acceptLegal() {
-    // bouton “Lu et approuvé” (même libellé avant/après). S’il n’était pas consenti, on enregistre.
     if (!consented) {
       try {
         localStorage.setItem(CONSENT_KEY, "1");
@@ -375,18 +374,18 @@ export default function Menu() {
       window.dispatchEvent(new Event("ob:consent-updated"));
       toast("Merci, consentement enregistré.");
     }
-    closeLegalModal(); // synchro avec l’historique
+    closeLegalModal();
   }
 
   /** ============ Navigation native (history) ============ */
   function pushHistoryFor(kind: "menu" | "legal") {
     const href = typeof window !== "undefined" ? window.location.href : undefined;
     if (kind === "menu" && !menuPushedRef.current) {
-      history.pushState({ obPane: "menu" }, "", href);
+      window.history.pushState({ obPane: "menu" }, "", href);
       menuPushedRef.current = true;
     }
     if (kind === "legal" && !legalPushedRef.current) {
-      history.pushState({ obPane: "legal" }, "", href);
+      window.history.pushState({ obPane: "legal" }, "", href);
       legalPushedRef.current = true;
     }
   }
@@ -417,7 +416,7 @@ export default function Menu() {
     if (legalOpen) closeLegalModal(); // priorité au modal si ouvert
     if (menuPushedRef.current) {
       menuPushedRef.current = false;
-      history.back();
+      window.history.back();
     } else {
       setOpen(false);
     }
@@ -425,7 +424,7 @@ export default function Menu() {
   function closeLegalModal() {
     if (legalPushedRef.current) {
       legalPushedRef.current = false;
-      history.back();
+      window.history.back();
     } else {
       setLegalOpen(false);
     }
