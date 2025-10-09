@@ -62,14 +62,26 @@ function LegalModal({
   open: boolean; onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [consented, setConsented] = useState(false);
+
   useEffect(() => {
     if (!open) return;
+    setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const onPrimary = () => {
+    if (!consented) {
+      try { localStorage.setItem(CONSENT_KEY, "1"); } catch {}
+      setConsented(true);
+      window.dispatchEvent(new Event("ob:consent-updated"));
+    }
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-[120] grid place-items-center" role="dialog" aria-modal="true">
@@ -102,12 +114,18 @@ function LegalModal({
             Lire le détail
           </a>
           <button
-            onClick={() => { try { localStorage.setItem(CONSENT_KEY, "1"); } catch {} onClose(); }}
+            onClick={onPrimary}
             className="flex-1 px-4 py-2 rounded-xl bg-white text-black font-semibold hover:bg-gray-100"
           >
-            Accepter
+            Lu et approuvé
           </button>
         </div>
+
+        {consented && (
+          <p className="mt-2 text-xs opacity-80">
+            Consentement déjà enregistré. Cliquer sur « Lu et approuvé » ferme simplement cette fenêtre.
+          </p>
+        )}
 
         <button
           onClick={onClose}
