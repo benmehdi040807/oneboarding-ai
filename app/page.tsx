@@ -123,7 +123,28 @@ function LegalModal({
 /* =================== Types & utils =================== */
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 const cleanText = (s: string) => s.replace(/\s+/g, " ").replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1").trim();
-function copyToClipboard(text: string) { try { navigator.clipboard.writeText(text); } catch {} }
+
+// copie robuste (Clipboard API + fallback execCommand)
+async function safeCopy(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
 
 /* =================== Page =================== */
 export default function Page() {
@@ -221,6 +242,28 @@ export default function Page() {
     try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
+  // 🔄 réagir aux effacements/maj venant du Menu (sans refresh)
+  useEffect(() => {
+    const reload = () => {
+      try {
+        const s = localStorage.getItem("oneboarding.history");
+        const arr = s ? (JSON.parse(s) as Item[]) : [];
+        setHistory(arr);
+      } catch {
+        setHistory([]);
+      }
+    };
+    const clear = () => setHistory([]);
+
+    window.addEventListener("ob:history-cleared", clear as EventListener);
+    window.addEventListener("ob:history-updated", reload as EventListener);
+
+    return () => {
+      window.removeEventListener("ob:history-cleared", clear as EventListener);
+      window.removeEventListener("ob:history-updated", reload as EventListener);
+    };
+  }, []);
+
   // Auto-scroll top après génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
@@ -287,6 +330,8 @@ export default function Page() {
     setHistory([]);
     try { localStorage.removeItem("oneboarding.history"); } catch {}
     setShowClearModal(false);
+    // informer les autres (au cas où)
+    window.dispatchEvent(new Event("ob:history-cleared"));
   }
 
   return (
@@ -410,7 +455,7 @@ export default function Page() {
 
             {item.role === "assistant" && (
               <button
-                onClick={() => copyToClipboard(item.text)}
+                onClick={async () => { await safeCopy(item.text); }}
                 className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] border border-[var(--border)]"
               >
                 Copier
