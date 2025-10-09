@@ -10,6 +10,7 @@ type Item = { role: "user" | "assistant" | "error"; text: string; time: string }
 
 /** ===================== Constantes ===================== */
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
+const CONSENT_AT_KEY = "oneboarding.legalConsentAt";
 
 /** ===================== Utils ===================== */
 async function copy(text: string) {
@@ -101,12 +102,6 @@ const I18N: Record<Lang, any> = {
       LATER: "Plus tard",
       TITLE: "Informations légales",
       CONSENT_NOTE: "En cliquant sur « J’accepte », vous confirmez avoir pris connaissance de ces informations.",
-      NUDGE_TITLE: "Consentement requis",
-      NUDGE_MSG:
-        "Vous pouvez d’abord choisir votre langue, puis lire et accepter les informations légales dans la section « CGU / Privacy ».",
-      NUDGE_LANG: "Choisir ma langue",
-      NUDGE_READ: "Lire maintenant",
-      BADGE: "à valider",
       NOT_REC: "Consentement non enregistré.",
     },
   },
@@ -140,8 +135,7 @@ const I18N: Record<Lang, any> = {
       COPIED: "Text copied.",
       EMPTY: "No messages to share.",
       CONFIRM_TITLE: "Clear history?",
-      CONFIRM_MSG:
-        "This action is irreversible. Consider sharing or saving if you want to keep your content.",
+      CONFIRM_MSG: "This action is irreversible. Consider sharing or saving if you want to keep your content.",
       CANCEL: "Cancel",
       CONFIRM: "Delete",
     },
@@ -153,12 +147,6 @@ const I18N: Record<Lang, any> = {
       LATER: "Later",
       TITLE: "Legal information",
       CONSENT_NOTE: "By clicking “Accept”, you acknowledge having read this information.",
-      NUDGE_TITLE: "Consent required",
-      NUDGE_MSG:
-        "You can first choose your language, then read and accept the legal information in the “TOS / Privacy” section.",
-      NUDGE_LANG: "Choose language",
-      NUDGE_READ: "Read now",
-      BADGE: "pending",
       NOT_REC: "Consent not recorded.",
     },
   },
@@ -204,12 +192,6 @@ const I18N: Record<Lang, any> = {
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
       CONSENT_NOTE: "بالنقر على «موافقة» فأنت تقر بأنك اطّلعت على هذه المعلومات.",
-      NUDGE_TITLE: "الموافقة مطلوبة",
-      NUDGE_MSG:
-        "يمكنك أولاً اختيار لغتك، ثم قراءة والموافقة على المعلومات القانونية في قسم «الشروط / الخصوصية».",
-      NUDGE_LANG: "اختيار لغتي",
-      NUDGE_READ: "قراءة الآن",
-      BADGE: "غير مُسجّلة",
       NOT_REC: "الموافقة غير مسجّلة.",
     },
   },
@@ -226,7 +208,7 @@ export default function Menu() {
   const [plan, setPlan] = useState<Plan>(null);
   const [history, setHistory] = useState<Item[]>([]);
 
-  // sections repliables
+  // sections repliables — fermées par défaut
   const [showAcc, setShowAcc] = useState(false);
   const [showHist, setShowHist] = useState(false);
   const [showLang, setShowLang] = useState(false);
@@ -241,7 +223,6 @@ export default function Menu() {
   const [legalOpen, setLegalOpen] = useState(false);
   const [consented, setConsented] = useState(false);
 
-  // i18n
   const t = useMemo(() => I18N[lang], [lang]);
 
   // init
@@ -249,33 +230,28 @@ export default function Menu() {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
       setLang(L);
-
       setConnected(localStorage.getItem("ob_connected") === "1");
       const act = localStorage.getItem("oneboarding.spaceActive");
       setSpaceActive(act === "1" || act === "true");
-
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
       setHistory(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     } catch {}
   }, []);
 
-  // écouter les événements venant d’autres composants
+  // écoute des événements cross-composants
   useEffect(() => {
     const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
     const onSpaceActivated = () => {
       setSpaceActive(true);
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
     };
-    const onPlanChanged = () =>
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
+    const onPlanChanged = () => setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
     const onHistoryCleared = () => setHistory([]);
-
     window.addEventListener("ob:connected-changed", onAuthChanged);
     window.addEventListener("ob:space-activated", onSpaceActivated);
     window.addEventListener("ob:plan-changed", onPlanChanged);
     window.addEventListener("ob:history-cleared", onHistoryCleared);
-
     return () => {
       window.removeEventListener("ob:connected-changed", onAuthChanged);
       window.removeEventListener("ob:space-activated", onSpaceActivated);
@@ -376,19 +352,19 @@ export default function Menu() {
   function acceptLegal() {
     try {
       localStorage.setItem(CONSENT_KEY, "1");
+      localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
     } catch {}
     setConsented(true);
     setLegalOpen(false);
     toast("Merci, consentement enregistré.");
   }
 
-  const legalBtnLabel = consented ? I18N[lang].LEGAL.READ : I18N[lang].LEGAL.OPEN;
-  const showConsentNudge = open && !consented;
+  const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
 
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — plus de badge ici */}
+      {/* Bouton flottant principal — simple, sans badge/nudge */}
       <div
         className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
@@ -403,9 +379,9 @@ export default function Menu() {
             text-white tracking-wide drop-shadow-[0_0_30px_rgba(56,189,248,.35)]
             active:scale-[.985] menu-float
           "
-          aria-label={I18N[lang].MENU}
+          aria-label={t.MENU}
         >
-          {I18N[lang].MENU}
+          {t.MENU}
         </button>
       </div>
 
@@ -416,7 +392,7 @@ export default function Menu() {
           <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">{I18N[lang].MENU}</h2>
+              <h2 className="text-lg font-semibold">{t.MENU}</h2>
               <button
                 onClick={() => setOpen(false)}
                 className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
@@ -426,68 +402,46 @@ export default function Menu() {
               </button>
             </div>
 
-            {/* Nudge consentement (sans auto-open) */}
-            {showConsentNudge && (
-              <div className="mb-3 rounded-xl border border-yellow-300/30 bg-yellow-400/15 p-3 text-yellow-100">
-                <p className="text-sm font-semibold mb-1">{I18N[lang].LEGAL.NUDGE_TITLE}</p>
-                <p className="text-xs opacity-90 mb-2">{I18N[lang].LEGAL.NUDGE_MSG}</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowLang(true)}
-                    className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 text-white text-xs"
-                  >
-                    {I18N[lang].LEGAL.NUDGE_LANG}
-                  </button>
-                  <button
-                    onClick={openLegalModal}
-                    className="px-3 py-1.5 rounded-lg bg-white/90 text-black hover:bg-white text-xs font-semibold"
-                  >
-                    {I18N[lang].LEGAL.NUDGE_READ}
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Sections */}
-            <Accordion title={I18N[lang].SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
+            <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!connected ? (
-                  <Btn onClick={handleConnect}>{I18N[lang].ACC.CONNECT}</Btn>
+                  <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
                 ) : (
-                  <Btn onClick={handleDisconnect}>{I18N[lang].ACC.DISCONNECT}</Btn>
+                  <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
                 )}
                 {!spaceActive ? (
-                  <Btn accent onClick={handleActivate}>{I18N[lang].ACC.ACTIVATE}</Btn>
+                  <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
                 ) : (
-                  <Btn danger onClick={handleDeactivate}>{I18N[lang].ACC.DEACTIVATE}</Btn>
+                  <Btn danger onClick={handleDeactivate}>{t.ACC.DEACTIVATE}</Btn>
                 )}
                 <Btn className="sm:col-span-2" onClick={() => setShowStatus((v) => !v)}>
-                  {I18N[lang].ACC.STATUS_BTN} {showStatus ? "—" : "+"}
+                  {t.ACC.STATUS_BTN} {showStatus ? "—" : "+"}
                 </Btn>
                 {showStatus && (
                   <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
-                    <p className="text-sm font-medium mb-1">{I18N[lang].ACC.STATUS}</p>
+                    <p className="text-sm font-medium mb-1">{t.ACC.STATUS}</p>
                     <div className="text-xs opacity-90 leading-6">
-                      <div>{I18N[lang].ACC.SPACE}: <b>{spaceActive ? I18N[lang].ACC.ACTIVE : I18N[lang].ACC.INACTIVE}</b></div>
-                      <div>{I18N[lang].ACC.CONN}: <b>{connected ? I18N[lang].ACC.ONLINE : I18N[lang].ACC.OFFLINE}</b></div>
-                      <div>{I18N[lang].ACC.PLAN}: <b>{plan === "subscription" ? I18N[lang].ACC.SUB : plan === "one-month" ? I18N[lang].ACC.ONEOFF : I18N[lang].ACC.NONE}</b></div>
+                      <div>{t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b></div>
+                      <div>{t.ACC.CONN}: <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b></div>
+                      <div>{t.ACC.PLAN}: <b>{plan === "subscription" ? t.ACC.SUB : plan === "one-month" ? t.ACC.ONEOFF : t.ACC.NONE}</b></div>
                     </div>
                   </div>
                 )}
               </div>
             </Accordion>
 
-            <Accordion title={I18N[lang].SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
+            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Btn onClick={shareHistory}>{I18N[lang].HIST.SHARE}</Btn>
-                <Btn onClick={saveHistory}>{I18N[lang].HIST.SAVE}</Btn>
+                <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
+                <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
                 <Btn danger onClick={() => setConfirmOpen(true)} className="sm:col-span-2">
-                  {I18N[lang].HIST.CLEAR}
+                  {t.HIST.CLEAR}
                 </Btn>
               </div>
             </Accordion>
 
-            <Accordion title={I18N[lang].SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
+            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
               <div className="grid grid-cols-3 gap-2">
                 <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>{I18N.fr.LANG.FR}</Toggle>
                 <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>{I18N.en.LANG.EN}</Toggle>
@@ -495,27 +449,11 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            {/* CGU / Privacy — on garde le petit badge dans le titre de section seulement */}
-            <Accordion
-              title={
-                <span className="inline-flex items-center gap-2">
-                  {I18N[lang].SECTIONS.LEGAL}
-                  {!consented && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-200 border border-red-200/30">
-                      {I18N[lang].LEGAL.BADGE}
-                    </span>
-                  )}
-                </span>
-              }
-              open={showLegal}
-              onToggle={() => setShowLegal((v) => !v)}
-            >
+            <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
-              {!consented && (
-                <p className="text-xs opacity-80 mt-3">{I18N[lang].LEGAL.NOT_REC}</p>
-              )}
+              {!consented && <p className="text-xs opacity-80 mt-3">{t.LEGAL.NOT_REC}</p>}
             </Accordion>
           </div>
         </div>
@@ -529,33 +467,33 @@ export default function Menu() {
             ref={confirmRef}
             className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
           >
-            <h2 className="text-lg font-semibold mb-2">{I18N[lang].HIST.CONFIRM_TITLE}</h2>
-            <p className="text-sm opacity-90 mb-4">{I18N[lang].HIST.CONFIRM_MSG}</p>
+            <h2 className="text-lg font-semibold mb-2">{t.HIST.CONFIRM_TITLE}</h2>
+            <p className="text-sm opacity-90 mb-4">{t.HIST.CONFIRM_MSG}</p>
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setConfirmOpen(false)}
                 className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
               >
-                {I18N[lang].HIST.CANCEL}
+                {t.HIST.CANCEL}
               </button>
               <button
                 onClick={clearHistoryConfirmed}
                 className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
               >
-                {I18N[lang].HIST.CONFIRM}
+                {t.HIST.CONFIRM}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal légal */}
+      {/* Modal légal — après consentement, plus de bouton “J’accepte” */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setLegalOpen(false)} />
           <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
-              <h2 className="text-lg font-semibold">{I18N[lang].LEGAL.TITLE}</h2>
+              <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
               <button
                 onClick={() => setLegalOpen(false)}
                 className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
@@ -565,29 +503,31 @@ export default function Menu() {
               </button>
             </div>
 
-            <div className="rounded-lg overflow-hidden border border-black/10" style={{height: "70vh"}}>
+            <div className="rounded-lg overflow-hidden border border-black/10" style={{ height: "70vh" }}>
               <iframe
                 title="CGU / Privacy"
                 src={`/legal?lang=${lang}&embed=1`}
-                style={{ width: "100%", height: "100%", border: "0" }}
+                style={{ width: "100%", height: "100%", border: 0 }}
               />
             </div>
 
-            <p className="text-xs opacity-70 mt-3">{I18N[lang].LEGAL.CONSENT_NOTE}</p>
+            <p className="text-xs opacity-70 mt-3">{t.LEGAL.CONSENT_NOTE}</p>
 
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 onClick={() => setLegalOpen(false)}
                 className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
               >
-                {I18N[lang].LEGAL.LATER}
+                {t.LEGAL.LATER}
               </button>
-              <button
-                onClick={acceptLegal}
-                className="px-4 py-2 rounded-xl bg-black text-white hover:bg-black/90"
-              >
-                {I18N[lang].LEGAL.ACCEPT}
-              </button>
+              {!consented && (
+                <button
+                  onClick={acceptLegal}
+                  className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
+                >
+                  {t.LEGAL.ACCEPT}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -656,7 +596,7 @@ function Accordion({
   onToggle,
   children,
 }: {
-  title: string | React.ReactNode;
+  title: string;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -668,10 +608,10 @@ function Accordion({
         className="w-full flex items-center justify-between rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3"
         aria-expanded={open}
       >
-        <span className="text-sm font-semibold">{title as any}</span>
+        <span className="text-sm font-semibold">{title}</span>
         <span className="text-lg leading-none">{open ? "–" : "+"}</span>
       </button>
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-        }
+      }
