@@ -43,6 +43,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Harmonise la barre d’adresse mobile */}
         <meta name="theme-color" content="#B3E5FC" />
+
+        {/* schema.org / JSON-LD */}
+        <script
+          type="application/ld+json"
+          // Cohérent avec le canonical (sans www). Modifie si tu veux forcer "www".
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "OneBoarding AI",
+              url: "https://oneboardingai.com",
+              founder: "Benmehdi Mohamed Rida",
+            }),
+          }}
+        />
       </head>
 
       {/*
