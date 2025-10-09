@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { legalCopyFor, type Lang as LegalLang, type Section as LegalSection } from "@/lib/legal/copy";
 
 /** ===================== Types ===================== */
 type Plan = "subscription" | "one-month" | null;
@@ -557,7 +558,7 @@ export default function Menu() {
         </div>
       )}
 
-      {/* TOS/Privacy (iframe) */}
+      {/* TOS/Privacy (rendu inline, plus d'iframe) */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeLegalModal} />
@@ -573,12 +574,9 @@ export default function Menu() {
               </button>
             </div>
 
-            <div className="rounded-lg overflow-hidden border border-black/10" style={{ height: "70vh" }}>
-              <iframe
-                title="CGU / Privacy"
-                src={`/legal?lang=${lang}&embed=1`}
-                style={{ width: "100%", height: "100%", border: 0 }}
-              />
+            {/* Contenu légal (langue alignée) */}
+            <div className="rounded-lg overflow-auto border border-black/10" style={{ maxHeight: "70vh" }}>
+              <LegalDoc lang={lang as LegalLang} />
             </div>
 
             <p className="text-xs opacity-70 mt-3">
@@ -687,3 +685,45 @@ function Accordion({
     </section>
   );
 }
+
+/** ===================== Rendu inline du document légal ===================== */
+function LegalDoc({ lang }: { lang: LegalLang }) {
+  const t = legalCopyFor(lang);
+  return (
+    <main className="px-4 py-4 mx-auto w-full max-w-2xl text-black">
+      <h1 className="text-xl font-bold mb-4">{t.title}</h1>
+      <article dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-4 leading-6">
+        {t.sections.map((s: LegalSection, i: number) => {
+          if (s.kind === "hr") return <hr key={i} className="border-black/10 my-2" />;
+          if (s.kind === "h2")
+            return (
+              <h2 key={i} className="text-lg font-semibold mt-4">
+                {s.text}
+              </h2>
+            );
+          if (s.kind === "p")
+            return (s as any).html ? (
+              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
+            ) : (
+              <p key={i} className="opacity-90">
+                {s.text}
+              </p>
+            );
+          if (s.kind === "ul")
+            return (
+              <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
+                {s.items.map((li, j) => (
+                  <li key={j}>{li}</li>
+                ))}
+              </ul>
+            );
+          return null;
+        })}
+        <hr className="border-black/10 my-3" />
+        <h3 className="font-semibold">{t.version.h}</h3>
+        <p className="font-semibold">{t.version.v}</p>
+        <p className="opacity-90">{t.version.note}</p>
+      </article>
+    </main>
+  );
+    }
