@@ -8,7 +8,6 @@ export const metadata = {
 };
 
 type Lang = "fr" | "en" | "ar";
-
 type Section =
   | { kind: "h2"; text: string }
   | { kind: "p"; text: string; html?: boolean }
@@ -40,7 +39,6 @@ const COPY: Record<Lang, Copy> = {
           "🤝 Confiance & transparence : confidentialité, respect mutuel et bonne foi.",
         ],
       },
-
       { kind: "hr" },
       { kind: "h2", text: "Conditions Générales d’Utilisation (CGU)" },
       { kind: "p", text: "1) Objet : assistance alimentée par IA, aide à la décision." },
@@ -61,10 +59,8 @@ const COPY: Record<Lang, Copy> = {
       },
       {
         kind: "p",
-        text:
-          "5) Exceptions : sans préjudice des droits impératifs des consommateurs.",
+        text: "5) Exceptions : sans préjudice des droits impératifs des consommateurs.",
       },
-
       { kind: "hr" },
       { kind: "h2", text: "Politique de Confidentialité" },
       {
@@ -76,7 +72,6 @@ const COPY: Record<Lang, Copy> = {
           "Effacement : suppression possible à tout moment des données locales.",
         ],
       },
-
       { kind: "hr" },
       { kind: "h2", text: "Qui sommes-nous" },
       {
@@ -110,7 +105,6 @@ const COPY: Record<Lang, Copy> = {
           "🤝 Trust & transparency: confidentiality, mutual respect, and good faith.",
         ],
       },
-
       { kind: "hr" },
       { kind: "h2", text: "Terms of Use" },
       { kind: "p", text: "1) Purpose: AI-powered assistance, decision support." },
@@ -131,10 +125,8 @@ const COPY: Record<Lang, Copy> = {
       },
       {
         kind: "p",
-        text:
-          "5) Exceptions: without prejudice to mandatory consumer rights.",
+        text: "5) Exceptions: without prejudice to mandatory consumer rights.",
       },
-
       { kind: "hr" },
       { kind: "h2", text: "Privacy Policy" },
       {
@@ -146,7 +138,6 @@ const COPY: Record<Lang, Copy> = {
           "Erasure: users can delete local data at any time.",
         ],
       },
-
       { kind: "hr" },
       { kind: "h2", text: "About" },
       {
@@ -180,7 +171,6 @@ const COPY: Record<Lang, Copy> = {
           "🤝 الثقة والشفافية: سرّية واحترام متبادل وحسن نية.",
         ],
       },
-
       { kind: "hr" },
       { kind: "h2", text: "شروط الاستخدام" },
       { kind: "p", text: "1) الهدف: مساعدة قائمة على الذكاء الاصطناعي ودعم اتخاذ القرار." },
@@ -199,12 +189,7 @@ const COPY: Record<Lang, Copy> = {
         text:
           "4) تحديد المسؤولية: في حدود القانون، لا مسؤولية عن الأضرار غير المباشرة (الأرباح، البيانات، الأعمال…).",
       },
-      {
-        kind: "p",
-        text:
-          "5) الاستثناءات: دون المساس بحقوق المستهلك الإلزامية.",
-      },
-
+      { kind: "p", text: "5) الاستثناءات: دون المساس بحقوق المستهلك الإلزامية." },
       { kind: "hr" },
       { kind: "h2", text: "سياسة الخصوصية" },
       {
@@ -216,7 +201,6 @@ const COPY: Record<Lang, Copy> = {
           "الحذف: يمكنك حذف البيانات المحليّة في أي وقت.",
         ],
       },
-
       { kind: "hr" },
       { kind: "h2", text: "من نحن" },
       {
@@ -249,7 +233,6 @@ export default function LegalPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // lecture naïve des query params (sans client JS)
   const sp =
     typeof searchParams === "object"
       ? new URLSearchParams(
@@ -267,7 +250,6 @@ export default function LegalPage({
     <main
       className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}
     >
-      {/* Lang switcher: seulement hors embed */}
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
           <span className="opacity-70 mr-2">Langue:</span>
@@ -333,15 +315,23 @@ export default function LegalPage({
         <p className="font-semibold">{t.version.v}</p>
         <p className="opacity-90">{t.version.note}</p>
 
-        <div className="mt-6 text-sm opacity-70">
+        <div className="mt-6 text-sm opacity-70 space-y-3">
           <p>
-            En accédant au service, vous reconnaissez avoir pris connaissance de ces informations.
-            Les règles d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.
+            En accédant au service, vous reconnaissez avoir pris connaissance de ces
+            informations. Les règles d’ordre public applicables dans le pays de l’utilisateur
+            demeurent de plein droit.
+          </p>
+          <p className="text-center font-medium">
+            <button
+              onClick={() => window.history.back()}
+              className="px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
+            >
+              Lu et approuvé
+            </button>
           </p>
         </div>
       </article>
 
-      {/* Petite règle utilitaire pour garder le nom arabe sur une seule ligne */}
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
