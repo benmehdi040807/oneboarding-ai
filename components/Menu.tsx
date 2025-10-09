@@ -90,6 +90,9 @@ const I18N: Record<Lang, any> = {
       LATER: "Plus tard",
       TITLE: "Informations légales",
       CONSENT_NOTE: "En cliquant sur « J’accepte », vous confirmez avoir pris connaissance de ces informations.",
+      CONSENTED: "Consentement enregistré.",
+      NOT_CONSENTED: "Consentement non enregistré.",
+      CLOSE: "Fermer",
     },
   },
 
@@ -136,6 +139,9 @@ const I18N: Record<Lang, any> = {
       LATER: "Later",
       TITLE: "Legal information",
       CONSENT_NOTE: "By clicking “Accept”, you acknowledge having read this information.",
+      CONSENTED: "Consent recorded.",
+      NOT_CONSENTED: "Consent not recorded.",
+      CLOSE: "Close",
     },
   },
 
@@ -181,6 +187,9 @@ const I18N: Record<Lang, any> = {
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
       CONSENT_NOTE: "بالنقر على «موافقة» فأنت تقر بأنك اطّلعت على هذه المعلومات.",
+      CONSENTED: "تم تسجيل الموافقة.",
+      NOT_CONSENTED: "الموافقة غير مسجّلة.",
+      CLOSE: "إغلاق",
     },
   },
 };
@@ -328,24 +337,31 @@ export default function Menu() {
     } catch {}
     setConsented(true);
     setLegalOpen(false);
-    toast("Merci, consentement enregistré.");
+    toast(lang === "fr" ? "Merci, consentement enregistré." : lang === "en" ? "Thanks, consent recorded." : "شكرًا، تم تسجيل الموافقة.");
   }
 
   const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
 
   /** ============ Navigation / bouton Retour ============ */
+  // Pousse un état d'historique à l'ouverture du Menu
   useEffect(() => {
     if (open) {
-      try { window.history.pushState({ ob: "menu" }, ""); } catch {}
+      try {
+        window.history.pushState({ ob: "menu" }, "");
+      } catch {}
     }
   }, [open]);
 
+  // Pousse un état d'historique à l'ouverture du modal légal (empilement propre)
   useEffect(() => {
     if (legalOpen) {
-      try { window.history.pushState({ ob: "legal" }, ""); } catch {}
+      try {
+        window.history.pushState({ ob: "legal" }, "");
+      } catch {}
     }
   }, [legalOpen]);
 
+  // popstate: fermer les modals en priorité au lieu de quitter la page
   useEffect(() => {
     const onPopState = () => {
       if (legalOpen) {
@@ -356,23 +372,32 @@ export default function Menu() {
         setOpen(false);
         return;
       }
-      // sinon navigation naturelle
+      // sinon: navigation normale
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [open, legalOpen]);
 
+  // Helpers de fermeture qui consomment l'état poussé (pas d'empilement)
   function closeMenu() {
-    try { window.history.back(); } catch { setOpen(false); }
+    try {
+      window.history.back();
+    } catch {
+      setOpen(false);
+    }
   }
   function closeLegal() {
-    try { window.history.back(); } catch { setLegalOpen(false); }
+    try {
+      window.history.back();
+    } catch {
+      setLegalOpen(false);
+    }
   }
 
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — large + gradient + safe-area (inline, pas de classe requise) */}
+      {/* Bouton flottant principal — large + gradient + safe-area */}
       <div
         className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
@@ -420,14 +445,7 @@ export default function Menu() {
                 {!connected ? (
                   <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
                 ) : (
-                  <Btn onClick={() => {
-                    emit("ob:open-disconnect");
-                    try { localStorage.setItem("ob_connected", "0"); } catch {}
-                    writeJSON("oneboarding.connected", false);
-                    setConnected(false);
-                  }}>
-                    {t.ACC.DISCONNECT}
-                  </Btn>
+                  <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
                 )}
                 {!spaceActive ? (
                   <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
@@ -468,18 +486,14 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            {/* 4) CGU / Privacy — un seul bouton : Lire / Lire et accepter */}
+            {/* CGU / Privacy */}
             <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
-              {!consented && (
-                <p className="text-xs opacity-80 mt-3">
-                  {lang === "fr" ? "Consentement non enregistré."
-                    : lang === "en" ? "Consent not recorded."
-                    : "الموافقة غير مسجّلة."}
-                </p>
-              )}
+              <p className="text-xs opacity-80 mt-3">
+                {consented ? t.LEGAL.CONSENTED : t.LEGAL.NOT_CONSENTED}
+              </p>
             </Accordion>
           </div>
         </div>
@@ -523,7 +537,7 @@ export default function Menu() {
               <button
                 onClick={closeLegal}
                 className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-                aria-label="Fermer"
+                aria-label={t.LEGAL.CLOSE}
               >
                 ✕
               </button>
@@ -540,18 +554,29 @@ export default function Menu() {
             <p className="text-xs opacity-70 mt-3">{t.LEGAL.CONSENT_NOTE}</p>
 
             <div className="mt-3 flex items-center justify-end gap-2">
-              <button
-                onClick={closeLegal}
-                className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-              >
-                {t.LEGAL.LATER}
-              </button>
-              <button
-                onClick={acceptLegal}
-                className="px-4 py-2 rounded-xl bg-black text-white hover:bg-black/90"
-              >
-                {t.LEGAL.ACCEPT}
-              </button>
+              {!consented ? (
+                <>
+                  <button
+                    onClick={closeLegal}
+                    className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
+                  >
+                    {t.LEGAL.LATER}
+                  </button>
+                  <button
+                    onClick={acceptLegal}
+                    className="px-4 py-2 rounded-xl bg-black text-white hover:bg-black/90"
+                  >
+                    {t.LEGAL.ACCEPT}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={closeLegal}
+                  className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
+                >
+                  {t.LEGAL.CLOSE}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -638,4 +663,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-      }
+          }
