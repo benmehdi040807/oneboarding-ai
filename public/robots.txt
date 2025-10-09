@@ -1,0 +1,11 @@
+# robots.txt — OneBoarding AI (pré-lancement)
+# Empêche temporairement tout indexage public
+# (à remplacer par la version "Allow" la veille du lancement)
+
+User-agent: *
+Disallow: /
+
+# Informations
+# Website: https://oneboardingai.com
+# Author: Benmehdi Mohamed Rida
+# Date: Pré-lancement — Octobre 2025
