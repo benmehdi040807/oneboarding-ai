@@ -1,4 +1,5 @@
 // lib/legal/copy.ts
+
 export type Lang = "fr" | "en" | "ar";
 
 export type Section =
@@ -13,8 +14,7 @@ export type Copy = {
   version: { h: string; v: string; note: string };
 };
 
-/** Copie unique partagée pour CGU / Privacy (FR, EN, AR) */
-export const COPY: Record<Lang, Copy> = {
+const COPY: Record<Lang, Copy> = {
   fr: {
     title: "Informations légales",
     sections: [
@@ -211,3 +211,12 @@ export const COPY: Record<Lang, Copy> = {
     },
   },
 };
+
+/** Helper: retourne la copie pour une langue donnée */
+export function legalCopyFor(lang: Lang): Copy {
+  if (lang === "en" || lang === "ar") return COPY[lang];
+  return COPY.fr;
+}
+
+/** Exports nommés utiles côté UI */
+export { COPY };
