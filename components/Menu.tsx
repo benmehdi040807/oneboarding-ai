@@ -25,14 +25,38 @@ function writeJSON(key: string, v: unknown) {
     localStorage.setItem(key, JSON.stringify(v));
   } catch {}
 }
+
+// Copie robuste (mobile-friendly)
 function copy(text: string) {
+  // 1) API moderne si dispo
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    return navigator.clipboard
+      .writeText(text)
+      .then(() => true)
+      .catch(() => fallbackCopy(text));
+  }
+  // 2) Fallback DOM
+  return Promise.resolve(fallbackCopy(text));
+}
+function fallbackCopy(text: string) {
   try {
-    navigator.clipboard.writeText(text);
-    return true;
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    ta.style.left = "-1000px";
+    ta.setAttribute("readonly", "true");
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand("copy"); // supporté largement sur Android
+    document.body.removeChild(ta);
+    return ok;
   } catch {
     return false;
   }
 }
+
 function toast(msg: string) {
   const el = document.createElement("div");
   el.textContent = msg;
@@ -70,9 +94,9 @@ const I18N: Record<Lang, any> = {
     },
     HIST: {
       SHARE: "Partager mon historique",
-      SAVE: "Sauvegarder mon historique",
+      SAVE: "Exporter mon historique (.txt)",
       CLEAR: "Supprimer mon historique",
-      SAVED: "Historique sauvegardé (fichier téléchargé).",
+      SAVED: "Historique exporté (fichier .txt téléchargé).",
       COPIED: "Texte copié.",
       EMPTY: "Aucun message à partager.",
       CONFIRM_TITLE: "Effacer l’historique ?",
@@ -82,7 +106,6 @@ const I18N: Record<Lang, any> = {
       CONFIRM: "Effacer",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
-
     LEGAL: {
       OPEN: "Lire et accepter",
       READ: "Lire",
@@ -119,9 +142,9 @@ const I18N: Record<Lang, any> = {
     },
     HIST: {
       SHARE: "Share my history",
-      SAVE: "Save my history",
+      SAVE: "Export my history (.txt)",
       CLEAR: "Delete my history",
-      SAVED: "History saved (file downloaded).",
+      SAVED: "History exported (.txt downloaded).",
       COPIED: "Text copied.",
       EMPTY: "No messages to share.",
       CONFIRM_TITLE: "Clear history?",
@@ -131,7 +154,6 @@ const I18N: Record<Lang, any> = {
       CONFIRM: "Delete",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
-
     LEGAL: {
       OPEN: "Read & accept",
       READ: "Read",
@@ -168,9 +190,9 @@ const I18N: Record<Lang, any> = {
     },
     HIST: {
       SHARE: "مشاركة السجل",
-      SAVE: "حفظ السجل",
+      SAVE: "تصدير السجل (.txt)",
       CLEAR: "حذف السجل",
-      SAVED: "تم حفظ السجل (تم تنزيل الملف).",
+      SAVED: "تم تصدير السجل (تم تنزيل ملف .txt).",
       COPIED: "تم النسخ.",
       EMPTY: "لا توجد رسائل للمشاركة.",
       CONFIRM_TITLE: "حذف السجل؟",
@@ -179,7 +201,6 @@ const I18N: Record<Lang, any> = {
       CONFIRM: "حذف",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
-
     LEGAL: {
       OPEN: "قراءة والموافقة",
       READ: "قراءة",
@@ -220,20 +241,23 @@ export default function Menu() {
   const [legalOpen, setLegalOpen] = useState(false);
   const [consented, setConsented] = useState(false);
 
-  // init depuis localStorage
-  useEffect(() => {
+  // sync unifiée depuis le storage
+  function syncFromStorage() {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
       setLang(L);
-
       setConnected(localStorage.getItem("ob_connected") === "1");
       const act = localStorage.getItem("oneboarding.spaceActive");
       setSpaceActive(act === "1" || act === "true");
-
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
       setHistory(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     } catch {}
+  }
+
+  // init
+  useEffect(() => {
+    syncFromStorage();
   }, []);
 
   // i18n
@@ -255,6 +279,7 @@ export default function Menu() {
     } catch {}
     writeJSON("oneboarding.connected", false);
     setConnected(false);
+    emit("ob:disconnected");
   }
   function handleActivate() {
     emit("ob:open-activate");
@@ -279,32 +304,35 @@ export default function Menu() {
       .slice()
       .reverse()
       .map((m) => {
-        const who = m.role === "user" ? "Vous" : m.role === "assistant" ? "IA" : "Erreur";
+        const who = m.role === "user" ? (lang === "fr" ? "Vous" : lang === "en" ? "You" : "أنت") : m.role === "assistant" ? (lang === "fr" ? "IA" : "AI") : (lang === "fr" ? "Erreur" : lang === "en" ? "Error" : "خطأ");
         return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
       })
       .join("\n\n— — —\n\n");
 
     const title = "OneBoarding AI — Historique";
     try {
-      if (navigator.share) {
-        await navigator.share({ title, text: full });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(full);
-        toast(t.HIST.COPIED);
-      } else {
-        const ok = copy(full);
-        if (ok) toast(t.HIST.COPIED);
-      }
+      const ok = await copy(full);
+      if (ok) toast(t.HIST.COPIED);
     } catch {}
   }
 
+  // Export .txt lisible (au lieu de .json)
   function saveHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
-    const blob = new Blob([JSON.stringify(msgs, null, 2)], { type: "application/json;charset=utf-8" });
+    // fichier texte lisible
+    const body = msgs.length
+      ? msgs
+          .map((m, i) => {
+            const who = m.role === "user" ? (lang === "fr" ? "Vous" : lang === "en" ? "You" : "أنت") : m.role === "assistant" ? (lang === "fr" ? "IA" : "AI") : (lang === "fr" ? "Erreur" : lang === "en" ? "Error" : "خطأ");
+            return `#${i + 1} — ${who} — ${new Date(m.time).toLocaleString()}\n${m.text}`;
+          })
+          .join("\n\n------------------------------\n\n")
+      : (lang === "fr" ? "Aucun message." : lang === "en" ? "No messages." : "لا رسائل.");
+    const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `oneboarding-history-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    a.download = `oneboarding-history-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -338,12 +366,12 @@ export default function Menu() {
     setConsented(true);
     setLegalOpen(false);
     toast(lang === "fr" ? "Merci, consentement enregistré." : lang === "en" ? "Thanks, consent recorded." : "شكرًا، تم تسجيل الموافقة.");
+    emit("ob:legal-accepted");
   }
 
   const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
 
   /** ============ Navigation / bouton Retour ============ */
-  // Pousse un état d'historique à l'ouverture du Menu
   useEffect(() => {
     if (open) {
       try {
@@ -352,7 +380,6 @@ export default function Menu() {
     }
   }, [open]);
 
-  // Pousse un état d'historique à l'ouverture du modal légal (empilement propre)
   useEffect(() => {
     if (legalOpen) {
       try {
@@ -361,7 +388,6 @@ export default function Menu() {
     }
   }, [legalOpen]);
 
-  // popstate: fermer les modals en priorité au lieu de quitter la page
   useEffect(() => {
     const onPopState = () => {
       if (legalOpen) {
@@ -372,13 +398,40 @@ export default function Menu() {
         setOpen(false);
         return;
       }
-      // sinon: navigation normale
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [open, legalOpen]);
 
-  // Helpers de fermeture qui consomment l'état poussé (pas d'empilement)
+  // 🔄 Se resynchroniser quand d'autres parties de l'app émettent des événements
+  useEffect(() => {
+    const handler = () => syncFromStorage();
+
+    const events = [
+      "ob:auth-changed",
+      "ob:connected",
+      "ob:disconnected",
+      "ob:space-activated",
+      "ob:space-deactivated",
+      "ob:plan-changed",
+      "ob:history-cleared",
+      "ob:history-updated",
+      "ob:history-appended",
+      "ob:lang-changed",
+      "ob:legal-accepted",
+    ] as const;
+
+    events.forEach((e) => window.addEventListener(e, handler as EventListener));
+    // NB: l’event 'storage' ne se déclenche pas dans le même onglet, mais on le garde si jamais
+    window.addEventListener("storage", handler as EventListener);
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, handler as EventListener));
+      window.removeEventListener("storage", handler as EventListener);
+    };
+  }, []);
+
+  // Helpers de fermeture (consomment l’état historique)
   function closeMenu() {
     try {
       window.history.back();
@@ -405,7 +458,6 @@ export default function Menu() {
         <button
           onClick={() => {
             setOpen(true);
-            // Si l’utilisateur n’a pas encore consenti, on ouvre le modal légal automatiquement au premier clic
             if (!consented) setTimeout(() => setLegalOpen(true), 120);
           }}
           className="
@@ -663,4 +715,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-          }
+              }
