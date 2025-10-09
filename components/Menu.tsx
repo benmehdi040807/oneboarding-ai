@@ -209,8 +209,7 @@ export default function Menu() {
   // état lecture
   const [connected, setConnected] = useState<boolean>(false);
   const [spaceActive, setSpaceActive] = useState<boolean>(false);
-  const [history, setHistory] = useState<Item[]>([]);
-
+  const [messages, setMessages] = useState<Item[]>([]);
   const [plan, setPlan] = useState<Plan>(null);
 
   // sections repliables — fermées par défaut
@@ -243,7 +242,7 @@ export default function Menu() {
       const act = localStorage.getItem("oneboarding.spaceActive");
       setSpaceActive(act === "1" || act === "true");
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
-      setHistory(readJSON<Item[]>("oneboarding.history", []));
+      setMessages(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     } catch {}
   }, []);
@@ -256,7 +255,7 @@ export default function Menu() {
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
     };
     const onPlanChanged = () => setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
-    const onHistoryCleared = () => setHistory([]);
+    const onHistoryCleared = () => setMessages([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
     window.addEventListener("ob:connected-changed", onAuthChanged);
@@ -346,7 +345,7 @@ export default function Menu() {
 
   function clearHistoryConfirmed() {
     writeJSON("oneboarding.history", []);
-    setHistory([]);
+    setMessages([]);
     emit("ob:history-cleared");
     setConfirmOpen(false);
     toast("Historique supprimé.");
@@ -558,7 +557,7 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Modal légal (wrapper + iframe) */}
+      {/* TOS/Privacy (iframe) */}
       {legalOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeLegalModal} />
@@ -687,4 +686,4 @@ function Accordion({
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-      }
+              }
