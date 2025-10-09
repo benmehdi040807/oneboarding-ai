@@ -12,12 +12,13 @@ type Item = { role: "user" | "assistant" | "error"; text: string; time: string }
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
 const CONSENT_AT_KEY = "oneboarding.legalConsentAt";
 
+const HASH_MENU = "#menu";
+const HASH_TSCGI = "#tscgi";
+
 /** ===================== Utils ===================== */
 async function copy(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
     try {
       const ta = document.createElement("textarea");
       ta.value = text;
@@ -28,23 +29,15 @@ async function copy(text: string) {
       const ok = document.execCommand("copy");
       ta.remove();
       return ok;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
 }
 function readJSON<T>(key: string, fallback: T): T {
-  try {
-    const s = localStorage.getItem(key);
-    return s ? (JSON.parse(s) as T) : fallback;
-  } catch {
-    return fallback;
-  }
+  try { const s = localStorage.getItem(key); return s ? (JSON.parse(s) as T) : fallback; }
+  catch { return fallback; }
 }
 function writeJSON(key: string, v: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(v));
-  } catch {}
+  try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
 }
 function toast(msg: string) {
   const el = document.createElement("div");
@@ -62,138 +55,90 @@ function toast(msg: string) {
 const I18N: Record<Lang, any> = {
   fr: {
     MENU: "Menu",
-    SECTIONS: { ACC: "Mon compte", HIST: "Mon historique", LANG: "Ma langue", LEGAL: "CGU / Privacy" },
+    SECTIONS: { ACC: "Mon compte", HIST: "Mon historique", LANG: "Ma langue", LEGAL: "TSCGI / Privacy" },
     ACC: {
-      CONNECT: "Se connecter",
-      DISCONNECT: "Se déconnecter",
-      ACTIVATE: "Activer mon espace",
-      DEACTIVATE: "Désactiver mon espace",
-      STATUS_BTN: "Statut du compte",
-      STATUS: "Mon statut",
-      SPACE: "Espace",
-      CONN: "Connexion",
-      PLAN: "Formule",
-      ACTIVE: "actif",
-      INACTIVE: "inactif",
-      ONLINE: "en ligne",
-      OFFLINE: "hors ligne",
-      SUB: "abonnement",
-      ONEOFF: "accès libre",
-      NONE: "—",
+      CONNECT: "Se connecter", DISCONNECT: "Se déconnecter",
+      ACTIVATE: "Activer mon espace", DEACTIVATE: "Désactiver mon espace",
+      STATUS_BTN: "Statut du compte", STATUS: "Mon statut",
+      SPACE: "Espace", CONN: "Connexion", PLAN: "Formule",
+      ACTIVE: "actif", INACTIVE: "inactif",
+      ONLINE: "en ligne", OFFLINE: "hors ligne",
+      SUB: "abonnement", ONEOFF: "accès libre", NONE: "—",
     },
     HIST: {
-      SHARE: "Partager mon historique",
-      SAVE: "Sauvegarder mon historique",
-      CLEAR: "Supprimer mon historique",
-      SAVED: "Historique sauvegardé (fichier téléchargé).",
-      COPIED: "Texte copié.",
+      SHARE: "Partager mon historique", SAVE: "Sauvegarder mon historique", CLEAR: "Supprimer mon historique",
+      SAVED: "Historique sauvegardé (fichier téléchargé).", COPIED: "Texte copié.",
       EMPTY: "Aucun message à partager.",
       CONFIRM_TITLE: "Effacer l’historique ?",
-      CONFIRM_MSG:
-        "Cette action est irréversible. Pense à partager ou sauvegarder ton contenu si tu veux le conserver.",
-      CANCEL: "Annuler",
-      CONFIRM: "Effacer",
+      CONFIRM_MSG: "Cette action est irréversible. Pense à partager ou sauvegarder si tu veux le conserver.",
+      CANCEL: "Annuler", CONFIRM: "Effacer",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
     LEGAL: {
-      OPEN: "Lire et approuver",
-      READ: "Lire",
-      ACCEPT: "Lu et approuvé",
-      LATER: "Plus tard",
+      OPEN: "Lire et approuver", READ: "Lire",
+      ACCEPT: "Lu et approuvé", LATER: "Plus tard",
       TITLE: "Informations légales",
-      CONSENT_NOTE:
-        "En cliquant sur « Lu et approuvé », vous confirmez avoir pris connaissance de ces informations.",
+      CONSENT_NOTE: "En cliquant sur « Lu et approuvé », vous confirmez avoir pris connaissance de ces informations.",
+      CONSENTED: "Consentement déjà enregistré.",
       NOT_REC: "Consentement non enregistré.",
     },
   },
-
   en: {
     MENU: "Menu",
     SECTIONS: { ACC: "My account", HIST: "My history", LANG: "My language", LEGAL: "TOS / Privacy" },
     ACC: {
-      CONNECT: "Sign in",
-      DISCONNECT: "Sign out",
-      ACTIVATE: "Activate my space",
-      DEACTIVATE: "Deactivate my space",
-      STATUS_BTN: "Account status",
-      STATUS: "My status",
-      SPACE: "Space",
-      CONN: "Connection",
-      PLAN: "Plan",
-      ACTIVE: "active",
-      INACTIVE: "inactive",
-      ONLINE: "online",
-      OFFLINE: "offline",
-      SUB: "subscription",
-      ONEOFF: "one-month",
-      NONE: "—",
+      CONNECT: "Sign in", DISCONNECT: "Sign out",
+      ACTIVATE: "Activate my space", DEACTIVATE: "Deactivate my space",
+      STATUS_BTN: "Account status", STATUS: "My status",
+      SPACE: "Space", CONN: "Connection", PLAN: "Plan",
+      ACTIVE: "active", INACTIVE: "inactive",
+      ONLINE: "online", OFFLINE: "offline",
+      SUB: "subscription", ONEOFF: "one-month", NONE: "—",
     },
     HIST: {
-      SHARE: "Share my history",
-      SAVE: "Save my history",
-      CLEAR: "Delete my history",
-      SAVED: "History saved (file downloaded).",
-      COPIED: "Text copied.",
+      SHARE: "Share my history", SAVE: "Save my history", CLEAR: "Delete my history",
+      SAVED: "History saved (file downloaded).", COPIED: "Text copied.",
       EMPTY: "No messages to share.",
       CONFIRM_TITLE: "Clear history?",
-      CONFIRM_MSG: "This action is irreversible. Consider sharing or saving if you want to keep your content.",
-      CANCEL: "Cancel",
-      CONFIRM: "Delete",
+      CONFIRM_MSG: "This action is irreversible. Consider sharing or saving if you want to keep it.",
+      CANCEL: "Cancel", CONFIRM: "Delete",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
     LEGAL: {
-      OPEN: "Read & approve",
-      READ: "Read",
-      ACCEPT: "Read & approved",
-      LATER: "Later",
+      OPEN: "Read & approve", READ: "Read",
+      ACCEPT: "Read & approved", LATER: "Later",
       TITLE: "Legal information",
       CONSENT_NOTE: "By clicking “Read & approved”, you acknowledge having read this information.",
-      NOT_REC: "Consent not recorded.",
+      CONSENTED: "Consent already recorded.", NOT_REC: "Consent not recorded.",
     },
   },
-
   ar: {
     MENU: "القائمة",
     SECTIONS: { ACC: "حسابي", HIST: "سِجِلّي", LANG: "لغتي", LEGAL: "الشروط / الخصوصية" },
     ACC: {
-      CONNECT: "تسجيل الدخول",
-      DISCONNECT: "تسجيل الخروج",
-      ACTIVATE: "تفعيل مساحتي",
-      DEACTIVATE: "إيقاف مساحتي",
-      STATUS_BTN: "حالة الحساب",
-      STATUS: "حالتي",
-      SPACE: "المساحة",
-      CONN: "الاتصال",
-      PLAN: "الخطة",
-      ACTIVE: "نشط",
-      INACTIVE: "غير نشط",
-      ONLINE: "متصل",
-      OFFLINE: "غير متصل",
-      SUB: "اشتراك",
-      ONEOFF: "وصول لشهر",
-      NONE: "—",
+      CONNECT: "تسجيل الدخول", DISCONNECT: "تسجيل الخروج",
+      ACTIVATE: "تفعيل مساحتي", DEACTIVATE: "إيقاف مساحتي",
+      STATUS_BTN: "حالة الحساب", STATUS: "حالتي",
+      SPACE: "المساحة", CONN: "الاتصال", PLAN: "الخطة",
+      ACTIVE: "نشط", INACTIVE: "غير نشط",
+      ONLINE: "متصل", OFFLINE: "غير متصل",
+      SUB: "اشتراك", ONEOFF: "وصول لشهر", NONE: "—",
     },
     HIST: {
-      SHARE: "مشاركة السجل",
-      SAVE: "حفظ السجل",
-      CLEAR: "حذف السجل",
-      SAVED: "تم حفظ السجل (تم تنزيل الملف).",
-      COPIED: "تم النسخ.",
+      SHARE: "مشاركة السجل", SAVE: "حفظ السجل", CLEAR: "حذف السجل",
+      SAVED: "تم حفظ السجل (تم تنزيل الملف).", COPIED: "تم النسخ.",
       EMPTY: "لا توجد رسائل للمشاركة.",
       CONFIRM_TITLE: "حذف السجل؟",
       CONFIRM_MSG: "هذه العملية لا رجوع فيها. فكّر في المشاركة أو الحفظ قبل الحذف.",
-      CANCEL: "إلغاء",
-      CONFIRM: "حذف",
+      CANCEL: "إلغاء", CONFIRM: "حذف",
     },
     LANG: { FR: "Français", EN: "English", AR: "عربي" },
     LEGAL: {
-      OPEN: "قراءة والموافقة",
-      READ: "قراءة",
-      ACCEPT: "قُرِئ وتمت الموافقة",
-      LATER: "لاحقاً",
+      OPEN: "قراءة والموافقة", READ: "قراءة",
+      ACCEPT: "قُرِئ وتمت الموافقة", LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
       CONSENT_NOTE: "بالنقر على «قُرِئ وتمت الموافقة» فأنت تُقرّ بأنك اطّلعت على هذه المعلومات.",
-      NOT_REC: "الموافقة غير مسجّلة.",
+      CONSENTED: "الموافقة مسجّلة.", NOT_REC: "الموافقة غير مسجّلة.",
     },
   },
 };
@@ -209,7 +154,7 @@ export default function Menu() {
   const [plan, setPlan] = useState<Plan>(null);
   const [history, setHistory] = useState<Item[]>([]);
 
-  // sections repliables — fermées par défaut
+  // sections repliables
   const [showAcc, setShowAcc] = useState(false);
   const [showHist, setShowHist] = useState(false);
   const [showLang, setShowLang] = useState(false);
@@ -220,8 +165,8 @@ export default function Menu() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const confirmRef = useRef<HTMLDivElement | null>(null);
 
-  // modal légal
-  const [legalOpen, setLegalOpen] = useState(false);
+  // TSCGI (grand wrapper + iframe)
+  const [tscgiOpen, setTscgiOpen] = useState(false);
   const [consented, setConsented] = useState(false);
 
   const t = useMemo(() => I18N[lang], [lang]);
@@ -240,13 +185,10 @@ export default function Menu() {
     } catch {}
   }, []);
 
-  // écoute des événements cross-composants (inclut consentement)
+  // événements cross-composants
   useEffect(() => {
     const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
-    const onSpaceActivated = () => {
-      setSpaceActive(true);
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
-    };
+    const onSpaceActivated = () => { setSpaceActive(true); setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null); };
     const onPlanChanged = () => setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
     const onHistoryCleared = () => setHistory([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
@@ -266,31 +208,57 @@ export default function Menu() {
     };
   }, []);
 
+  // ======== Navigation native (hash) ========
+  // ouvrir/fermer Menu via hash
+  function openMenu() {
+    if (location.hash !== HASH_MENU) location.hash = HASH_MENU;
+    setOpen(true);
+  }
+  function closeMenu() {
+    if (location.hash === HASH_MENU) history.back();
+    setOpen(false);
+  }
+  // ouvrir/fermer TSCGI via hash
+  function openTSCGI() {
+    if (location.hash !== HASH_TSCGI) location.hash = HASH_TSCGI;
+    setTscgiOpen(true);
+  }
+  function closeTSCGI() {
+    if (location.hash === HASH_TSCGI) history.back();
+    setTscgiOpen(false);
+  }
+
+  // synchroniser l’état React quand on navigue (back/forward)
+  useEffect(() => {
+    const sync = () => {
+      const h = location.hash;
+      setOpen(h === HASH_MENU);
+      setTscgiOpen(h === HASH_TSCGI);
+    };
+    window.addEventListener("hashchange", sync);
+    // sync initial si on arrive avec un hash (deep-link)
+    sync();
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
   // helpers
   function emit(name: string, detail?: any) {
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }
 
   /** ============ Actions compte ============ */
-  function handleConnect() {
-    emit("ob:open-connect");
-  }
+  function handleConnect() { emit("ob:open-connect"); }
   function handleDisconnect() {
     emit("ob:open-disconnect");
-    try {
-      localStorage.setItem("ob_connected", "0");
-    } catch {}
+    try { localStorage.setItem("ob_connected", "0"); } catch {}
     writeJSON("oneboarding.connected", false);
     setConnected(false);
   }
-  function handleActivate() {
-    emit("ob:open-activate");
-  }
+  function handleActivate() { emit("ob:open-activate"); }
   function handleDeactivate() {
     writeJSON("oneboarding.spaceActive", false);
     writeJSON("oneboarding.plan", null);
-    setSpaceActive(false);
-    setPlan(null);
+    setSpaceActive(false); setPlan(null);
     emit("ob:space-deactivated");
     toast("Espace désactivé.");
   }
@@ -298,50 +266,31 @@ export default function Menu() {
   /** ============ Historique ============ */
   async function shareHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
-    if (!msgs.length) {
-      toast(t.HIST.EMPTY);
-      return;
-    }
-    const full = msgs
-      .slice()
-      .reverse()
-      .map((m) => {
-        const who = m.role === "user" ? "Vous" : m.role === "assistant" ? "IA" : "Erreur";
-        return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
-      })
-      .join("\n\n— — —\n\n");
-
+    if (!msgs.length) { toast(t.HIST.EMPTY); return; }
+    const full = msgs.slice().reverse().map((m) => {
+      const who = m.role === "user" ? "Vous" : m.role === "assistant" ? "IA" : "Erreur";
+      return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
+    }).join("\n\n— — —\n\n");
     const title = "OneBoarding AI — Historique";
     try {
-      if ((navigator as any).share) {
-        await (navigator as any).share({ title, text: full });
-      } else {
-        const ok = await copy(full);
-        if (ok) toast(t.HIST.COPIED);
-      }
+      if ((navigator as any).share) { await (navigator as any).share({ title, text: full }); }
+      else { const ok = await copy(full); if (ok) toast(t.HIST.COPIED); }
     } catch {}
   }
-
   function saveHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
     const blob = new Blob([JSON.stringify(msgs, null, 2)], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
+    const a = document.createElement("a"); a.href = url;
     a.download = `oneboarding-history-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     toast(t.HIST.SAVED);
   }
-
   function clearHistoryConfirmed() {
     writeJSON("oneboarding.history", []);
-    setHistory([]);
-    emit("ob:history-cleared");
-    setConfirmOpen(false);
-    toast("Historique supprimé.");
+    setHistory([]); emit("ob:history-cleared");
+    setConfirmOpen(false); toast("Historique supprimé.");
   }
 
   /** ============ Langue ============ */
@@ -351,12 +300,8 @@ export default function Menu() {
     emit("ob:lang-changed", { lang: l });
   }
 
-  /** ============ Consentement légal ============ */
-  function openLegalModal() {
-    setLegalOpen(true);
-  }
+  /** ============ Consentement TSCGI ============ */
   function acceptLegal() {
-    // bouton “Lu et approuvé” (même libellé avant/après). S’il n’était pas consenti, on enregistre.
     if (!consented) {
       try {
         localStorage.setItem(CONSENT_KEY, "1");
@@ -366,7 +311,7 @@ export default function Menu() {
       window.dispatchEvent(new Event("ob:consent-updated"));
       toast("Merci, consentement enregistré.");
     }
-    setLegalOpen(false);
+    closeTSCGI();
   }
 
   const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
@@ -374,13 +319,13 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — simple, sans badge/nudge */}
+      {/* Bouton flottant principal */}
       <div
         className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       >
         <button
-          onClick={() => setOpen(true)}
+          onClick={openMenu}
           className="
             pointer-events-auto min-w-[260px] px-8 py-5 text-xl rounded-3xl font-semibold shadow-2xl border
             border-[rgba(255,255,255,0.18)]
@@ -398,13 +343,13 @@ export default function Menu() {
       {/* Panneau Menu */}
       {open && (
         <div className="fixed inset-0 z-[80] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeMenu} />
           <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">{t.MENU}</h2>
               <button
-                onClick={() => setOpen(false)}
+                onClick={closeMenu}
                 className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
                 aria-label="Fermer"
               >
@@ -413,19 +358,11 @@ export default function Menu() {
             </div>
 
             {/* Sections */}
-            <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
+            <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc(v => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {!connected ? (
-                  <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
-                ) : (
-                  <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
-                )}
-                {!spaceActive ? (
-                  <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
-                ) : (
-                  <Btn danger onClick={handleDeactivate}>{t.ACC.DEACTIVATE}</Btn>
-                )}
-                <Btn className="sm:col-span-2" onClick={() => setShowStatus((v) => !v)}>
+                {!connected ? <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn> : <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>}
+                {!spaceActive ? <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn> : <Btn danger onClick={handleDeactivate}>{t.ACC.DEACTIVATE}</Btn>}
+                <Btn className="sm:col-span-2" onClick={() => setShowStatus(v => !v)}>
                   {t.ACC.STATUS_BTN} {showStatus ? "—" : "+"}
                 </Btn>
                 {showStatus && (
@@ -441,17 +378,15 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
+            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist(v => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
                 <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
-                <Btn danger onClick={() => setConfirmOpen(true)} className="sm:col-span-2">
-                  {t.HIST.CLEAR}
-                </Btn>
+                <Btn danger onClick={() => setConfirmOpen(true)} className="sm:col-span-2">{t.HIST.CLEAR}</Btn>
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
+            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang(v => !v)}>
               <div className="grid grid-cols-3 gap-2">
                 <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>{I18N.fr.LANG.FR}</Toggle>
                 <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>{I18N.en.LANG.EN}</Toggle>
@@ -459,9 +394,9 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
+            <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal(v => !v)}>
               <div className="grid grid-cols-1 gap-2">
-                <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
+                <Btn onClick={openTSCGI}>{legalBtnLabel}</Btn>
               </div>
               {!consented && <p className="text-xs opacity-80 mt-3">{t.LEGAL.NOT_REC}</p>}
             </Accordion>
@@ -480,60 +415,38 @@ export default function Menu() {
             <h2 className="text-lg font-semibold mb-2">{t.HIST.CONFIRM_TITLE}</h2>
             <p className="text-sm opacity-90 mb-4">{t.HIST.CONFIRM_MSG}</p>
             <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setConfirmOpen(false)}
-                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
-              >
-                {t.HIST.CANCEL}
-              </button>
-              <button
-                onClick={clearHistoryConfirmed}
-                className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
-              >
-                {t.HIST.CONFIRM}
-              </button>
+              <button onClick={() => setConfirmOpen(false)} className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white">{t.HIST.CANCEL}</button>
+              <button onClick={clearHistoryConfirmed} className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]">{t.HIST.CONFIRM}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal légal (wrapper + iframe) */}
-      {legalOpen && (
+      {/* TSCGI — wrapper + iframe — hash-native */}
+      {tscgiOpen && (
         <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setLegalOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeTSCGI} />
           <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
-              <button
-                onClick={() => setLegalOpen(false)}
-                className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-                aria-label="Fermer"
-              >
-                ✕
-              </button>
+              <button onClick={closeTSCGI} className="px-3 py-1.5 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10" aria-label="Fermer">✕</button>
             </div>
 
             <div className="rounded-lg overflow-hidden border border-black/10" style={{ height: "70vh" }}>
-              <iframe
-                title="CGU / Privacy"
-                src={`/legal?lang=${lang}&embed=1`}
-                style={{ width: "100%", height: "100%", border: 0 }}
-              />
+              <iframe title="TSCGI / Privacy" src={`/legal?lang=${lang}&embed=1`} style={{ width: "100%", height: "100%", border: 0 }} />
             </div>
 
-            <p className="text-xs opacity-70 mt-3">{t.LEGAL.CONSENT_NOTE}</p>
+            <p className="text-xs opacity-70 mt-3">
+              {consented ? t.LEGAL.CONSENTED : t.LEGAL.CONSENT_NOTE}
+            </p>
 
             <div className="mt-3 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setLegalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10"
-              >
-                {t.LEGAL.LATER}
-              </button>
-              <button
-                onClick={acceptLegal}
-                className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
-              >
+              {!consented && (
+                <button onClick={closeTSCGI} className="px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/10">
+                  {t.LEGAL.LATER}
+                </button>
+              )}
+              <button onClick={acceptLegal} className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90">
                 {t.LEGAL.ACCEPT}
               </button>
             </div>
@@ -551,75 +464,30 @@ export default function Menu() {
 }
 
 /** ===================== Sous-composants ===================== */
-function Btn({
-  children,
-  onClick,
-  className = "",
-  accent,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-  accent?: boolean;
-  danger?: boolean;
+function Btn({ children, onClick, className = "", accent, danger }:{
+  children: React.ReactNode; onClick?: () => void; className?: string; accent?: boolean; danger?: boolean;
 }) {
   const base = "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
-  const tone = danger
-    ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/22"
-    : accent
-    ? "border-cyan-300/30 bg-cyan-400/15 hover:bg-cyan-400/25"
+  const tone = danger ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/22"
+    : accent ? "border-cyan-300/30 bg-cyan-400/15 hover:bg-cyan-400/25"
     : "border-white/15 bg-white/10 hover:bg-white/15";
+  return <button onClick={onClick} className={`${base} ${tone} ${className}`}>{children}</button>;
+}
+function Toggle({ children, active, onClick }:{ children: React.ReactNode; active?: boolean; onClick?: () => void; }) {
   return (
-    <button onClick={onClick} className={`${base} ${tone} ${className}`}>
-      {children}
-    </button>
+    <button onClick={onClick} className={`px-3 py-2 rounded-xl border text-sm ${active ? "bg-white/20 border-white/30 text-white" : "bg-white/8 border-white/15 text-white/90 hover:bg-white/14"}`}>{children}</button>
   );
 }
-
-function Toggle({
-  children,
-  active,
-  onClick,
-}: {
-  children: React.ReactNode;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-2 rounded-xl border text-sm ${
-        active ? "bg-white/20 border-white/30 text-white" : "bg-white/8 border-white/15 text-white/90 hover:bg-white/14"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Accordion({
-  title,
-  open,
-  onToggle,
-  children,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+function Accordion({ title, open, onToggle, children }:{
+  title: string; open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
     <section className="mb-3">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3"
-        aria-expanded={open}
-      >
+      <button onClick={onToggle} className="w-full flex items-center justify-between rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-3" aria-expanded={open}>
         <span className="text-sm font-semibold">{title}</span>
         <span className="text-lg leading-none">{open ? "–" : "+"}</span>
       </button>
       {open && <div className="pt-3">{children}</div>}
     </section>
   );
-    }
+      }
