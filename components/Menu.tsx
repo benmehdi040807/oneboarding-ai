@@ -18,7 +18,6 @@ async function copy(text: string) {
     return true;
   } catch {
     try {
-      // fallback sync (peut échouer selon navigateur)
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.position = "fixed";
@@ -261,29 +260,26 @@ export default function Menu() {
     } catch {}
   }, []);
 
-  // écouter les évènements d’auth/plan pour rafraîchir instantanément le Menu
+  // écoute les évènements émis par les modales (auth / paiement)
   useEffect(() => {
-    const onConnected = () => setConnected(true);
     const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
     const onSpaceActivated = () => {
       setSpaceActive(true);
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || plan);
+      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
     };
     const onPlanChanged = () =>
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || plan);
+      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
 
-    window.addEventListener("ob:connected", onConnected);
-    window.addEventListener("ob:auth-changed", onAuthChanged);
+    window.addEventListener("ob:connected-changed", onAuthChanged);
     window.addEventListener("ob:space-activated", onSpaceActivated);
     window.addEventListener("ob:plan-changed", onPlanChanged);
 
     return () => {
-      window.removeEventListener("ob:connected", onConnected);
-      window.removeEventListener("ob:auth-changed", onAuthChanged);
+      window.removeEventListener("ob:connected-changed", onAuthChanged);
       window.removeEventListener("ob:space-activated", onSpaceActivated);
       window.removeEventListener("ob:plan-changed", onPlanChanged);
     };
-  }, [plan]);
+  }, []);
 
   // helpers d’évènements
   function emit(name: string, detail?: any) {
@@ -343,7 +339,6 @@ export default function Menu() {
 
   function saveHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
-    // extension .txt pour lecture facile
     const blob = new Blob([JSON.stringify(msgs, null, 2)], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -385,31 +380,41 @@ export default function Menu() {
   }
 
   const legalBtnLabel = consented ? t.LEGAL.READ : t.LEGAL.OPEN;
-
-  /** ============ Rendu ============ */
   const showConsentNudge = open && !consented;
 
+  /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — ouvre uniquement le Menu (pas le légal auto) */}
+      {/* Bouton flottant principal — ouvre le Menu (avec badge si consentement manquant) */}
       <div
         className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       >
-        <button
-          onClick={() => setOpen(true)}
-          className="
-            pointer-events-auto min-w-[260px] px-8 py-5 text-xl rounded-3xl font-semibold shadow-2xl border
-            border-[rgba(255,255,255,0.18)]
-            bg-gradient-to-br from-cyan-400 via-sky-500 to-blue-600
-            hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500
-            text-white tracking-wide drop-shadow-[0_0_30px_rgba(56,189,248,.35)]
-            active:scale-[.985] menu-float
-          "
-          aria-label={t.MENU}
-        >
-          {t.MENU}
-        </button>
+        <div className="relative pointer-events-auto">
+          <button
+            onClick={() => setOpen(true)}
+            className="
+              min-w-[260px] px-8 py-5 text-xl rounded-3xl font-semibold shadow-2xl border
+              border-[rgba(255,255,255,0.18)]
+              bg-gradient-to-br from-cyan-400 via-sky-500 to-blue-600
+              hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500
+              text-white tracking-wide drop-shadow-[0_0_30px_rgba(56,189,248,.35)]
+              active:scale-[.985] menu-float
+            "
+            aria-label={t.MENU}
+          >
+            {t.MENU}
+          </button>
+
+          {!consented && (
+            <span
+              className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white shadow-lg border border-white/20"
+              aria-hidden="true"
+            >
+              {t.LEGAL.BADGE}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Panneau Menu */}
@@ -509,7 +514,7 @@ export default function Menu() {
                     </span>
                   )}
                 </span>
-              as any}
+              }
               open={showLegal}
               onToggle={() => setShowLegal((v) => !v)}
             >
