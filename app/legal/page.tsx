@@ -1,6 +1,4 @@
 // app/legal/page.tsx
-"use client";
-
 export const runtime = "nodejs";
 
 export const metadata = {
@@ -26,7 +24,7 @@ export default function LegalPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // lecture naïve des query params (sans client JS côté routeur)
+  // lecture naïve des query params (sans client JS)
   const sp =
     typeof searchParams === "object"
       ? new URLSearchParams(
@@ -109,21 +107,23 @@ export default function LegalPage({
         <p className="font-semibold">{t.version.v}</p>
         <p className="opacity-90">{t.version.note}</p>
 
-        <div className="mt-6 text-sm opacity-70 space-y-3">
-          <p>
-            En accédant au service, vous reconnaissez avoir pris connaissance de ces
-            informations. Les règles d’ordre public applicables dans le pays de l’utilisateur
-            demeurent de plein droit.
-          </p>
-          <p className="text-center font-medium">
-            <button
-              onClick={() => typeof window !== "undefined" && window.history.back()}
-              className="px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
-            >
-              Lu et approuvé
-            </button>
-          </p>
-        </div>
+        {!embed && (
+          <div className="mt-6 text-sm opacity-70 space-y-3">
+            <p>
+              En accédant au service, vous reconnaissez avoir pris connaissance de ces
+              informations. Les règles d’ordre public applicables dans le pays de l’utilisateur
+              demeurent de plein droit.
+            </p>
+            <p className="text-center font-medium">
+              <a
+                href="/"
+                className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
+              >
+                Lu et approuvé
+              </a>
+            </p>
+          </div>
+        )}
       </article>
 
       {/* utilitaire pour garder un nom arabe sur une seule ligne */}
