@@ -1,5 +1,5 @@
 // app/delete/page.tsx
-import { COPY, type Lang } from "@/lib/delete/copy";
+import { COPY, deleteCopyFor, type Lang } from "@/lib/delete/copy";
 
 export const runtime = "nodejs";
 
@@ -38,9 +38,8 @@ export default function DeletePage({
       : undefined;
 
   const lang = pickLang(sp);
-  const t = COPY[lang];
+  const t = deleteCopyFor(lang);
 
-  // ✅ Balise JSON-LD structurée (DataDeletionPolicy)
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "DataDeletionPolicy",
@@ -76,11 +75,41 @@ export default function DeletePage({
       }`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
-      {/* ✅ JSON-LD pour SEO / Google */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {/* Sélecteur de langue */}
+      <nav className="mb-5 text-sm" aria-label="Language selector">
+        <span className="opacity-70 mr-2">
+          {lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:"}
+        </span>
+        <a
+          href="?lang=fr"
+          className={`px-2 py-1 rounded border mr-1 ${
+            lang === "fr" ? "bg-black text-white border-black" : "border-black/20"
+          }`}
+        >
+          FR
+        </a>
+        <a
+          href="?lang=en"
+          className={`px-2 py-1 rounded border mr-1 ${
+            lang === "en" ? "bg-black text-white border-black" : "border-black/20"
+          }`}
+        >
+          EN
+        </a>
+        <a
+          href="?lang=ar"
+          className={`px-2 py-1 rounded border ${
+            lang === "ar" ? "bg-black text-white border-black" : "border-black/20"
+          }`}
+        >
+          AR
+        </a>
+      </nav>
 
       <h1 className="text-2xl font-bold mb-6 text-center">{t.title}</h1>
 
@@ -90,13 +119,10 @@ export default function DeletePage({
             s: { kind: string; text?: string; html?: string; items?: string[] },
             i: number
           ) => {
+            if (s.kind === "hr") return <hr key={i} className="border-black/10 my-3" />;
             if (s.kind === "p")
               return s.html ? (
-                <p
-                  key={i}
-                  className="opacity-90"
-                  dangerouslySetInnerHTML={{ __html: s.html }}
-                />
+                <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: s.html }} />
               ) : (
                 <p key={i} className="opacity-90">
                   {s.text}
@@ -114,21 +140,10 @@ export default function DeletePage({
           }
         )}
 
-        <hr className="border-black/10 my-3" />
-
         <p className="text-sm opacity-70 text-center">
-          {lang === "fr"
-            ? "Dernière mise à jour : Octobre 2025 — Version 1.0."
-            : lang === "en"
-            ? "Last updated: October 2025 — Version 1.0."
-            : "آخر تحديث: أكتوبر 2025 — الإصدار 1.0."}
+          {t.footer.updated}
           <br />
-          © OneBoarding AI.{" "}
-          {lang === "ar"
-            ? "جميع الحقوق محفوظة."
-            : lang === "en"
-            ? "All rights reserved."
-            : "Tous droits réservés."}
+          {t.footer.rights}
         </p>
 
         <p className="mt-6 text-center">
@@ -136,11 +151,7 @@ export default function DeletePage({
             href="/"
             className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
           >
-            {lang === "ar"
-              ? "عودة"
-              : lang === "en"
-              ? "Back"
-              : "Retour"}
+            {lang === "ar" ? "عودة" : lang === "en" ? "Back" : "Retour"}
           </a>
         </p>
       </article>
