@@ -1,4 +1,6 @@
 // app/legal/page.tsx
+"use client";
+
 export const runtime = "nodejs";
 
 export const metadata = {
@@ -24,7 +26,7 @@ export default function LegalPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // lecture naïve des query params (sans client JS)
+  // lecture naïve des query params (sans client JS côté routeur)
   const sp =
     typeof searchParams === "object"
       ? new URLSearchParams(
@@ -115,7 +117,7 @@ export default function LegalPage({
           </p>
           <p className="text-center font-medium">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => typeof window !== "undefined" && window.history.back()}
               className="px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
             >
               Lu et approuvé
@@ -128,4 +130,4 @@ export default function LegalPage({
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-                }
+}
