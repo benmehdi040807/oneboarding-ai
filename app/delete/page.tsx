@@ -1,4 +1,6 @@
 // app/delete/page.tsx
+import { COPY, type Lang } from "@/lib/delete/copy";
+
 export const runtime = "nodejs";
 
 export const metadata = {
@@ -15,67 +17,90 @@ export const metadata = {
   },
 };
 
-export default function DeletePage() {
+function pickLang(sp?: URLSearchParams): Lang {
+  const raw = sp?.get("lang")?.toLowerCase();
+  if (raw === "en" || raw === "ar") return raw;
+  return "fr";
+}
+
+export default function DeletePage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const sp =
+    typeof searchParams === "object"
+      ? new URLSearchParams(
+          Object.entries(searchParams)
+            .filter(([_, v]) => typeof v === "string")
+            .map(([k, v]) => [k, String(v)])
+        )
+      : undefined;
+
+  const lang = pickLang(sp);
+  const t = COPY[lang];
+
   return (
-    <main className="px-4 py-8 mx-auto w-full max-w-2xl text-black">
-      <h1 className="text-xl font-bold mb-4 text-center">
-        Suppression des données — OneBoarding AI
-      </h1>
+    <main
+      className={`px-4 py-8 mx-auto w-full max-w-2xl text-black leading-7 ${
+        lang === "ar" ? "text-right" : ""
+      }`}
+      dir={lang === "ar" ? "rtl" : "ltr"}
+    >
+      <h1 className="text-2xl font-bold mb-6 text-center">{t.title}</h1>
 
-      <article className="space-y-4 leading-6 opacity-90">
-        <p>
-          OneBoarding AI ne collecte ni ne conserve de données personnelles.
-          L’historique et les consentements sont stockés localement sur
-          l’appareil de l’utilisateur, sous son seul contrôle.
-        </p>
-
-        <p>
-          Pour supprimer vos données locales, cliquez sur le bouton{" "}
-          <strong>« Effacer l’historique »</strong> disponible dans
-          l’interface de l’application.
-        </p>
-
-        <p>
-          Si vous avez partagé des informations dans le cadre d’un échange
-          technique ou administratif, vous pouvez également demander leur
-          suppression en contactant notre responsable de traitement :
-        </p>
-
-        <ul className="list-disc pl-5 space-y-1.5">
-          <li>
-            <strong>Nom :</strong> Benmehdi Mohamed Rida
-          </li>
-          <li>
-            <strong>Email :</strong>{" "}
-            <a
-              href="mailto:benmehdi.mr@gmail.com"
-              className="text-blue-700 underline hover:text-blue-900"
-            >
-              benmehdi.mr@gmail.com
-            </a>
-          </li>
-          <li>
-            <strong>Adresse :</strong> Casablanca, Maroc
-          </li>
-        </ul>
-
-        <p>
-          Pour plus d’informations, veuillez consulter notre{" "}
-          <a
-            href="/legal"
-            className="underline text-blue-700 hover:text-blue-900"
-          >
-            Politique de confidentialité complète
-          </a>
-          .
-        </p>
+      <article className="space-y-4">
+        {t.sections.map((s, i) => {
+          if (s.kind === "p")
+            return s.html ? (
+              <p
+                key={i}
+                className="opacity-90"
+                dangerouslySetInnerHTML={{ __html: s.html }}
+              />
+            ) : (
+              <p key={i} className="opacity-90">
+                {s.text}
+              </p>
+            );
+          if (s.kind === "ul")
+            return (
+              <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
+                {s.items.map((li: string, j: number) => (
+                  <li key={j}>{li}</li>
+                ))}
+              </ul>
+            );
+          return null;
+        })}
 
         <hr className="border-black/10 my-3" />
 
         <p className="text-sm opacity-70 text-center">
-          Dernière mise à jour : Octobre 2025 — Version 1.0.  
-          <br />
-          © OneBoarding AI. Tous droits réservés.
+          {lang === "fr"
+            ? "Dernière mise à jour : Octobre 2025 — Version 1.0."
+            : lang === "en"
+            ? "Last updated: October 2025 — Version 1.0."
+            : "آخر تحديث: أكتوبر 2025 — الإصدار 1.0."}
+          <br />© OneBoarding AI.{" "}
+          {lang === "ar"
+            ? "جميع الحقوق محفوظة."
+            : lang === "en"
+            ? "All rights reserved."
+            : "Tous droits réservés."}
+        </p>
+
+        <p className="mt-6 text-center">
+          <a
+            href="/"
+            className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
+          >
+            {lang === "ar"
+              ? "عودة"
+              : lang === "en"
+              ? "Back"
+              : "Retour"}
+          </a>
         </p>
       </article>
     </main>
