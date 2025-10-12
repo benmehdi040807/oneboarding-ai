@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 export const metadata = {
   title: "Conditions générales — OneBoarding AI",
   description:
-    "Conditions d’utilisation, politique de confidentialité et manifeste de confiance de la plateforme d’intelligence artificielle OneBoarding AI.",
+    "Conditions d’utilisation, politique de confidentialité, manifeste de confiance et vision universelle — OneBoarding AI.",
   alternates: {
     canonical: "https://oneboardingai.com/terms",
     languages: {
@@ -15,9 +15,8 @@ export const metadata = {
   },
 };
 
-import { COPY, type Lang } from "@/lib/terms/copy";
+import { COPY, type Lang, type Section } from "@/lib/terms/copy";
 
-/* Helpers */
 function pickLang(sp?: URLSearchParams): Lang {
   const raw = sp?.get("lang")?.toLowerCase();
   if (raw === "en" || raw === "ar") return raw;
@@ -49,12 +48,14 @@ export default function TermsPage({
     <main
       className={`px-4 py-8 mx-auto w-full max-w-3xl text-black leading-7 ${
         embed ? "pt-4" : ""
-      } ${lang === "ar" ? "pr-5" : "pl-5"}`}
+      } ${lang === "ar" ? "pr-4" : ""}`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
-          <span className="opacity-70 mr-2">{lang === "ar" ? "اللغة:" : "Langue:"}</span>
+          <span className="opacity-70 mr-2">
+            {lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:"}
+          </span>
           <a
             href="?lang=fr"
             className={`px-2 py-1 rounded border mr-1 ${
@@ -85,16 +86,14 @@ export default function TermsPage({
       <h1 className="text-2xl font-bold mb-6 text-center">{t.title}</h1>
 
       <article className="space-y-4">
-        {t.sections.map((s, i) => {
+        {t.sections.map((s: Section, i: number) => {
           if (s.kind === "hr") return <hr key={i} className="border-black/10 my-3" />;
-
           if (s.kind === "h2")
             return (
               <h2 key={i} className="text-xl font-semibold mt-4">
                 {s.text}
               </h2>
             );
-
           if (s.kind === "p")
             return s.html ? (
               <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: s.text }} />
@@ -103,31 +102,22 @@ export default function TermsPage({
                 {s.text}
               </p>
             );
-
           if (s.kind === "ul")
             return (
-              <ul
-                key={i}
-                className={`list-disc ${lang === "ar" ? "pr-5" : "pl-5"} space-y-1.5 opacity-90`}
-              >
+              <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
                 {s.items.map((li, j) => (
-                  <li key={j} dangerouslySetInnerHTML={{ __html: li }} />
+                  <li key={j}>{li}</li>
                 ))}
               </ul>
             );
-
           if (s.kind === "ol")
             return (
-              <ol
-                key={i}
-                className={`list-decimal ${lang === "ar" ? "pr-5" : "pl-5"} space-y-1.5 opacity-90`}
-              >
+              <ol key={i} className="list-decimal pl-5 space-y-1.5 opacity-90">
                 {s.items.map((li, j) => (
-                  <li key={j} dangerouslySetInnerHTML={{ __html: li }} />
+                  <li key={j}>{li}</li>
                 ))}
               </ol>
             );
-
           return null;
         })}
 
@@ -142,14 +132,11 @@ export default function TermsPage({
               href="/"
               className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
             >
-              {lang === "ar" ? "عودة" : "Retour"}
+              {lang === "ar" ? "عودة" : lang === "en" ? "Back" : "Retour"}
             </a>
           </p>
         )}
       </article>
-
-      {/* utilitaire: garder un nom arabe sur une seule ligne */}
-      <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-              }
+}
