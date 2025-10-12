@@ -1,24 +1,35 @@
 // lib/delete/copy.ts
-
 export type Lang = "fr" | "en" | "ar";
 
-export const COPY: Record<Lang, any> = {
+export type Section =
+  | { kind: "p"; text?: string; html?: string }
+  | { kind: "ul"; items: string[] }
+  | { kind: "hr" };
+
+export type Copy = {
+  title: string;
+  sections: Section[];
+  footer: { updated: string; rights: string };
+};
+
+const COPY: Record<Lang, Copy> = {
   fr: {
     title: "Suppression des données — OneBoarding AI",
-    description:
-      "Instructions officielles pour la suppression des données utilisateur, conformément à la Politique de confidentialité de OneBoarding AI.",
     sections: [
       {
         kind: "p",
-        text: "OneBoarding AI ne collecte ni ne conserve de données personnelles. L’historique et les consentements sont stockés localement sur l’appareil de l’utilisateur, sous son seul contrôle.",
+        text:
+          "OneBoarding AI ne collecte ni ne conserve de données personnelles. L’historique et les consentements sont stockés localement sur l’appareil de l’utilisateur, sous son seul contrôle.",
       },
       {
         kind: "p",
-        text: "Pour supprimer vos données locales, cliquez sur le bouton « Effacer l’historique » disponible dans l’interface de l’application.",
+        html:
+          'Pour supprimer vos données locales, cliquez sur le bouton <strong>« Effacer l’historique »</strong> disponible dans l’interface de l’application.',
       },
       {
         kind: "p",
-        text: "Si vous avez partagé des informations dans le cadre d’un échange technique ou administratif, vous pouvez également demander leur suppression en contactant la personne autorisée :",
+        text:
+          "Si vous avez partagé des informations dans le cadre d’un échange technique ou administratif, vous pouvez aussi demander leur suppression en contactant la personne autorisée :",
       },
       {
         kind: "ul",
@@ -30,31 +41,34 @@ export const COPY: Record<Lang, any> = {
       },
       {
         kind: "p",
-        html: 'Pour plus d’informations, veuillez consulter notre <a href="/legal" class="underline text-blue-700 hover:text-blue-900">Politique de confidentialité complète</a>.',
+        html:
+          'Pour plus d’informations, consultez notre <a href="/legal" class="underline text-blue-700 hover:text-blue-900">Politique de confidentialité complète</a>.',
       },
-      {
-        kind: "p",
-        text: "Dernière mise à jour : Octobre 2025 — Version 1.0. © OneBoarding AI. Tous droits réservés.",
-      },
+      { kind: "hr" },
     ],
+    footer: {
+      updated: "Dernière mise à jour : Octobre 2025 — Version 1.0.",
+      rights: "© OneBoarding AI. Tous droits réservés.",
+    },
   },
 
   en: {
     title: "Data Deletion — OneBoarding AI",
-    description:
-      "Official instructions for user data deletion, in compliance with OneBoarding AI’s Privacy Policy.",
     sections: [
       {
         kind: "p",
-        text: "OneBoarding AI does not collect or retain any personal data. History and consent preferences are stored locally on the user’s device, under their full control.",
+        text:
+          "OneBoarding AI does not collect or retain personal data. Your history and consents are stored locally on your device under your sole control.",
       },
       {
         kind: "p",
-        text: "To delete your local data, click the “Clear history” button available in the application interface.",
+        html:
+          'To delete your local data, click the <strong>“Clear history”</strong> button available in the app interface.',
       },
       {
         kind: "p",
-        text: "If you have shared any information as part of a technical or administrative exchange, you may also request its deletion by contacting the authorized person:",
+        text:
+          "If you shared information during a technical or administrative exchange, you may also request deletion by contacting the authorized person:",
       },
       {
         kind: "ul",
@@ -66,31 +80,34 @@ export const COPY: Record<Lang, any> = {
       },
       {
         kind: "p",
-        html: 'For more details, please refer to our <a href="/legal" class="underline text-blue-700 hover:text-blue-900">Full Privacy Policy</a>.',
+        html:
+          'For more details, see our <a href="/legal?lang=en" class="underline text-blue-700 hover:text-blue-900">full Privacy Policy</a>.',
       },
-      {
-        kind: "p",
-        text: "Last updated: October 2025 — Version 1.0. © OneBoarding AI. All rights reserved.",
-      },
+      { kind: "hr" },
     ],
+    footer: {
+      updated: "Last updated: October 2025 — Version 1.0.",
+      rights: "© OneBoarding AI. All rights reserved.",
+    },
   },
 
   ar: {
     title: "حذف البيانات — OneBoarding AI",
-    description:
-      "التعليمات الرسمية لحذف بيانات المستخدم، وفقًا لسياسة الخصوصية الخاصة بمنصة OneBoarding AI.",
     sections: [
       {
         kind: "p",
-        text: "لا تقوم منصة OneBoarding AI بجمع أو تخزين أي بيانات شخصية. يتم حفظ السجل والموافقات محليًا على جهاز المستخدم وتحت سيطرته الكاملة.",
+        text:
+          "لا يجمع OneBoarding AI بيانات شخصية ولا يحتفظ بها. يتم حفظ السجلّ والموافقات محليًا على جهازك وتحت تحكّمك الكامل.",
       },
       {
         kind: "p",
-        text: "لحذف بياناتك المحلية، انقر على زر «مسح السجل» المتاح ضمن واجهة التطبيق.",
+        html:
+          'لحذف بياناتك المحليّة، استخدم زر <strong>«حذف السجل»</strong> داخل واجهة التطبيق.',
       },
       {
         kind: "p",
-        text: "إذا كنت قد شاركت أي معلومات في إطار تواصل تقني أو إداري، يمكنك أيضًا طلب حذفها عبر الاتصال بالشخص المخوّل:",
+        text:
+          "إذا كنت قد شاركت معلومات في إطار تواصل تقني أو إداري، يمكنك طلب حذفها بالتواصل مع الشخص المصرّح له:",
       },
       {
         kind: "ul",
@@ -102,12 +119,21 @@ export const COPY: Record<Lang, any> = {
       },
       {
         kind: "p",
-        html: 'لمزيد من المعلومات، يرجى الاطلاع على <a href="/legal" class="underline text-blue-700 hover:text-blue-900">سياسة الخصوصية الكاملة</a>.',
+        html:
+          'لمزيد من المعلومات، راجع <a href="/legal?lang=ar" class="underline text-blue-700 hover:text-blue-900">سياسة الخصوصية الكاملة</a>.',
       },
-      {
-        kind: "p",
-        text: "آخر تحديث: أكتوبر 2025 — الإصدار 1.0. © OneBoarding AI. جميع الحقوق محفوظة.",
-      },
+      { kind: "hr" },
     ],
+    footer: {
+      updated: "آخر تحديث: أكتوبر 2025 — الإصدار 1.0.",
+      rights: "© OneBoarding AI. جميع الحقوق محفوظة.",
+    },
   },
 };
+
+export function deleteCopyFor(lang: Lang): Copy {
+  if (lang === "en" || lang === "ar") return COPY[lang];
+  return COPY.fr;
+}
+
+export { COPY };
