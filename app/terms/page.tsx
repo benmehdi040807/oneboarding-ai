@@ -2,8 +2,7 @@
 export const runtime = "nodejs";
 
 export const metadata = {
-  metadataBase: new URL("https://oneboardingai.com"),
-  title: "Conditions d’utilisation, Politique de confidentialité & Manifeste — OneBoarding AI",
+  title: "Conditions générales — OneBoarding AI",
   description:
     "Conditions d’utilisation, politique de confidentialité et manifeste de confiance de la plateforme d’intelligence artificielle OneBoarding AI.",
   alternates: {
@@ -18,6 +17,7 @@ export const metadata = {
 
 import { COPY, type Lang } from "@/lib/terms/copy";
 
+/* Helpers */
 function pickLang(sp?: URLSearchParams): Lang {
   const raw = sp?.get("lang")?.toLowerCase();
   if (raw === "en" || raw === "ar") return raw;
@@ -49,7 +49,7 @@ export default function TermsPage({
     <main
       className={`px-4 py-8 mx-auto w-full max-w-3xl text-black leading-7 ${
         embed ? "pt-4" : ""
-      }`}
+      } ${lang === "ar" ? "pr-5" : "pl-5"}`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
       {!embed && (
@@ -87,12 +87,14 @@ export default function TermsPage({
       <article className="space-y-4">
         {t.sections.map((s, i) => {
           if (s.kind === "hr") return <hr key={i} className="border-black/10 my-3" />;
+
           if (s.kind === "h2")
             return (
               <h2 key={i} className="text-xl font-semibold mt-4">
                 {s.text}
               </h2>
             );
+
           if (s.kind === "p")
             return s.html ? (
               <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: s.text }} />
@@ -101,22 +103,31 @@ export default function TermsPage({
                 {s.text}
               </p>
             );
+
           if (s.kind === "ul")
             return (
-              <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
+              <ul
+                key={i}
+                className={`list-disc ${lang === "ar" ? "pr-5" : "pl-5"} space-y-1.5 opacity-90`}
+              >
                 {s.items.map((li, j) => (
-                  <li key={j}>{li}</li>
+                  <li key={j} dangerouslySetInnerHTML={{ __html: li }} />
                 ))}
               </ul>
             );
+
           if (s.kind === "ol")
             return (
-              <ol key={i} className="list-decimal pl-5 space-y-1.5 opacity-90">
+              <ol
+                key={i}
+                className={`list-decimal ${lang === "ar" ? "pr-5" : "pl-5"} space-y-1.5 opacity-90`}
+              >
                 {s.items.map((li, j) => (
-                  <li key={j}>{li}</li>
+                  <li key={j} dangerouslySetInnerHTML={{ __html: li }} />
                 ))}
               </ol>
             );
+
           return null;
         })}
 
@@ -136,6 +147,9 @@ export default function TermsPage({
           </p>
         )}
       </article>
+
+      {/* utilitaire: garder un nom arabe sur une seule ligne */}
+      <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-}
+              }
