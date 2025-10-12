@@ -71,10 +71,11 @@ export default function DeletePage({
   return (
     <main
       className={`px-4 py-8 mx-auto w-full max-w-2xl text-black leading-7 ${
-        lang === "ar" ? "text-right" : ""
+        lang === "ar" ? "text-right pr-4" : ""
       }`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
+      {/* ✅ JSON-LD pour Google / Meta */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
