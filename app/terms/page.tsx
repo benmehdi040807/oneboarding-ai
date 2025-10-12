@@ -2,9 +2,18 @@
 export const runtime = "nodejs";
 
 export const metadata = {
-  title: "Conditions générales — OneBoarding AI",
+  metadataBase: new URL("https://oneboardingai.com"),
+  title: "Conditions d’utilisation, Politique de confidentialité & Manifeste — OneBoarding AI",
   description:
-    "Manifeste, Conditions d’utilisation, Confidentialité et FAQ universelle — OneBoarding AI.",
+    "Conditions d’utilisation, politique de confidentialité et manifeste de confiance de la plateforme d’intelligence artificielle OneBoarding AI.",
+  alternates: {
+    canonical: "https://oneboardingai.com/terms",
+    languages: {
+      fr: "https://oneboardingai.com/terms?lang=fr",
+      en: "https://oneboardingai.com/terms?lang=en",
+      ar: "https://oneboardingai.com/terms?lang=ar",
+    },
+  },
 };
 
 import { COPY, type Lang } from "@/lib/terms/copy";
