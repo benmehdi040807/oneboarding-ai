@@ -5,8 +5,8 @@ export type Lang = "fr" | "en" | "ar";
 export type Section =
   | { kind: "h2"; text: string }
   | { kind: "p"; text: string; html?: boolean }
-  | { kind: "ul"; items: string[] }
-  | { kind: "ol"; items: string[] }
+  | { kind: "ul"; items: string[]; html?: boolean }
+  | { kind: "ol"; items: string[]; html?: boolean }
   | { kind: "hr" };
 
 export type Copy = {
@@ -44,7 +44,7 @@ const COPY: Record<Lang, Copy> = {
           "Objet : service d’assistance fondé sur l’IA fournissant des réponses générées automatiquement.",
           "Responsabilité de l’utilisateur : les contenus ne sont pas des conseils professionnels personnalisés ; vérification requise avant toute décision engageante.",
           "Indemnisation : l’utilisateur indemnise OneBoarding AI en cas d’usage non conforme ou de violation de droits.",
-          "Limitation : pas de responsabilité pour dommages indirects (perte de profit, données, etc.), dans les limites de la loi et dans l’esprit d’agir en bon père de famille, c’est-à-dire avec diligence et responsabilité raisonnable.",
+          "Limitation : pas de responsabilité pour dommages indirects (perte de profit, données, etc.), dans les limites de la loi.",
           "Exceptions : sans préjudice des droits impératifs des consommateurs.",
           "Obligations : ne pas soumettre de contenus illicites ; adopter des mesures raisonnables de sécurité ; signaler toute faille constatée.",
           "Conservation & preuve : journaux techniques possibles à des fins de sécurité/preuve, conformément à la confidentialité.",
@@ -113,7 +113,7 @@ const COPY: Record<Lang, Copy> = {
           "Purpose: AI-based assistance providing automatically generated responses.",
           "User Responsibility: content is not personalized professional advice; verify before any binding decision.",
           "Indemnification: user holds OneBoarding AI harmless in case of misuse or rights violations.",
-          "Limitation: no liability for indirect damages (loss of profit, data, etc.), to the extent allowed by law and guided by reasonable diligence and responsibility.",
+          "Limitation: no liability for indirect damages (loss of profit, data, etc.), to the extent allowed by law.",
           "Exceptions: without prejudice to mandatory consumer rights.",
           "User Duties: no unlawful content; adopt reasonable security; report any security issue.",
           "Retention & Evidence: technical logs may be retained for security/evidence, per the Privacy Policy.",
@@ -126,7 +126,7 @@ const COPY: Record<Lang, Copy> = {
         kind: "ul",
         items: [
           "Local storage: history & consents stay on your device.",
-          "Processors: routing of AI requests with no advertising sale/sharing of personal data.",
+          "Processors: routing of AI requests without advertising data sales or sharing.",
           "Monetization: limited to access (subscriptions/credits), never selling personal data.",
           "Statistics: aggregated, anonymized metrics to improve the service.",
           "Erasure: you can delete local data at any time.",
@@ -182,9 +182,9 @@ const COPY: Record<Lang, Copy> = {
           "الهدف: مساعدة معتمِدة على الذكاء الاصطناعي بإجابات مُولّدة تلقائيًا.",
           "مسؤولية المستخدم: ليست استشارات مهنية مخصّصة؛ يلزم التحقّق قبل أي قرار مُلزِم.",
           "التعويض: يعوّض المستخدم OneBoarding AI عند سوء الاستخدام أو انتهاك الحقوق.",
-          "حدود المسؤولية: لا مسؤولية عن الأضرار غير المباشرة ضمن حدود القانون وبما ينسجم مع واجب العناية والمسؤولية المعقولة.",
+          "حدود المسؤولية: لا مسؤولية عن الأضرار غير المباشرة ضمن حدود القانون.",
           "الاستثناءات: دون المساس بالحقوق الإلزامية للمستهلك.",
-          "الالتزامات: عدم تقديم محتوى غير قانوني؛ اتّخاذ تدابير أمنية معقولة؛ الإبلاغ عن الثغرات.",
+          "التزامات: عدم تقديم محتوى غير قانوني؛ اتّخاذ تدابير أمنية معقولة؛ الإبلاغ عن الثغرات.",
           "الحفظ والإثبات: قد تُحفَظ سجلات تقنية لأغراض الأمان والإثبات وفق سياسة الخصوصية.",
         ],
       },
@@ -195,7 +195,7 @@ const COPY: Record<Lang, Copy> = {
         kind: "ul",
         items: [
           "تخزين محلي: السجلّ والموافقات على جهازك فقط.",
-          "معالِجون تقنيون: تمرير الطلبات دون بيع/مشاركة إعلانية للبيانات الشخصية.",
+          "معالِجون تقنيون: تمرير الطلبات دون بيع/مشاركة إعلانية للبيانات.",
           "الربحية: مقابل الوصول للخدمة (اشتراكات/أرصدة) لا بيع للبيانات.",
           "إحصاءات مُجهّلة: لتحسين الخدمة دون تحديد هوية.",
           "الحذف: يمكنك حذف البيانات المحليّة في أي وقت.",
@@ -206,6 +206,7 @@ const COPY: Record<Lang, Copy> = {
       { kind: "h2", text: "💬 الأسئلة الشائعة" },
       {
         kind: "ol",
+        html: true,
         items: [
           "هل يقدّم استشارات مهنية؟ — لا. معلومات عامّة؛ راجع مختصًا مؤهّلًا.",
           "هل تُباع بياناتي؟ — لا بيع/مشاركة إعلانية؛ فقط معالجة تقنية لازمة.",
