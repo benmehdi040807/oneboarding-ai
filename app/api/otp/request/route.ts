@@ -1,42 +1,24 @@
 // app/api/otp/request/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
+import { NextResponse } from "next/server";
+import { Store } from "@/lib/store";
 
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // pas de 0/O/I/1
-function codeFromInt(x: number, len = 6) {
-  let s = "";
-  for (let i = 0; i < len; i++) { s = ALPHABET[x % ALPHABET.length] + s; x = Math.floor(x / ALPHABET.length); }
-  return s;
-}
-function computeOtp(phone: string, windowMs: number, secret: string) {
-  const t = Math.floor(Date.now() / windowMs);
-  const h = crypto.createHmac("sha256", secret).update(`${phone}:${t}`).digest();
-  // Prendre 4 octets et les transformer en int positif
-  const n = ((h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3]) >>> 0;
-  return codeFromInt(n, 6);
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const { phoneE164 } = await req.json();
-    if (!phoneE164 || typeof phoneE164 !== "string" || !phoneE164.startsWith("+")) {
-      return NextResponse.json({ ok: false, error: "INVALID_PHONE" }, { status: 400 });
-    }
+    if (!phoneE164) return NextResponse.json({ ok: false, error: "bad_phone" }, { status: 400 });
 
-    const STATELESS = process.env.DEV_STATELESS_OTP === "1";
-    if (!STATELESS) {
-      return NextResponse.json({ ok: false, error: "DEV_STATELESS_OTP_OFF" }, { status: 500 });
-    }
+    // generate: 6-digit
+    const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
 
-    const secret = process.env.DEV_OTP_SECRET || "dev-secret";
-    const windowMs = 5 * 60 * 1000; // 5 minutes
-    const code = computeOtp(phoneE164, windowMs, secret);
+    Store.otpMap.set(phoneE164, { code, expiresAt });
 
-    console.log(`[DEV] OTP stateless vers ${phoneE164}: ${code}`);
-    // Ici tu enverras via WhatsApp plus tard. Pour l’instant, on log.
+    // For now, just log so you can grab it from server logs
+    console.log("[OTP] to", phoneE164, "=", code, "(valid 5 min)");
 
-    return NextResponse.json({ ok: true });
+    // Later: send via WhatsApp provider here
+    return NextResponse.json({ ok: true, expiresAt });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: "SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: e?.message || "server_error" }, { status: 500 });
   }
 }
