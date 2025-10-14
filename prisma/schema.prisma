@@ -1,4 +1,3 @@
-// datasource & generator
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -8,12 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-/* =========================
-   NOTE: SQLite ne supporte pas les enums Prisma.
-   On encode donc plan/status en STRING avec default.
-   ========================= */
-
-// Utilisateur (identité = téléphone)
 model User {
   id         String   @id @default(cuid())
   phoneE164  String   @unique
@@ -25,23 +18,17 @@ model User {
   histories      History[]
 }
 
-// Abonnements PayPal
 model Subscription {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   userId            String
-  paypalId          String   @unique
-
-  // "CONTINU" | "PASS1MOIS"
-  plan              String   @default("CONTINU")
-
-  // "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "SUSPENDED" | "CANCELLED" | "EXPIRED"
-  status            String   @default("ACTIVE")
-
+  paypalId          String    @unique
+  // plan/status en STRING (pas d’enum SQLite)
+  plan              String    @default("CONTINU")   // "CONTINU" | "PASS1MOIS"
+  status            String    @default("ACTIVE")    // "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "SUSPENDED" | "CANCELLED" | "EXPIRED"
   currentPeriodEnd  DateTime?
-  cancelAtPeriodEnd Boolean  @default(false)
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  cancelAtPeriodEnd Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -50,7 +37,6 @@ model Subscription {
   @@index([status])
 }
 
-// Profil (optionnel)
 model Profile {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -64,7 +50,6 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Historique d’usage (si utilisé dans l’app)
 model History {
   id          String   @id @default(cuid())
   userId      String
@@ -79,7 +64,6 @@ model History {
   @@index([userId])
 }
 
-// Templates (si utilisés)
 model Template {
   id        String   @id @default(cuid())
   slug      String   @unique
