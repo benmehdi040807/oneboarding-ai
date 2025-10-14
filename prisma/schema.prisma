@@ -8,20 +8,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Enums
-enum PlanType {
-  CONTINU
-  PASS1MOIS
-}
-
-enum SubStatus {
-  APPROVAL_PENDING
-  APPROVED
-  ACTIVE
-  SUSPENDED
-  CANCELLED
-  EXPIRED
-}
+/* =========================
+   NOTE: SQLite ne supporte pas les enums Prisma.
+   On encode donc plan/status en STRING avec default.
+   ========================= */
 
 // Utilisateur (identité = téléphone)
 model User {
@@ -37,15 +27,21 @@ model User {
 
 // Abonnements PayPal
 model Subscription {
-  id               String     @id @default(cuid())
-  userId           String
-  paypalId         String     @unique
-  plan             PlanType
-  status           SubStatus
-  currentPeriodEnd DateTime?
-  cancelAtPeriodEnd Boolean   @default(false)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id                String   @id @default(cuid())
+  userId            String
+  paypalId          String   @unique
+
+  // "CONTINU" | "PASS1MOIS"
+  plan              String   @default("CONTINU")
+
+  // "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "SUSPENDED" | "CANCELLED" | "EXPIRED"
+  status            String   @default("ACTIVE")
+
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
