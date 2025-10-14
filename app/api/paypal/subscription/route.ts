@@ -1,41 +1,16 @@
+// app/api/paypal/subscription/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import {
+  ppGetSubscription,
+  PLAN_IDS,
+  extractPeriodEndFromPP,
+  mapPPStatus,
+  type PlanKey,
+} from "@/lib/paypal";
 
-/* --------- ENV --------- */
-const PP_CLIENT_ID = process.env.PAYPAL_CLIENT_ID!;
-const PP_SECRET = process.env.PAYPAL_SECRET!;
-const PP_LIVE = process.env.PAYPAL_LIVE === "1";
-const PP_PLAN_CONTINU = process.env.NEXT_PUBLIC_PP_PLAN_CONTINU!;
-const PP_PLAN_PASS1MOIS = process.env.NEXT_PUBLIC_PP_PLAN_PASS1MOIS!;
-
-const BASE = PP_LIVE ? "https://api.paypal.com" : "https://api.sandbox.paypal.com";
-
-/* --------- Helpers --------- */
-async function getAccessToken() {
-  const res = await fetch(`${BASE}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + Buffer.from(`${PP_CLIENT_ID}:${PP_SECRET}`).toString("base64"),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("PAYPAL_TOKEN_FAIL");
-  const j = await res.json();
-  return j.access_token as string;
-}
-
-async function fetchSubscription(id: string, token: string) {
-  const res = await fetch(`${BASE}/v1/billing/subscriptions/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("SUBSCRIPTION_LOOKUP_FAIL");
-  return res.json();
-}
-
+/** Signe une payload simple (JWT HS256 minimal) pour le cookie de session */
 function signSession(payload: object) {
   const secret = process.env.DEV_OTP_SECRET || "dev_secret";
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
@@ -48,47 +23,53 @@ export async function POST(req: Request) {
   try {
     const { phoneE164, plan, subscriptionID } = await req.json();
 
+    // 0) Validation d'entrée
     if (!phoneE164 || !plan || !subscriptionID) {
-      return NextResponse.json({ ok: false, error: "BAD_INPUT" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "BAD_REQUEST" }, { status: 400 });
     }
-
-    const planMap: Record<string, string> = {
-      CONTINU: PP_PLAN_CONTINU,
-      PASS1MOIS: PP_PLAN_PASS1MOIS,
-    };
-    const expectedPlanId = planMap[plan];
-    if (!expectedPlanId) {
+    const planKey = String(plan).toUpperCase() as PlanKey;
+    if (!PLAN_IDS[planKey]) {
       return NextResponse.json({ ok: false, error: "PLAN_UNKNOWN" }, { status: 400 });
     }
 
-    // 1) Vérifier la souscription chez PayPal
-    const token = await getAccessToken();
-    const sub = await fetchSubscription(subscriptionID, token);
+    // 1) Récupérer la souscription chez PayPal
+    const ppSub = await ppGetSubscription(subscriptionID);
+    // ppSub.status: APPROVAL_PENDING | ACTIVE | SUSPENDED | CANCELLED | EXPIRED | ...
+    const status = mapPPStatus(ppSub?.status);
+    const ppPlanId: string | undefined = ppSub?.plan_id;
 
-    // sub.status: APPROVAL_PENDING | APPROVED | ACTIVE | SUSPENDED | CANCELLED | EXPIRED
-    const status: string = sub.status;
-    const plan_id: string = sub.plan_id;
-
-    // 2) Contrôles minimaux
-    if (plan_id !== expectedPlanId) {
+    // 2) Contrôles minimaux : plan attendu + statut acceptable
+    const expectedPlanId = PLAN_IDS[planKey];
+    if (!ppPlanId || ppPlanId !== expectedPlanId) {
       return NextResponse.json(
-        { ok: false, error: "PLAN_MISMATCH", got: plan_id, expected: expectedPlanId },
+        { ok: false, error: "PLAN_MISMATCH", got: ppPlanId, expected: expectedPlanId },
         { status: 400 }
       );
     }
-    if (!["APPROVED", "ACTIVE"].includes(status)) {
+    // On accepte ACTIVE (classique) et APPROVAL_PENDING (très court délai possible).
+    if (!["ACTIVE", "APPROVAL_PENDING"].includes(status)) {
       return NextResponse.json({ ok: false, error: "NOT_ACTIVE", status }, { status: 400 });
     }
 
-    // 3) Ouvrir la session (cookie httpOnly signé)
-    const expSec = 60 * 60 * 24 * 180; // 180 jours
+    // 3) Déterminer l’échéance (utile pour limiter la session côté cookie)
+    const periodEnd = extractPeriodEndFromPP(ppSub, planKey); // Date | null
+
+    // 4) Ouvrir la session (cookie httpOnly signé)
+    // - Par défaut, 180 jours.
+    // - Si on a une échéance (notamment PASS1MOIS), on borne par l’échéance.
+    const now = Math.floor(Date.now() / 1000);
+    const defaultExp = now + 60 * 60 * 24 * 180; // 180 jours
+    const expFromPP = periodEnd ? Math.floor(periodEnd.getTime() / 1000) : null;
+    const cookieExp = expFromPP ? Math.min(defaultExp, expFromPP) : defaultExp;
+
     const session = signSession({
       sub: phoneE164,
-      plan,
+      plan: planKey,               // "CONTINU" | "PASS1MOIS"
       subscriptionID,
-      status,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + expSec,
+      status,                      // "ACTIVE" | "APPROVAL_PENDING" | ...
+      periodEnd: expFromPP || null,
+      iat: now,
+      exp: cookieExp,
     });
 
     cookies().set("ob_session", session, {
@@ -96,14 +77,16 @@ export async function POST(req: Request) {
       sameSite: "lax",
       secure: true,
       path: "/",
-      maxAge: expSec,
+      maxAge: cookieExp - now, // en secondes
     });
 
-    // 4) (optionnel) persiste en base si tu utilises Prisma (non requis ici)
+    // 5) (Optionnel) Persistence DB (Prisma) :
+    //    Ici volontairement omise pour ne pas casser le build si Prisma n'est pas prêt.
+    //    Tu pourras brancher une écriture User/Subscription plus tard.
 
-    return NextResponse.json({ ok: true, status });
+    return NextResponse.json({ ok: true, status, periodEnd: periodEnd?.toISOString() || null });
   } catch (e) {
-    console.error("PAYPAL_SUB_ERR", e);
+    console.error("PP_SUBSCRIBE_ERR", e);
     return NextResponse.json({ ok: false, error: "SERVER_ERROR" }, { status: 500 });
   }
-      }
+}
