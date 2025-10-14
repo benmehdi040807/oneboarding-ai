@@ -55,6 +55,7 @@ export default function SubscribeModal(props: ControlledProps) {
     setStep("phone");
     setError(null);
     setOtp("");
+    setOtpToken(null);
     setChoice("CONTINU");
   };
 
@@ -66,6 +67,7 @@ export default function SubscribeModal(props: ControlledProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [otp, setOtp] = useState("");
+  const [otpToken, setOtpToken] = useState<string | null>(null); // <<< NEW (stateless)
   const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
   const [leftSec, setLeftSec] = useState<number>(0);
 
@@ -136,8 +138,12 @@ export default function SubscribeModal(props: ControlledProps) {
         body: JSON.stringify({ phoneE164: e164 }),
       });
 
-      // Fallback développeur si l'API n'est pas prête
-      if (!res.ok) {
+      // Si l’API répond, on récupère le token stateless
+      if (res.ok) {
+        const j = await res.json();
+        if (j?.token) setOtpToken(j.token);
+      } else {
+        // Fallback développeur
         const devCode = "123456";
         console.info("[DEV] OTP simulé :", devCode);
         (window as any).__DEV_OTP__ = devCode;
@@ -169,7 +175,7 @@ export default function SubscribeModal(props: ControlledProps) {
       const res = await fetch("/api/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneE164: e164, code: otp }),
+        body: JSON.stringify({ phoneE164: e164, code: otp, otpToken }), // <<< NEW (stateless)
       });
 
       // Fallback DEV : accepte le code simulé
@@ -179,7 +185,8 @@ export default function SubscribeModal(props: ControlledProps) {
           setStep("plan");
           return;
         }
-        setError("Code invalide.");
+        const j = await res.json().catch(() => null);
+        setError(j?.error === "EXPIRED" ? "Code expiré." : "Code invalide.");
         return;
       }
       setStep("plan");
@@ -484,4 +491,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-                           }
+}
