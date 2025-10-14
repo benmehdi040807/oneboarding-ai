@@ -1,3 +1,16 @@
+// lib/db.ts
 import { PrismaClient } from "@prisma/client";
-export const prisma = globalThis.__prisma ?? new PrismaClient();
-if (!globalThis.__prisma) globalThis.__prisma = prisma;
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    // log: ["query", "error", "warn"], // décommente si besoin
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+
+export default prisma;
