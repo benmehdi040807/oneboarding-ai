@@ -1,32 +1,43 @@
+// app/api/otp/request/route.ts
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 
-/** Store en mémoire (ok pour dev / pré-prod serverless) */
-declare global {
-  // eslint-disable-next-line no-var
-  var __OTP_STORE__: Map<string, { code: string; exp: number }> | undefined;
+const SECRET = process.env.DEV_OTP_SECRET || "change_me_dev_secret";
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function b64url(s: Buffer | string) {
+  return Buffer.from(s)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
-const OTP_STORE = (global.__OTP_STORE__ ??= new Map());
-
-const TTL_MS = 5 * 60 * 1000; // 5 minutes
+function sign(data: object) {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(JSON.stringify(data));
+  const sig = b64url(crypto.createHmac("sha256", SECRET).update(`${header}.${body}`).digest());
+  return `${header}.${body}.${sig}`;
+}
 
 export async function POST(req: Request) {
   try {
     const { phoneE164 } = await req.json();
     if (typeof phoneE164 !== "string" || !phoneE164.startsWith("+")) {
-      return NextResponse.json({ ok: false, error: "PHONE_INVALID" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "BAD_INPUT" }, { status: 400 });
     }
 
-    // Génère un code 6 chiffres
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const exp = Date.now() + TTL_MS;
+    // 6 chiffres aléatoires
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const exp = Date.now() + OTP_TTL_MS;
 
-    OTP_STORE.set(phoneE164, { code, exp });
+    // Token stateless (contient téléphone + code + expiration)
+    const token = sign({ p: phoneE164, c: code, exp });
 
-    // 🧪 Dev: log côté serveur pour que tu puisses le récupérer dans les logs
+    // (dev) log utile pour tes tests
     console.log(`[OTP] ${phoneE164} -> ${code} (expire à ${new Date(exp).toISOString()})`);
 
-    // TODO (prod): envoyer via WhatsApp ici
-    return NextResponse.json({ ok: true, expiresAt: exp });
+    // On n’envoie **jamais** le code au client, seulement le token signé
+    return NextResponse.json({ ok: true, token, expireAt: exp });
   } catch (e) {
     console.error("OTP_REQUEST_ERR", e);
     return NextResponse.json({ ok: false, error: "SERVER_ERROR" }, { status: 500 });
