@@ -1,5 +1,4 @@
-// prisma/schema.prisma
-
+// datasource & generator
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -9,76 +8,53 @@ generator client {
   provider = "prisma-client-js"
 }
 
-/* =========================
-   Enums (plans & statuts)
-   ========================= */
+// Enums
 enum PlanType {
-  CONTINU    // abonnement reconduit 5€/mois
-  PASS1MOIS  // pass 30 jours non reconduit
+  CONTINU
+  PASS1MOIS
 }
 
 enum SubStatus {
   APPROVAL_PENDING
+  APPROVED
   ACTIVE
   SUSPENDED
   CANCELLED
   EXPIRED
 }
 
-/* =========================
-   Utilisateur (identité = téléphone)
-   ========================= */
+// Utilisateur (identité = téléphone)
 model User {
-  id              String   @id @default(cuid())
+  id         String   @id @default(cuid())
+  phoneE164  String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  // Identité principale : numéro WhatsApp en E.164 (ex: +2126...)
-  phoneE164       String?  @unique
-  whatsappVerifiedAt DateTime?
-
-  // Optionnel : on garde un email libre (non utilisé pour l’auth)
-  email           String?  @unique
-  name            String?
-  image           String?
-
-  // Statut d’accès courant (dérivé des abonnements ; "free" par défaut)
-  plan            String   @default("free") // "free" | "pro" | autres labels internes si besoin
-
-  // Relations
-  profile         Profile?
-  histories       History[]
-  subscriptions   Subscription[]
-
-  // Timestamps
-  // (si tu veux les exploiter côté app)
-  // createdAt     DateTime @default(now())
-  // updatedAt     DateTime @updatedAt
+  profile        Profile?
+  subscriptions  Subscription[]
+  histories      History[]
 }
 
-/* =========================
-   Abonnements PayPal
-   ========================= */
+// Abonnements PayPal
 model Subscription {
-  id                String     @id @default(cuid())
-  paypalId          String     @unique           // ex: I-XXXX pour la souscription, ou P-XXXX si tu stockes le plan id à part
-  plan              PlanType
-  status            SubStatus
-  currentPeriodEnd  DateTime?                    // fin de période actuelle
-  cancelAtPeriodEnd Boolean    @default(false)   // résiliation demandée, mais accès jusqu’à l’échéance
+  id               String     @id @default(cuid())
+  userId           String
+  paypalId         String     @unique
+  plan             PlanType
+  status           SubStatus
+  currentPeriodEnd DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  // Lien utilisateur (par téléphone)
-  userId            String
-  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-
-  @@index([userId, status])
-  @@index([userId, currentPeriodEnd])
+  @@index([userId])
+  @@index([paypalId])
+  @@index([status])
 }
 
-/* =========================
-   Profil (optionnel)
-   ========================= */
+// Profil (optionnel)
 model Profile {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -86,37 +62,34 @@ model Profile {
   title     String?
   org       String?
   locale    String   @default("fr")
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-/* =========================
-   Historique d’usage (si utilisé dans l’app)
-   ========================= */
+// Historique d’usage (si utilisé dans l’app)
 model History {
   id          String   @id @default(cuid())
   userId      String
   plan        String
   templateId  String
-  inputJson   String   // JSON stringifié
+  inputJson   String
   outputText  String
   createdAt   DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
-/* =========================
-   Templates (si utilisés)
-   ========================= */
+// Templates (si utilisés)
 model Template {
   id        String   @id @default(cuid())
   slug      String   @unique
   title     String
   locale    String   @default("fr")
-  config    String   // JSON stringifié
+  config    String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
