@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -7,20 +9,76 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id               String   @id @default(cuid())
-  name             String?
-  email            String?  @unique
-  emailVerified    DateTime?
-  image            String?
-  plan             String   @default("free") // "free" | "pro" | "team"
-  stripeCustomerId String?  @unique
-  profile          Profile?
-  histories        History[]
-  accounts         Account[]
-  sessions         Session[]
+/* =========================
+   Enums (plans & statuts)
+   ========================= */
+enum PlanType {
+  CONTINU    // abonnement reconduit 5€/mois
+  PASS1MOIS  // pass 30 jours non reconduit
 }
 
+enum SubStatus {
+  APPROVAL_PENDING
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+/* =========================
+   Utilisateur (identité = téléphone)
+   ========================= */
+model User {
+  id              String   @id @default(cuid())
+
+  // Identité principale : numéro WhatsApp en E.164 (ex: +2126...)
+  phoneE164       String?  @unique
+  whatsappVerifiedAt DateTime?
+
+  // Optionnel : on garde un email libre (non utilisé pour l’auth)
+  email           String?  @unique
+  name            String?
+  image           String?
+
+  // Statut d’accès courant (dérivé des abonnements ; "free" par défaut)
+  plan            String   @default("free") // "free" | "pro" | autres labels internes si besoin
+
+  // Relations
+  profile         Profile?
+  histories       History[]
+  subscriptions   Subscription[]
+
+  // Timestamps
+  // (si tu veux les exploiter côté app)
+  // createdAt     DateTime @default(now())
+  // updatedAt     DateTime @updatedAt
+}
+
+/* =========================
+   Abonnements PayPal
+   ========================= */
+model Subscription {
+  id                String     @id @default(cuid())
+  paypalId          String     @unique           // ex: I-XXXX pour la souscription, ou P-XXXX si tu stockes le plan id à part
+  plan              PlanType
+  status            SubStatus
+  currentPeriodEnd  DateTime?                    // fin de période actuelle
+  cancelAtPeriodEnd Boolean    @default(false)   // résiliation demandée, mais accès jusqu’à l’échéance
+
+  // Lien utilisateur (par téléphone)
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, currentPeriodEnd])
+}
+
+/* =========================
+   Profil (optionnel)
+   ========================= */
 model Profile {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -28,11 +86,16 @@ model Profile {
   title     String?
   org       String?
   locale    String   @default("fr")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/* =========================
+   Historique d’usage (si utilisé dans l’app)
+   ========================= */
 model History {
   id          String   @id @default(cuid())
   userId      String
@@ -41,9 +104,13 @@ model History {
   inputJson   String   // JSON stringifié
   outputText  String
   createdAt   DateTime @default(now())
+
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/* =========================
+   Templates (si utilisés)
+   ========================= */
 model Template {
   id        String   @id @default(cuid())
   slug      String   @unique
@@ -53,39 +120,4 @@ model Template {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
 }
