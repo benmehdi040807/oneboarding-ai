@@ -8,27 +8,35 @@ type ControlledProps = { open?: boolean; onClose?: () => void };
 type Step = "phone" | "otp" | "plan" | "pay" | "done";
 
 /* ---------------------------- Config / constantes -------------------------- */
-// Remplace éventuellement par NEXT_PUBLIC_PAYPAL_CLIENT_ID côté env.
-const PAYPAL_CLIENT_ID =
-  process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ||
-  "Ad9cT5EGq-SucUJdXa34W15H3HM9yKIMsvlxQYvMGbqMkEKclxqYyDApu72omOnJ5vZfWKM5jc5_O6FM";
-
+// Toutes les valeurs viennent des env publics (Vercel / .env.local)
+// → NEXT_PUBLIC_PAYPAL_CLIENT_ID
+// → NEXT_PUBLIC_PP_PLAN_CONTINU
+// → NEXT_PUBLIC_PP_PLAN_PASS1MOIS
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 const PLAN_IDS = {
-  CONTINU:  "P-7GF41509YY620912GNDWF45A", // 5 € / mois (reconduit)
-  PASS1MOIS:"P-75W60632650625151NDWUY6Q", // 5 € / 30 jours (non reconduit)
+  CONTINU: process.env.NEXT_PUBLIC_PP_PLAN_CONTINU || "",
+  PASS1MOIS: process.env.NEXT_PUBLIC_PP_PLAN_PASS1MOIS || "",
 } as const;
 type PlanKey = keyof typeof PLAN_IDS;
 
+function assertEnv() {
+  const missing: string[] = [];
+  if (!PAYPAL_CLIENT_ID) missing.push("NEXT_PUBLIC_PAYPAL_CLIENT_ID");
+  if (!PLAN_IDS.CONTINU) missing.push("NEXT_PUBLIC_PP_PLAN_CONTINU");
+  if (!PLAN_IDS.PASS1MOIS) missing.push("NEXT_PUBLIC_PP_PLAN_PASS1MOIS");
+  return missing;
+}
+
 /* ----------------------------- Utilitaires DOM ---------------------------- */
 function loadPayPalSdk(params: string): Promise<void> {
-  return new Promise((resolve) => {
-    // Déjà chargé ?
-    // @ts-ignore
+  return new Promise((resolve, reject) => {
+    // @ts-ignore déjà chargé ?
     if (window.paypal) return resolve();
     const s = document.createElement("script");
     s.src = `https://www.paypal.com/sdk/js?${params}`;
     s.async = true;
     s.onload = () => resolve();
+    s.onerror = () => reject(new Error("PAYPAL_SDK_LOAD_ERROR"));
     document.body.appendChild(s);
   });
 }
@@ -184,8 +192,8 @@ export default function SubscribeModal(props: ControlledProps) {
 
   /* --------------------------- Rendu bouton PayPal ------------------------- */
   const paypalParams = useMemo(() => {
-    // FR par défaut; le SDK affichera la langue du navigateur sinon.
-    // On force vault+intent=subscription pour Subscriptions.
+    // FR par défaut ; sinon le SDK utilise la langue du navigateur de l’utilisateur.
+    // On force Subscriptions.
     return new URLSearchParams({
       "client-id": PAYPAL_CLIENT_ID,
       intent: "subscription",
@@ -196,27 +204,37 @@ export default function SubscribeModal(props: ControlledProps) {
   useEffect(() => {
     if (step !== "pay") return;
 
+    const missing = assertEnv();
+    if (missing.length) {
+      setError(
+        `Configuration incomplète: ${missing.join(
+          ", "
+        )}. Merci d’ajouter ces variables d’environnement.`
+      );
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
-      await loadPayPalSdk(paypalParams);
+      try {
+        await loadPayPalSdk(paypalParams);
+      } catch {
+        if (!cancelled) setError("Impossible de charger PayPal. Réessayez.");
+        return;
+      }
       if (cancelled) return;
 
       // @ts-ignore
       const paypal = window.paypal;
       if (!paypalDivRef.current) return;
 
-      // purge précédent rendu si on revient sur l'étape pay plusieurs fois
+      // purge précédent rendu si on revient sur l’étape pay
       paypalDivRef.current.innerHTML = "";
 
       paypal
         .Buttons({
-          style: {
-            color: "black",
-            layout: "vertical",
-            label: "subscribe",
-            shape: "rect",
-          },
+          style: { color: "black", layout: "vertical", label: "subscribe", shape: "rect" },
           createSubscription: (_: any, actions: any) => {
             const plan_id = PLAN_IDS[choice];
             return actions.subscription.create({ plan_id });
@@ -324,7 +342,9 @@ export default function SubscribeModal(props: ControlledProps) {
               <div className="text-sm text-black/70">
                 Entrez le code reçu par WhatsApp pour <span className="font-mono">{e164}</span>.
                 {leftSec > 0 && (
-                  <span className="ml-2 text-black/60">({Math.floor(leftSec / 60)}:{String(leftSec % 60).padStart(2, "0")} restantes)</span>
+                  <span className="ml-2 text-black/60">
+                    ({Math.floor(leftSec / 60)}:{String(leftSec % 60).padStart(2, "0")} restantes)
+                  </span>
                 )}
               </div>
 
@@ -360,7 +380,6 @@ export default function SubscribeModal(props: ControlledProps) {
               </div>
 
               {error && <div className="text-sm text-red-600">{error}</div>}
-              {/* Aide dev */}
               <div className="text-[11px] text-black/45">
                 Vous n’avez rien reçu ? (dev) essayez le code <code className="font-mono">123456</code>.
               </div>
@@ -380,7 +399,9 @@ export default function SubscribeModal(props: ControlledProps) {
                   />
                   <div>
                     <div className="font-semibold">Abonnement mensuel continu — 5 € / mois</div>
-                    <div className="text-sm text-black/60">Renouvellement automatique. Résiliation à tout moment.</div>
+                    <div className="text-sm text-black/60">
+                      Renouvellement automatique. Résiliation à tout moment.
+                    </div>
                   </div>
                 </label>
 
@@ -422,7 +443,8 @@ export default function SubscribeModal(props: ControlledProps) {
           {step === "pay" && (
             <div className="space-y-4">
               <div className="text-sm text-black/70">
-                Paiement sécurisé via PayPal — {choice === "CONTINU" ? "Abonnement 5 € / mois" : "Pass 1 mois 5 €"}.
+                Paiement sécurisé via PayPal —{" "}
+                {choice === "CONTINU" ? "Abonnement 5 € / mois" : "Pass 1 mois 5 €"}.
               </div>
 
               <div ref={paypalDivRef} />
@@ -462,4 +484,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-}
+                           }
