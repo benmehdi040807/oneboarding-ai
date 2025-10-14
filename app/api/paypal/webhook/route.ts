@@ -1,4 +1,6 @@
+// app/api/paypal/webhook/route.ts
 import { NextResponse } from "next/server";
+import { applyWebhookChange } from "@/lib/subscriptions";
 
 /* --- ENV --- */
 const PP_CLIENT_ID = process.env.PAYPAL_CLIENT_ID!;
@@ -62,50 +64,54 @@ async function verifySignature(rawBody: string, headers: Headers) {
 
 export async function POST(req: Request) {
   try {
-    // IMPORTANT: on lit le **raw body** pour que la signature soit valide
+    // 1) Lire le RAW body (important pour la signature)
     const raw = await req.text();
-    const ok = await verifySignature(raw, req.headers);
 
+    // 2) Vérifier la signature PayPal
+    const ok = await verifySignature(raw, req.headers);
     if (!ok) {
       console.warn("[PP WEBHOOK] signature invalide");
+      // 400 = rejeté, PayPal réessaiera
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
+    // 3) Parser l’évènement et dispatcher
     const evt = JSON.parse(raw);
     const type = evt?.event_type as string | undefined;
     const res = evt?.resource;
-    const subId = res?.id || res?.subscription_id;
-    const planId = res?.plan_id;
-    const status = res?.status;
 
-    // Log minimal (remplace par tes opérations DB au besoin)
-    console.log("[PP EVT]", type, { subId, planId, status });
+    if (!type || !res) {
+      // Toujours retourner 200 pour éviter les retries infinis si l’event est hors scope
+      console.warn("[PP WEBHOOK] event sans type/resource utilisable", evt);
+      return new NextResponse("OK", { status: 200 });
+    }
 
-    // TODO: brancher ta persistance (Prisma, etc.)
-    // Exemples :
+    // 4) Déléguer au domaine (Prisma, etc.)
+    //    -> Brancher ici ta persistance et tes règles :
+    //       - lier subId ⇄ user
+    //       - mettre à jour status
+    //       - ajuster endAt pour PASS1MOIS
+    //       - journaliser les paiements/rate
     switch (type) {
       case "BILLING.SUBSCRIPTION.ACTIVATED":
-        // Marquer l’abonnement actif pour l’utilisateur lié à subId
-        break;
       case "BILLING.SUBSCRIPTION.SUSPENDED":
       case "BILLING.SUBSCRIPTION.CANCELLED":
       case "BILLING.SUBSCRIPTION.EXPIRED":
-        // Marquer l’abonnement inactif → restreindre l’accès
-        break;
       case "PAYMENT.SALE.COMPLETED":
       case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
-        // Journaliser / notifier
+        await applyWebhookChange({ event_type: type, resource: res });
         break;
       default:
+        // autres events ignorés silencieusement
         break;
     }
 
-    // Toujours répondre 200 rapidement (PayPal réessaie sinon)
+    // 5) Répondre 200 rapidement (PayPal attend un ACK rapide)
     return new NextResponse("OK", { status: 200 });
   } catch (e) {
     console.error("PP_WEBHOOK_ERR", e);
-    // 200 quand même pour éviter les retries infinis en cas de bug temporaire,
-    // mais loggue bien pour corriger.
+    // On renvoie 200 quand même pour éviter les retries infinis en cas de bug temporaire,
+    // mais on loggue bien pour corriger.
     return new NextResponse("OK", { status: 200 });
   }
-        }
+    }
