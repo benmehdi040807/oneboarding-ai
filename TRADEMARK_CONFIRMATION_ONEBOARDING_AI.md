@@ -51,9 +51,10 @@ Le dépôt du **13 octobre 2025** constitue ainsi le **jalon fondateur** de la m
 ## 5. Signature  
 **Fait à El Jadida, le 13 octobre 2025**  
 
-**Benmehdi Mohamed Rida**  
-Avocat au Barreau de Casablanca — Docteur en droit  
-Fondateur de **OneBoarding AI**  
+**Maître Benmehdi Mohamed Rida**  
+Avocat au Barreau de Casablanca  
+Docteur en droit | MBA (EILM – Dublin)  
+Fondateur de **OneBoarding AI**
 
 ---
 
