@@ -1,24 +1,34 @@
-// app/api/otp/request/route.ts
 import { NextResponse } from "next/server";
-import { Store } from "@/lib/store";
+
+/** Store en mémoire (ok pour dev / pré-prod serverless) */
+declare global {
+  // eslint-disable-next-line no-var
+  var __OTP_STORE__: Map<string, { code: string; exp: number }> | undefined;
+}
+const OTP_STORE = (global.__OTP_STORE__ ??= new Map());
+
+const TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function POST(req: Request) {
   try {
     const { phoneE164 } = await req.json();
-    if (!phoneE164) return NextResponse.json({ ok: false, error: "bad_phone" }, { status: 400 });
+    if (typeof phoneE164 !== "string" || !phoneE164.startsWith("+")) {
+      return NextResponse.json({ ok: false, error: "PHONE_INVALID" }, { status: 400 });
+    }
 
-    // generate: 6-digit
-    const code = (Math.floor(100000 + Math.random() * 900000)).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
+    // Génère un code 6 chiffres
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const exp = Date.now() + TTL_MS;
 
-    Store.otpMap.set(phoneE164, { code, expiresAt });
+    OTP_STORE.set(phoneE164, { code, exp });
 
-    // For now, just log so you can grab it from server logs
-    console.log("[OTP] to", phoneE164, "=", code, "(valid 5 min)");
+    // 🧪 Dev: log côté serveur pour que tu puisses le récupérer dans les logs
+    console.log(`[OTP] ${phoneE164} -> ${code} (expire à ${new Date(exp).toISOString()})`);
 
-    // Later: send via WhatsApp provider here
-    return NextResponse.json({ ok: true, expiresAt });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "server_error" }, { status: 500 });
+    // TODO (prod): envoyer via WhatsApp ici
+    return NextResponse.json({ ok: true, expiresAt: exp });
+  } catch (e) {
+    console.error("OTP_REQUEST_ERR", e);
+    return NextResponse.json({ ok: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
