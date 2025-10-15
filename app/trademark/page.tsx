@@ -26,6 +26,7 @@ function LangChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-current={active ? "true" : undefined}
       className={[
         "rounded-lg px-3.5 py-1.5 text-sm transition focus:outline-none",
         active
@@ -74,8 +75,10 @@ export default function Page() {
         </LangChip>
       </div>
 
-      {/* Contenu */}
-      <div className="space-y-8">{COPY[lang]}</div>
+      {/* Contenu principal avec langue & direction */}
+      <div lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-8">
+        {COPY[lang]}
+      </div>
 
       {/* Pied de page : bouton Retour */}
       <div className="mt-10">
@@ -92,4 +95,4 @@ export default function Page() {
       />
     </main>
   );
-}
+      }
