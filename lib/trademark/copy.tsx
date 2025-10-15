@@ -1,7 +1,6 @@
-// lib/trademark/copy.ts
+// lib/trademark/copy.tsx
 import type { ReactNode } from "react";
 
-/* === Métadonnées + JSON-LD === */
 export const TRADEMARK_META = {
   title: "OneBoarding AI® — Marque déposée (OMPIC #291822)",
   description:
@@ -28,7 +27,6 @@ export const JSON_LD = {
   },
 };
 
-/* === Signature commune === */
 export function Signature({ rtl = false }: { rtl?: boolean }) {
   return (
     <div className={`mt-8 border-t pt-4 ${rtl ? "text-right" : ""}`}>
@@ -53,7 +51,6 @@ export function Signature({ rtl = false }: { rtl?: boolean }) {
   );
 }
 
-/* === Textes trilingues === */
 export const COPY = {
   fr: (
     <article className="prose prose-neutral max-w-none">
@@ -61,14 +58,16 @@ export const COPY = {
       <p>
         <strong>OneBoarding AI®</strong> est une marque déposée au{" "}
         <strong>Royaume du Maroc</strong> auprès de l’<strong>OMPIC</strong>{" "}
-        (Récépissé de dépôt n° <strong>291822</strong>, en date du{" "}
-        <strong>13 octobre 2025</strong>, déposé au CCIS El Jadida), enregistrée
-        par :
+        (Récépissé n° <strong>291822</strong>, du{" "}
+        <strong>13 octobre 2025</strong>, CCIS El Jadida), enregistrée par :
       </p>
       <p>
-        <strong>Maître Benmehdi Mohamed Rida</strong><br />
-        Avocat au Barreau de Casablanca<br />
-        Docteur en droit | MBA (EILM – Dublin)<br />
+        <strong>Maître Benmehdi Mohamed Rida</strong>
+        <br />
+        Avocat au Barreau de Casablanca
+        <br />
+        Docteur en droit | MBA (EILM – Dublin)
+        <br />
         Fondateur de <strong>OneBoarding AI®</strong>
       </p>
       <h3>📜 Mention légale & domaines (Classification de Nice)</h3>
@@ -93,9 +92,12 @@ export const COPY = {
         filed at CCIS El Jadida), registered by:
       </p>
       <p>
-        <strong>Maître Benmehdi Mohamed Rida</strong><br />
-        Attorney at the Casablanca Bar<br />
-        Doctor of Law | MBA (EILM – Dublin)<br />
+        <strong>Maître Benmehdi Mohamed Rida</strong>
+        <br />
+        Attorney at the Casablanca Bar
+        <br />
+        Doctor of Law | MBA (EILM – Dublin)
+        <br />
         Founder of <strong>OneBoarding AI®</strong>
       </p>
       <h3>📜 Legal scope (Nice Classification)</h3>
@@ -115,14 +117,17 @@ export const COPY = {
       <h2>🇲🇦 إشعار رسمي</h2>
       <p>
         <strong>®OneBoarding AI</strong> علامة مسجلة بالمملكة المغربية لدى{" "}
-        <strong>OMPIC</strong> (إيصال الإيداع رقم <strong>291822</strong>{" "}
+        <strong>OMPIC</strong> (إيصال رقم <strong>291822</strong>{" "}
         بتاريخ <strong>13 أكتوبر 2025</strong>، لدى غرفة التجارة والصناعة
         والخدمات بالجديدة)، مسجلة باسم:
       </p>
       <p>
-        <strong>الأستاذ بنمهدي محمد رضى</strong><br />
-        محامٍ بهيئة الدار البيضاء<br />
-        دكتور في القانون | ماستر إدارة الأعمال (EILM – دبلن)<br />
+        <strong>الأستاذ بنمهدي محمد رضى</strong>
+        <br />
+        محامٍ بهيئة الدار البيضاء
+        <br />
+        دكتور في القانون | ماستر إدارة الأعمال (EILM – دبلن)
+        <br />
         مؤسس <strong>®OneBoarding AI</strong>
       </p>
       <h3>📜 النطاق القانوني (تصنيف نيس)</h3>
