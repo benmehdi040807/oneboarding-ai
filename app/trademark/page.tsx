@@ -40,9 +40,9 @@ function LangChip({
 
 /** Titres localisés */
 const TITLES: Record<"fr" | "en" | "ar", string> = {
-  fr: "🏛️ OneBoarding AI® — Marque déposée (OMPIC #291822)",
-  en: "🏛️ OneBoarding AI® — Registered trademark (OMPIC #291822)",
-  ar: "🏛️ ®OneBoarding AI — علامة مسجلة (OMPIC #291822)",
+  fr: "🏛️ OneBoarding AI® — Marque déposée (OMPIC-291822)",
+  en: "🏛️ OneBoarding AI® — Registered trademark (OMPIC-291822)",
+  ar: "🏛️ ®OneBoarding AI — علامة مسجلة (OMPIC-291822)",
 };
 
 export default function Page() {
@@ -58,11 +58,11 @@ export default function Page() {
         {TITLES[lang]}
       </h1>
 
-      {/* Gros espace avant le sélecteur */}
+      {/* Espace */}
       <div className="h-4" />
 
-      {/* Sélecteur de langue avec air */}
-      <div className="mb-10 flex flex-wrap gap-3">
+      {/* Sélecteur de langue */}
+      <div className="mb-8 flex flex-wrap gap-3">
         <LangChip active={lang === "fr"} onClick={() => setLang("fr")}>
           🇫🇷 Français
         </LangChip>
@@ -74,10 +74,10 @@ export default function Page() {
         </LangChip>
       </div>
 
-      {/* Contenu principal (déjà aéré dans COPY) */}
+      {/* Contenu */}
       <div className="space-y-8">{COPY[lang]}</div>
 
-      {/* Actions pied de page */}
+      {/* Pied de page : bouton Retour */}
       <div className="mt-10">
         <Link href="/" className={GRAD_BTN}>
           ← Retour
