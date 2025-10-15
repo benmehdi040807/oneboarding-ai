@@ -16,10 +16,7 @@ export default function Page() {
 
       <p className="text-sm text-neutral-500 mb-6">
         Version : Octobre 2025 • Mainteneur : Maître Benmehdi Mohamed Rida —{" "}
-        <a
-          href="mailto:office.benmehdi@gmail.com"
-          className="underline"
-        >
+        <a href="mailto:office.benmehdi@gmail.com" className="underline">
           office.benmehdi@gmail.com
         </a>
       </p>
@@ -30,9 +27,7 @@ export default function Page() {
             key={k}
             onClick={() => setLang(k)}
             className={`rounded-md border px-3 py-1 ${
-              lang === k
-                ? "bg-black text-white"
-                : "hover:bg-neutral-100 transition"
+              lang === k ? "bg-black text-white" : "hover:bg-neutral-100"
             }`}
           >
             {k === "fr" ? "🇫🇷 Français" : k === "en" ? "🇬🇧 English" : "🇲🇦 العربية"}
