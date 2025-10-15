@@ -49,7 +49,7 @@ export function Signature({ rtl = false }: { rtl?: boolean }) {
   );
 }
 
-/** Contenu trilingue — FR exact validé, EN/AR alignés */
+/** Contenu trilingue */
 export const COPY = {
   fr: (
     <article className="prose prose-neutral max-w-none" lang="fr" dir="ltr">
@@ -116,16 +116,15 @@ export const COPY = {
 
       <Signature />
 
-      {/* Bloc de pied FR exact demandé */}
+      {/* Bloc de pied conforme */}
       <p className="mt-8 text-sm">
         2025 © — OneBoarding AI® | Tous droits réservés.
       </p>
 
-      <p className="text-xs whitespace-pre-line">
-        (Version: Octobre 2025{"\n"}
-        Mainteneur: Maître Benmehdi Mohamed Rida — office.benmehdi@gmail.com{"\n"}
-        Domaine: Intelligence artificielle, droit, technologie, innovation.{"\n"}
-        Site: https://oneboardingai.com)
+      <p className="text-xs text-neutral-500 mt-4">
+        (Version: Octobre 2025 · Mainteneur: Maître Benmehdi Mohamed Rida —
+        office.benmehdi@gmail.com · Domaine: Intelligence artificielle, droit,
+        technologie, innovation. · Site: https://oneboardingai.com)
       </p>
     </article>
   ),
