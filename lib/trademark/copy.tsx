@@ -49,17 +49,17 @@ export function Signature({ rtl = false }: { rtl?: boolean }) {
   );
 }
 
-/** Contenu trilingue — FR exactement comme validé, EN/AR alignés */
+/** Contenu trilingue — FR exact validé, EN/AR alignés */
 export const COPY = {
   fr: (
-    <article className="prose prose-neutral max-w-none">
+    <article className="prose prose-neutral max-w-none" lang="fr" dir="ltr">
       <h2>🇫🇷 FR — Notice officielle</h2>
 
       <p>
-        <strong>OneBoarding AI®</strong> est une marque déposée au 
+        <strong>OneBoarding AI®</strong> est une marque déposée au{" "}
         <strong>Royaume du Maroc</strong> auprès de l’<strong>OMPIC</strong>.
-        Récépissé de dépôt n° <strong>291822</strong>, en date du 
-        <strong>13 octobre 2025</strong>, déposé au 
+        Récépissé de dépôt n° <strong>291822</strong>, en date du{" "}
+        <strong>13 octobre 2025</strong>, déposé au{" "}
         <strong>CCIS El Jadida</strong>.
       </p>
 
@@ -78,46 +78,64 @@ export const COPY = {
       <h3>📜 Mention légale &amp; domaines (Classification de Nice)</h3>
 
       <p>
-        <em>Classes revendiquées selon la Classification internationale de Nice :</em>
+        <em>
+          Classes revendiquées selon la Classification internationale de Nice :
+        </em>
       </p>
 
-      <p>• <strong>Classe 9 :</strong> Logiciels et applications d’intelligence artificielle ; programmes informatiques ; plateformes numériques et systèmes de traitement de données.</p>
-      <p>• <strong>Classe 35 :</strong> Services de conseil en affaires, gestion, stratégie et communication assistés par intelligence artificielle.</p>
-      <p>• <strong>Classe 41 :</strong> Formation, éducation, apprentissage numérique et accompagnement personnalisé liés aux technologies d’intelligence artificielle.</p>
-      <p>• <strong>Classe 42 :</strong> Recherche, conception et développement de solutions et technologies d’intelligence artificielle.</p>
-      <p>• <strong>Classe 45 :</strong> Services juridiques, conformité, éthique et régulation liés à l’intelligence artificielle.</p>
+      <p>
+        • <strong>Classe 9 :</strong> Logiciels et applications d’intelligence
+        artificielle ; programmes informatiques ; plateformes numériques et
+        systèmes de traitement de données.
+      </p>
+      <p>
+        • <strong>Classe 35 :</strong> Services de conseil en affaires, gestion,
+        stratégie et communication assistés par intelligence artificielle.
+      </p>
+      <p>
+        • <strong>Classe 41 :</strong> Formation, éducation, apprentissage
+        numérique et accompagnement personnalisé liés aux technologies
+        d’intelligence artificielle.
+      </p>
+      <p>
+        • <strong>Classe 42 :</strong> Recherche, conception et développement de
+        solutions et technologies d’intelligence artificielle.
+      </p>
+      <p>
+        • <strong>Classe 45 :</strong> Services juridiques, conformité, éthique
+        et régulation liés à l’intelligence artificielle.
+      </p>
 
       <p className="text-sm">
         <em>
-          Référence légale : Classification de Nice, 8ᵉ édition, fondée sur l’Arrangement
-          de Nice du 15 juin 1957 et ses révisions de Stockholm (1967) et Genève (1977).
+          Référence légale : Classification de Nice, 8ᵉ édition, fondée sur
+          l’Arrangement de Nice du 15 juin 1957 et ses révisions de Stockholm
+          (1967) et Genève (1977).
         </em>
       </p>
 
       <Signature />
 
-      <p className="mt-8 text-sm">2025 © — OneBoarding AI® | Tous droits réservés.</p>
-
-      <p className="text-xs text-neutral-500 mt-4">
-        (Version: Octobre 2025 · Mainteneur: Maître Benmehdi Mohamed Rida — office.benmehdi@gmail.com ·
-        Domaine: Intelligence artificielle, droit, technologie, innovation. · Site: https://oneboardingai.com)
+      <p className="mt-8 text-sm">
+        2025 © — OneBoarding AI® | Tous droits réservés.
       </p>
     </article>
   ),
 
   en: (
-    <article className="prose prose-neutral max-w-none">
+    <article className="prose prose-neutral max-w-none" lang="en" dir="ltr">
       <h2>🇬🇧 EN — Official notice (informative translation)</h2>
 
       <p>
         <strong>OneBoarding AI®</strong> is a registered trademark in the{" "}
         <strong>Kingdom of Morocco</strong> with <strong>OMPIC</strong>.
         Filing receipt No. <strong>291822</strong>, dated{" "}
-        <strong>13 October 2025</strong>, filed at <strong>CCIS El Jadida</strong>.
+        <strong>13 October 2025</strong>, filed at{" "}
+        <strong>CCIS El Jadida</strong>.
       </p>
 
       <p>
-        <strong>Registered by:</strong>
+        <strong>Registered by :</strong>
         <br />
         Maître Benmehdi Mohamed Rida
         <br />
@@ -131,40 +149,64 @@ export const COPY = {
       <h3>📜 Legal scope &amp; fields (Nice Classification)</h3>
 
       <p>
-        <em>Classes claimed under the International Nice Classification:</em>
+        <em>Classes claimed under the International Nice Classification :</em>
       </p>
 
-      <p>• <strong>Class 9:</strong> Artificial-intelligence software and applications; computer programs; digital platforms and data-processing systems.</p>
-      <p>• <strong>Class 35:</strong> Business, management, strategy and communication consulting services assisted by AI.</p>
-      <p>• <strong>Class 41:</strong> Training, education, e-learning and tailored coaching related to AI technologies.</p>
-      <p>• <strong>Class 42:</strong> Research, design and development of AI solutions and technologies.</p>
-      <p>• <strong>Class 45:</strong> Legal services, compliance, ethics and regulation related to AI.</p>
+      <p>
+        • <strong>Class 9 :</strong> Artificial-intelligence software and
+        applications; computer programs; digital platforms and data-processing
+        systems.
+      </p>
+      <p>
+        • <strong>Class 35 :</strong> Business, management, strategy and
+        communication consulting services assisted by AI.
+      </p>
+      <p>
+        • <strong>Class 41 :</strong> Training, education, e-learning and
+        tailored coaching related to AI technologies.
+      </p>
+      <p>
+        • <strong>Class 42 :</strong> Research, design and development of AI
+        solutions and technologies.
+      </p>
+      <p>
+        • <strong>Class 45 :</strong> Legal services, compliance, ethics and
+        regulation related to AI.
+      </p>
 
       <p className="text-sm">
         <em>
-          Legal reference: Nice Classification, 8th edition, based on the Nice Agreement
-          of 15 June 1957 and its later revisions (Stockholm 1967; Geneva 1977).
+          Legal reference : Nice Classification, 8th edition, based on the Nice
+          Agreement of 15 June 1957 and its later revisions (Stockholm 1967;
+          Geneva 1977).
         </em>
       </p>
 
       <Signature />
 
-      <p className="mt-8 text-sm">© 2025 — OneBoarding AI® | All rights reserved.</p>
+      <p className="mt-8 text-sm">
+        © 2025 — OneBoarding AI® | All rights reserved.
+      </p>
     </article>
   ),
 
   ar: (
-    <article dir="rtl" className="prose prose-neutral max-w-none">
+    <article
+      dir="rtl"
+      lang="ar"
+      className="prose prose-neutral max-w-none text-right"
+    >
       <h2>🇲🇦 إشعار رسمي (ترجمة إعلامية)</h2>
 
       <p>
-        <strong>®OneBoarding AI</strong> علامة مسجلة بالمملكة المغربية لدى
-        <strong> OMPIC</strong>. إيصال الإيداع رقم <strong>291822</strong> بتاريخ
-        <strong> 13 أكتوبر 2025</strong>، لدى <strong>غرفة التجارة والصناعة والخدمات بالجديدة</strong>.
+        <strong>®OneBoarding AI</strong> علامة مسجلة بالمملكة المغربية لدى{" "}
+        <strong>OMPIC</strong>. إيصال الإيداع رقم <strong>291822</strong>{" "}
+        بتاريخ <strong>13 أكتوبر 2025</strong>، لدى{" "}
+        <strong>غرفة التجارة والصناعة والخدمات بالجديدة</strong>.
       </p>
 
       <p>
-        <strong>مسجلة باسم:</strong>
+        <strong>مسجلة باسم :</strong>
         <br />
         الأستاذ بنمهدي محمد رضى
         <br />
@@ -177,17 +219,34 @@ export const COPY = {
 
       <h3>📜 النطاق القانوني (تصنيف نيس)</h3>
 
-      <p><em>الفئات المطالب بها وفق التصنيف الدولي لنيس:</em></p>
+      <p>
+        <em>الفئات المطالب بها وفق التصنيف الدولي لنيس :</em>
+      </p>
 
-      <p>• <strong>الفئة 9:</strong> برمجيات وتطبيقات الذكاء الاصطناعي؛ برامج حاسوبية؛ منصات رقمية وأنظمة معالجة البيانات.</p>
-      <p>• <strong>الفئة 35:</strong> خدمات الاستشارة في الأعمال والإدارة والاستراتيجية والاتصال بمساعدة الذكاء الاصطناعي.</p>
-      <p>• <strong>الفئة 41:</strong> التدريب والتعليم والتعلّم الرقمي والمرافقة الشخصية المتعلقة بتقنيات الذكاء الاصطناعي.</p>
-      <p>• <strong>الفئة 42:</strong> البحث والتصميم والتطوير لحلول وتقنيات الذكاء الاصطناعي.</p>
-      <p>• <strong>الفئة 45:</strong> الخدمات القانونية والامتثال والأخلاقيات والتنظيم المتعلقة بالذكاء الاصطناعي.</p>
+      <p>
+        • <strong>الفئة 9 :</strong> برمجيات وتطبيقات الذكاء الاصطناعي؛ برامج
+        حاسوبية؛ منصات رقمية وأنظمة معالجة البيانات.
+      </p>
+      <p>
+        • <strong>الفئة 35 :</strong> خدمات الاستشارة في الأعمال والإدارة
+        والاستراتيجية والاتصال بمساعدة الذكاء الاصطناعي.
+      </p>
+      <p>
+        • <strong>الفئة 41 :</strong> التدريب والتعليم والتعلّم الرقمي
+        والمرافقة الشخصية المتعلقة بتقنيات الذكاء الاصطناعي.
+      </p>
+      <p>
+        • <strong>الفئة 42 :</strong> البحث والتصميم والتطوير لحلول وتقنيات
+        الذكاء الاصطناعي.
+      </p>
+      <p>
+        • <strong>الفئة 45 :</strong> الخدمات القانونية والامتثال والأخلاقيات
+        والتنظيم المتعلقة بالذكاء الاصطناعي.
+      </p>
 
       <p className="text-sm">
         <em>
-          مرجع قانوني: تصنيف نيس — الاتفاقية المؤرخة في 15 يونيو 1957 وتعديلات
+          مرجع قانوني : تصنيف نيس — الاتفاقية المؤرخة في 15 يونيو 1957 وتعديلات
           ستوكهولم (1967) وجنيف (1977).
         </em>
       </p>
