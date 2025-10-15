@@ -18,7 +18,7 @@ export const JSON_LD = {
     logo: "https://oneboardingai.com/brand/oneboardingai-logo.png",
     isFamilyFriendly: true,
   },
-};
+} as const;
 
 /** Signature commune (FR/EN) ; rtl pour AR */
 export function Signature({ rtl = false }: { rtl?: boolean }) {
@@ -49,6 +49,7 @@ export function Signature({ rtl = false }: { rtl?: boolean }) {
   );
 }
 
+/** Contenu trilingue — structure conservée, texte enrichi */
 export const COPY = {
   fr: (
     <article className="prose prose-neutral max-w-none">
@@ -56,9 +57,9 @@ export const COPY = {
 
       <p>
         <strong>OneBoarding AI®</strong> est une marque déposée au{" "}
-        <strong>Royaume du Maroc</strong> auprès de l’<strong>OMPIC</strong>{" "}
-        (Récépissé de dépôt n° <strong>291822</strong>, en date du{" "}
-        <strong>13 octobre 2025</strong>, déposé au CCIS El Jadida),
+        <strong>Royaume du Maroc</strong> auprès de l’<strong>OMPIC</strong>.
+        Récépissé de dépôt n° <strong>291822</strong>, en date du{" "}
+        <strong>13 octobre 2025</strong>, déposé au <strong>CCIS El Jadida</strong>,
         enregistrée par :
       </p>
 
@@ -73,10 +74,11 @@ export const COPY = {
       </p>
 
       <h3>📜 Mention légale &amp; domaines (Classification de Nice)</h3>
+
       <p>
-        <em>Classes revendiquées selon la Classification internationale de
-        Nice :</em>
+        <em>Classes revendiquées selon la Classification internationale de Nice :</em>
       </p>
+
       <ul>
         <li>
           <strong>Classe 9 :</strong> Logiciels et applications d’intelligence
@@ -84,9 +86,8 @@ export const COPY = {
           systèmes de traitement de données.
         </li>
         <li>
-          <strong>Classe 35 :</strong> Services de conseil en affaires,
-          gestion, stratégie et communication assistés par intelligence
-          artificielle.
+          <strong>Classe 35 :</strong> Services de conseil en affaires, gestion,
+          stratégie et communication assistés par intelligence artificielle.
         </li>
         <li>
           <strong>Classe 41 :</strong> Formation, éducation, apprentissage
@@ -98,8 +99,8 @@ export const COPY = {
           de solutions et technologies d’intelligence artificielle.
         </li>
         <li>
-          <strong>Classe 45 :</strong> Services juridiques, conformité,
-          éthique et régulation liés à l’intelligence artificielle.
+          <strong>Classe 45 :</strong> Services juridiques, conformité, éthique
+          et régulation liés à l’intelligence artificielle.
         </li>
       </ul>
 
@@ -123,9 +124,9 @@ export const COPY = {
 
       <p>
         <strong>OneBoarding AI®</strong> is a registered trademark in the{" "}
-        <strong>Kingdom of Morocco</strong> with <strong>OMPIC</strong> (Filing
-        receipt No. <strong>291822</strong>, dated{" "}
-        <strong>13 October 2025</strong>, filed at CCIS El Jadida),
+        <strong>Kingdom of Morocco</strong> with <strong>OMPIC</strong>.
+        Filing receipt No. <strong>291822</strong>, dated{" "}
+        <strong>13 October 2025</strong>, filed at <strong>CCIS El Jadida</strong>,
         registered by:
       </p>
 
@@ -140,9 +141,11 @@ export const COPY = {
       </p>
 
       <h3>📜 Legal scope &amp; fields (Nice Classification)</h3>
+
       <p>
         <em>Classes claimed under the International Nice Classification:</em>
       </p>
+
       <ul>
         <li>
           <strong>Class 9:</strong> Artificial-intelligence software and
@@ -187,9 +190,10 @@ export const COPY = {
 
       <p>
         <strong>®OneBoarding AI</strong> علامة مسجلة بالمملكة المغربية لدى{" "}
-        <strong>OMPIC</strong> (إيصال الإيداع رقم <strong>291822</strong> بتاريخ{" "}
-        <strong>13 أكتوبر 2025</strong>، لدى غرفة التجارة والصناعة والخدمات
-        بالجديدة)، مسجلة باسم:
+        <strong>OMPIC</strong>. إيصال الإيداع رقم{" "}
+        <strong>291822</strong> بتاريخ <strong>13 أكتوبر 2025</strong>،
+        لدى <strong>غرفة التجارة والصناعة والخدمات بالجديدة</strong>،
+        مسجلة باسم:
       </p>
 
       <p>
@@ -203,9 +207,11 @@ export const COPY = {
       </p>
 
       <h3>📜 النطاق القانوني (تصنيف نيس)</h3>
+
       <p>
         <em>الفئات المطالب بها وفق التصنيف الدولي لنيس:</em>
       </p>
+
       <ul>
         <li>
           <strong>الفئة 9:</strong> برمجيات وتطبيقات الذكاء الاصطناعي؛ برامج
