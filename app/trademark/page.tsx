@@ -80,7 +80,7 @@ export default function Page() {
         {COPY[lang]}
       </div>
 
-      {/* Pied de page : bouton Retour */}
+      {/* Bouton Retour */}
       <div className="mt-10">
         <Link href="/" className={GRAD_BTN}>
           ← Retour
@@ -95,4 +95,4 @@ export default function Page() {
       />
     </main>
   );
-      }
+}
