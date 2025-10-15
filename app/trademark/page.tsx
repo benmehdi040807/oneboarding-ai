@@ -5,22 +5,21 @@ import { useState } from "react";
 import Link from "next/link";
 import { COPY, JSON_LD } from "@/lib/trademark/copy";
 
-/** Dégradé réutilisable (identique au style "Menu") */
+/** Dégradé identique au bouton "Menu" */
 const GRAD = "from-sky-500 via-indigo-500 to-fuchsia-600";
-/** Bouton dégradé (plein) */
 const GRAD_BTN =
   `inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium text-white shadow-sm ` +
   `bg-gradient-to-r ${GRAD} hover:opacity-95`;
 
-/** Pastille de langue (plein si active, contour si inactive) */
+/** Pastille de langue */
 function LangChip({
   active,
-  children,
   onClick,
+  children,
 }: {
   active: boolean;
-  children: React.ReactNode;
   onClick: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <button
@@ -39,41 +38,94 @@ function LangChip({
   );
 }
 
+/** Meta de pied de page, traduite par langue */
+function MetaFooter({ lang }: { lang: "fr" | "en" | "ar" }) {
+  const blocks = {
+    fr: [
+      ["Version", "Octobre 2025"],
+      [
+        "Mainteneur",
+        <>
+          Maître Benmehdi Mohamed Rida —{" "}
+          <a className="underline" href="mailto:office.benmehdi@gmail.com">
+            office.benmehdi@gmail.com
+          </a>
+        </>,
+      ],
+      ["Domaine", <em key="d">Classes revendiquées — Nice 9 • 35 • 41 • 42 • 45</em>],
+      [
+        "Site",
+        <a className="underline" href="https://oneboardingai.com" key="s">
+          https://oneboardingai.com
+        </a>,
+      ],
+    ],
+    en: [
+      ["Version", "October 2025"],
+      [
+        "Maintainer",
+        <>
+          Maître Benmehdi Mohamed Rida —{" "}
+          <a className="underline" href="mailto:office.benmehdi@gmail.com">
+            office.benmehdi@gmail.com
+          </a>
+        </>,
+      ],
+      ["Scope", <em key="d">Nice Classes — 9 • 35 • 41 • 42 • 45</em>],
+      [
+        "Website",
+        <a className="underline" href="https://oneboardingai.com" key="s">
+          https://oneboardingai.com
+        </a>,
+      ],
+    ],
+    ar: [
+      ["الإصدار", "أكتوبر 2025"],
+      [
+        "المشرف",
+        <>
+          الأستاذ بنمهدي محمد رضى —{" "}
+          <a className="underline" href="mailto:office.benmehdi@gmail.com">
+            office.benmehdi@gmail.com
+          </a>
+        </>,
+      ],
+      ["النطاق", <em key="d">تصنيف نيس — 9 • 35 • 41 • 42 • 45</em>],
+      [
+        "الموقع",
+        <a className="underline" href="https://oneboardingai.com" key="s">
+          https://oneboardingai.com
+        </a>,
+      ],
+    ],
+  } as const;
+
+  return (
+    <div className="text-[15px] leading-6 text-neutral-700 space-y-3">
+      {blocks[lang].map(([k, v], i) => (
+        <p key={i}>
+          <span className="font-medium">{k}:</span> {v as React.ReactNode}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function Page() {
   const [lang, setLang] = useState<"fr" | "en" | "ar">("fr");
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      {/* Titre */}
+      {/* Titre principal */}
       <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
         🏛️ OneBoarding AI® — Marque déposée (OMPIC #291822)
       </h1>
 
-      {/* Méta / entête aéré */}
-      <div className="mt-4 space-y-3 text-[15px] leading-6 text-neutral-700">
-        <p><span className="font-medium">Version :</span> Octobre 2025</p>
-        <p>
-          <span className="font-medium">Mainteneur :</span> Maître Benmehdi Mohamed Rida —{" "}
-          <a href="mailto:office.benmehdi@gmail.com" className="underline">
-            office.benmehdi@gmail.com
-          </a>
-        </p>
-        <p>
-          <span className="font-medium">Domaine :</span>{" "}
-          <em>Classes revendiquées — Nice 9 • 35 • 41 • 42 • 45</em>
-        </p>
-        <p>
-          <span className="font-medium">Site :</span>{" "}
-          <a href="https://oneboardingai.com" className="underline">
-            https://oneboardingai.com
-          </a>
-        </p>
-      </div>
+      {/* Gros espace avant le sélecteur */}
+      <div className="h-4" />
 
-      <hr className="my-6 border-neutral-200/70" />
-
-      {/* Sélecteur de langue */}
-      <div className="mb-8 flex flex-wrap gap-2">
+      {/* Sélecteur de langue avec air */}
+      <div className="mb-10 flex flex-wrap gap-3">
         <LangChip active={lang === "fr"} onClick={() => setLang("fr")}>
           🇫🇷 Français
         </LangChip>
@@ -85,11 +137,15 @@ export default function Page() {
         </LangChip>
       </div>
 
-      {/* Contenu de la langue sélectionnée */}
-      <div className="space-y-6">{COPY[lang]}</div>
+      {/* Contenu */}
+      <div className="space-y-8">{COPY[lang]}</div>
 
-      {/* Footer : retour */}
-      <div className="mt-10">
+      {/* Séparateur + Meta en pied (traduit) */}
+      <hr className="my-10 border-neutral-200/70" />
+      <MetaFooter lang={lang} />
+
+      {/* Footer actions */}
+      <div className="mt-8">
         <Link href="/" className={GRAD_BTN}>
           ← Retour
         </Link>
