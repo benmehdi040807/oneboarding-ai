@@ -119,6 +119,8 @@ export const COPY = {
         </em>
       </p>
 
+      <br />
+
       <Signature />
 
       {/* Bloc de pied conforme */}
@@ -193,6 +195,8 @@ export const COPY = {
         </em>
       </p>
 
+      <br />
+
       <Signature />
 
       <p className="mt-8 text-sm">
@@ -260,6 +264,8 @@ export const COPY = {
           مرجع قانوني : تصنيف نيس — الاتفاقية المؤرخة في 15 يونيو 1957 وتعديلات ستوكهولم (1967) وجنيف (1977).
         </em>
       </p>
+
+      <br />
 
       <Signature rtl />
 
