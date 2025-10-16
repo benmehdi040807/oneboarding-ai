@@ -1,21 +1,22 @@
 # robots.txt — OneBoarding AI (pré-lancement)
-# Empêche tout indexage public, sauf pour la vérification Meta (Facebook)
-# Maintien du contrôle total sur le lancement officiel
+# Bloque tout le monde sauf les crawlers Meta nécessaires à la vérification/aperçu
 
 User-agent: *
 Disallow: /
 
-# ✅ Autorisations spécifiques pour Facebook (validation du domaine & aperçu des liens)
+# ✅ Autoriser les robots Meta qui vérifient et “scrapent” les pages
 User-agent: facebookexternalhit
 Allow: /
 
+# certains envoient la version UA complète :
+User-agent: facebookexternalhit/1.1
+Allow: /
+User-agent: facebookexternalhit/1.1 (+https://www.facebook.com/externalhit_uatext.php)
+Allow: /
+
+# Facebot (crawler général Meta)
 User-agent: Facebot
 Allow: /
 
-# Sitemap (sera actif après lancement officiel)
+# (optionnel) Sitemap listé, même si le crawl public est bloqué
 Sitemap: https://oneboardingai.com/sitemap.xml
-
-# Informations
-# Website: https://oneboardingai.com
-# Author: Benmehdi Mohamed Rida
-# Date: Pré-lancement — Octobre 2025
