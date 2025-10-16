@@ -78,6 +78,8 @@ export const COPY = {
         Fondateur de <strong>OneBoarding AI®</strong>
       </p>
 
+      <br />
+
       <h3>📜 Mention légale &amp; Classification</h3>
 
       <p>
@@ -158,6 +160,8 @@ export const COPY = {
         Founder of <strong>OneBoarding AI®</strong>
       </p>
 
+      <br />
+
       <h3>📜 Legal Notice & Classification</h3>
 
       <p>
@@ -226,6 +230,8 @@ export const COPY = {
         <br />
         مؤسس <strong>®OneBoarding AI</strong>
       </p>
+
+      <br />
 
       <h3>📜 الإشعار القانوني والتصنيف</h3>
 
