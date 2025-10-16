@@ -16,9 +16,27 @@ export const metadata = {
     url: "https://oneboardingai.com",
     siteName: "OneBoarding AI",
     images: [
-      { url: "/brand/og-oneboardingai-1200x628.jpg", width: 1200, height: 628, alt: "OneBoarding AI - Votre IA personnel", type: "image/jpeg" },
-      { url: "/brand/og-oneboardingai-1200x628.png",  width: 1200, height: 628, alt: "OneBoarding AI - Votre IA personnel", type: "image/png"   },
-      { url: "/brand/og-oneboardingai.png",           width: 1024, height: 1024, alt: "OneBoarding AI - carré",          type: "image/png"   },
+      {
+        url: "/brand/og-oneboardingai-1200x628.jpg",
+        width: 1200,
+        height: 628,
+        alt: "OneBoarding AI - Votre IA personnel",
+        type: "image/jpeg",
+      },
+      {
+        url: "/brand/og-oneboardingai-1200x628.png",
+        width: 1200,
+        height: 628,
+        alt: "OneBoarding AI - Votre IA personnel",
+        type: "image/png",
+      },
+      {
+        url: "/brand/og-oneboardingai.png",
+        width: 1024,
+        height: 1024,
+        alt: "OneBoarding AI - carré",
+        type: "image/png",
+      },
     ],
     locale: "fr_FR",
     type: "website",
@@ -44,10 +62,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Harmonise la barre d’adresse mobile */}
         <meta name="theme-color" content="#B3E5FC" />
 
+        {/* ✅ Balise Meta Facebook Domain Verification */}
+        <meta
+          name="facebook-domain-verification"
+          content="fd1bmpbcscrosoxhyomrin87m34ynr"
+        />
+
         {/* schema.org / JSON-LD */}
         <script
           type="application/ld+json"
-          // Cohérent avec le canonical (sans www). Modifie si tu veux forcer "www".
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -60,17 +83,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
 
-      {/*
-        Natif :
-        - Texte noir par défaut (inputs/selects système lisibles)
-        - color-scheme: light pour éviter les thèmes "dark" auto
-        - Pas d’overflow global ni de fond imposé ici
-      */}
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
-        {/* Conteneur central neutre (les pages gèrent leur propre fond si besoin) */}
-        <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">
-          {children}
-        </div>
+        <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">{children}</div>
       </body>
     </html>
   );
