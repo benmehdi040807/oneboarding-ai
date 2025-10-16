@@ -51,6 +51,11 @@ export const metadata = {
       "/brand/og-oneboardingai-1200x628.png",
     ],
   },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -62,15 +67,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Harmonise la barre d’adresse mobile */}
         <meta name="theme-color" content="#B3E5FC" />
 
-        {/* ✅ Balise Meta Facebook Domain Verification */}
-        <meta
-          name="facebook-domain-verification"
-          content="fd1bmpbcscrosoxhyomrin87m34ynr"
-        />
-
-        {/* schema.org / JSON-LD */}
+        {/* JSON-LD schema.org */}
         <script
           type="application/ld+json"
+          // Vérifié : domaine meta déjà validé via DNS — aucune balise facebook-domain-verification nécessaire.
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -83,7 +83,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
 
+      {/* Natif :
+          - Texte noir par défaut (inputs/selects système lisibles)
+          - color-scheme: light pour éviter les thèmes "dark" auto
+          - Pas d’overflow global ni de fond imposé ici
+      */}
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
+        {/* Conteneur central neutre (les pages gèrent leur propre fond si besoin) */}
         <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">{children}</div>
       </body>
     </html>
