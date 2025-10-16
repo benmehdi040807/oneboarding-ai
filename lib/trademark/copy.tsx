@@ -84,8 +84,9 @@ export const COPY = {
 
       <p>
         <em>
-          Objet de la marque déposée <strong>OneBoarding AI®</strong> selon la
-          Classification internationale de Nice :
+          Objet de la marque déposée <strong>OneBoarding AI®</strong>
+          <br />
+          Selon la Classification internationale de Nice :
         </em>
       </p>
 
@@ -168,7 +169,8 @@ export const COPY = {
 
       <p>
         <em>
-          Purpose of the registered trademark <strong>OneBoarding AI®</strong>{" "}
+          Purpose of the registered trademark <strong>OneBoarding AI®</strong>
+          <br />
           under the International Nice Classification :
         </em>
       </p>
@@ -240,7 +242,11 @@ export const COPY = {
       <h3>📜 الإشعار القانوني والتصنيف</h3>
 
       <p>
-        <em>موضوع العلامة التجارية المسجلة وفق تصنيف نيس الدولي :</em>
+        <em>
+          موضوع العلامة التجارية المسجلة <strong>®OneBoarding AI</strong>
+          <br />
+          وفق تصنيف نيس الدولي :
+        </em>
       </p>
 
       <p>
