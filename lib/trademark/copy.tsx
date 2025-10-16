@@ -112,14 +112,14 @@ export const COPY = {
         et régulation liés à l’intelligence artificielle.
       </p>
 
+      <br />
+
       <p className="text-sm">
         <em>
           Référence légale : Classification de Nice, 8ᵉ édition, fondée sur
           l’Arrangement de Nice du 15 juin 1957 et ses révisions de Stockholm (1967) et Genève (1977).
         </em>
       </p>
-
-      <br />
 
       <Signature />
 
@@ -189,13 +189,13 @@ export const COPY = {
         • <strong>Class 45 :</strong> Legal services, compliance, ethics and regulation related to AI.
       </p>
 
+      <br />
+
       <p className="text-sm">
         <em>
           Legal reference: Nice Classification, 8th edition, based on the Nice Agreement of 15 June 1957 and its revisions (Stockholm 1967; Geneva 1977).
         </em>
       </p>
-
-      <br />
 
       <Signature />
 
@@ -259,13 +259,13 @@ export const COPY = {
         • <strong>الفئة 45 :</strong> الخدمات القانونية والامتثال والأخلاقيات والتنظيم المتعلقة بالذكاء الاصطناعي.
       </p>
 
+      <br />
+
       <p className="text-sm">
         <em>
           مرجع قانوني : تصنيف نيس — الاتفاقية المؤرخة في 15 يونيو 1957 وتعديلات ستوكهولم (1967) وجنيف (1977).
         </em>
       </p>
-
-      <br />
 
       <Signature rtl />
 
