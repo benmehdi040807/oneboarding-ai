@@ -1,9 +1,19 @@
 # robots.txt — OneBoarding AI (pré-lancement)
-# Empêche temporairement tout indexage public
-# (à remplacer par la version "Allow" la veille du lancement)
+# Empêche tout indexage public, sauf pour la vérification Meta (Facebook)
+# Maintien du contrôle total sur le lancement officiel
 
 User-agent: *
 Disallow: /
+
+# ✅ Autorisations spécifiques pour Facebook (validation du domaine & aperçu des liens)
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+# Sitemap (sera actif après lancement officiel)
+Sitemap: https://oneboardingai.com/sitemap.xml
 
 # Informations
 # Website: https://oneboardingai.com
