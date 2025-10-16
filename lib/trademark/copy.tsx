@@ -90,6 +90,8 @@ export const COPY = {
         </em>
       </p>
 
+      <br />
+
       <p>
         • <strong>Classe 9 :</strong> Logiciels et applications d’intelligence
         artificielle ; programmes informatiques ; plateformes numériques et
@@ -175,6 +177,8 @@ export const COPY = {
         </em>
       </p>
 
+      <br />
+
       <p>
         • <strong>Class 9 :</strong> AI software and applications; computer programs; digital platforms and data-processing systems.
       </p>
@@ -248,6 +252,8 @@ export const COPY = {
           وفق تصنيف نيس الدولي :
         </em>
       </p>
+
+      <br />
 
       <p>
         • <strong>الفئة 9 :</strong> برمجيات وتطبيقات الذكاء الاصطناعي؛ برامج حاسوبية؛ منصات رقمية وأنظمة معالجة البيانات.
