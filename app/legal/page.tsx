@@ -116,9 +116,11 @@ export default function LegalPage({
               <a
                 href="/"
                 className="
-                  inline-block px-5 py-2 rounded-xl border border-transparent
+                  inline-flex items-center justify-center gap-2
+                  h-11 min-w-[220px] px-5 rounded-xl border border-transparent
+                  font-medium tracking-wide text-[15px] leading-none
                   bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                  text-white shadow-sm hover:opacity-90 transition
+                  text-white shadow-sm hover:opacity-90 active:scale-[.985] transition
                 "
               >
                 Lu et approuvé
