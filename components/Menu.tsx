@@ -435,10 +435,12 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — simple, sans badge/nudge */}
+      {/* Bouton flottant principal — remonté d’un cheveu au-dessus du footer */}
       <div
-        className="fixed inset-x-0 bottom-0 z-[55] flex justify-center pointer-events-none"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+        className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
+        style={{
+          bottom: "calc(env(safe-area-inset-bottom) + 56px)", // ~cheveu : laisse passer le footer sans chevauchement
+        }}
       >
         <button
           onClick={openMenu}
@@ -726,4 +728,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-    }
+}
