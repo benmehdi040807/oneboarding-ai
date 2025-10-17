@@ -5,11 +5,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { COPY, JSON_LD } from "@/lib/trademark/copy";
 
-/** Dégradé identique au bouton "Menu" */
-const GRAD = "from-sky-500 via-indigo-500 to-fuchsia-600";
-const GRAD_BTN =
-  `inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium text-white shadow-sm ` +
-  `bg-gradient-to-r ${GRAD} hover:opacity-95`;
+/** Dégradé “chip” (sélecteur de langue) — inchangé */
+const GRAD_CHIP = "from-sky-500 via-indigo-500 to-fuchsia-600";
 
 /** Pastille de langue */
 function LangChip({
@@ -30,7 +27,7 @@ function LangChip({
       className={[
         "rounded-lg px-3.5 py-1.5 text-sm transition focus:outline-none",
         active
-          ? `text-white shadow bg-gradient-to-r ${GRAD}`
+          ? `text-white shadow bg-gradient-to-r ${GRAD_CHIP}`
           : "text-neutral-800 border border-neutral-300/80 bg-white/70 hover:bg-neutral-50",
       ].join(" ")}
     >
@@ -48,6 +45,22 @@ const TITLES: Record<"fr" | "en" | "ar", string> = {
 
 export default function Page() {
   const [lang, setLang] = useState<"fr" | "en" | "ar">("fr");
+
+  // Libellé du bouton Retour — même logique que /terms
+  const backLabel =
+    lang === "ar" ? (
+      <>
+        عودة <span aria-hidden>→</span>
+      </>
+    ) : lang === "en" ? (
+      <>
+        <span aria-hidden>←</span> Back
+      </>
+    ) : (
+      <>
+        <span aria-hidden>←</span> Retour
+      </>
+    );
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -80,10 +93,17 @@ export default function Page() {
         {COPY[lang]}
       </div>
 
-      {/* Bouton Retour */}
-      <div className="mt-10">
-        <Link href="/" className={GRAD_BTN}>
-          ← Retour
+      {/* Bouton Retour — identique à /legal */}
+      <div className="mt-10 text-center">
+        <Link
+          href="/"
+          className="
+            inline-block px-5 py-2 rounded-xl border border-transparent
+            bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
+            text-white shadow-sm hover:opacity-90 transition
+          "
+        >
+          {backLabel}
         </Link>
       </div>
 
