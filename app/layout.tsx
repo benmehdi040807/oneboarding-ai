@@ -2,6 +2,7 @@
 export const runtime = "nodejs";
 
 import "./globals.css";
+import Footer from "@/components/Footer";
 
 export const metadata = {
   metadataBase: new URL("https://oneboardingai.com"),
@@ -89,8 +90,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           - Pas d’overflow global ni de fond imposé ici
       */}
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
-        {/* Conteneur central neutre (les pages gèrent leur propre fond si besoin) */}
-        <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">{children}</div>
+        {/* Contenu principal */}
+        <main className="min-h-[92dvh]">
+          <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">
+            {children}
+          </div>
+        </main>
+
+        {/* Footer légal discret */}
+        <Footer />
       </body>
     </html>
   );
