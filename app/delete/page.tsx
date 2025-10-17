@@ -4,7 +4,7 @@ import { deleteCopyFor, type Lang } from "@/lib/delete/copy";
 export const runtime = "nodejs";
 
 export const metadata = {
-  title: "Suppression des données — OneBoarding AI",
+  title: "Suppression des données utilisateur — OneBoarding AI",
   description:
     "Instructions officielles pour la suppression des données utilisateur, conformément à la Politique de confidentialité de OneBoarding AI.",
   alternates: {
@@ -43,7 +43,7 @@ export default function DeletePage({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "DataDeletionPolicy",
-    name: "Data Deletion Policy — OneBoarding AI",
+    name: "User Data Deletion Policy — OneBoarding AI",
     description:
       "Official instructions for user data deletion, in compliance with OneBoarding AI’s Privacy Policy.",
     inLanguage: lang,
