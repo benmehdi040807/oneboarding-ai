@@ -12,7 +12,7 @@ import { COPY, type Lang } from "@/lib/legal/copy";
 /* ===== Helpers ===== */
 function pickLang(sp?: URLSearchParams): Lang {
   const raw = sp?.get("lang")?.toLowerCase();
-  if (raw === "en" || raw === "ar") return raw;
+  if (raw === "en" || raw === "ar") return raw as Lang;
   return "fr";
 }
 function isEmbed(sp?: URLSearchParams): boolean {
@@ -117,21 +117,28 @@ export default function LegalPage({
         <p className="opacity-90">{t.version.note}</p>
 
         {!embed && (
-          <div className="mt-6 text-sm opacity-70 space-y-3">
-            <p>{consentText}</p>
-            <p className="text-center font-medium">
+          <>
+            {/* Paragraphe de consentement (petit et atténué) */}
+            <p className="mt-6 text-sm opacity-70">
+              {consentText}
+            </p>
+
+            {/* Bouton harmonisé (mêmes classes que /terms & /trademark) */}
+            <p className="mt-3 text-center">
               <a
                 href="/"
                 className="
-                  inline-block px-5 py-2 rounded-xl border border-transparent
+                  inline-flex items-center justify-center gap-2
+                  h-11 min-w-[220px] px-5 rounded-xl border border-transparent
+                  font-medium tracking-wide text-[15px] leading-none
                   bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                  text-white shadow-sm hover:opacity-90 transition
+                  text-white shadow-sm hover:opacity-90 active:scale-[.985] transition
                 "
               >
                 {approveLabel}
               </a>
             </p>
-          </div>
+          </>
         )}
       </article>
 
