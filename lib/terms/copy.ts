@@ -17,7 +17,6 @@ export type Copy = {
 
 const COPY: Record<Lang, Copy> = {
   fr: {
-    // ▼ Titre demandé
     title: "Terms • OneBoarding AI",
     sections: [
       { kind: "h2", text: "🌍 Manifeste de Confiance" },
@@ -248,7 +247,6 @@ const COPY: Record<Lang, Copy> = {
       },
     ],
     version: {
-      // ▼ Reformulation demandée
       h: "Version & Mises à jour",
       v: "Version 1.0 • Octobre 2025",
       note: "Un changelog indiquera les évolutions futures.",
@@ -256,7 +254,7 @@ const COPY: Record<Lang, Copy> = {
   },
 
   en: {
-    title: "Terms & Conditions — OneBoarding AI",
+    title: "Terms • OneBoarding AI",
     sections: [
       { kind: "h2", text: "🌍 Trust Manifesto" },
       {
@@ -493,7 +491,7 @@ const COPY: Record<Lang, Copy> = {
   },
 
   ar: {
-    title: "الشروط العامة — OneBoarding AI",
+    title: "الشروط • OneBoarding AI",
     sections: [
       { kind: "h2", text: "🌍 بيان الثقة" },
       {
