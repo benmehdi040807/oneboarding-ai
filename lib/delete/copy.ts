@@ -36,13 +36,20 @@ const COPY: Record<Lang, Copy> = {
         items: [
           "Nom : Benmehdi Mohamed Rida",
           "E-mail : office.benmehdi@gmail.com",
-          "Adresse : Casablanca, Maroc",
         ],
       },
       {
         kind: "p",
         html:
           'Pour plus d’informations, consultez notre <a href="/legal" class="underline text-blue-700 hover:text-blue-900">Politique de confidentialité complète</a>.',
+      },
+      {
+        kind: "p",
+        html:
+          'Pour toute information complémentaire, veuillez consulter :<br/>' +
+          '<a href="https://oneboardingai.com/legal" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/legal</a><br/>' +
+          '<a href="https://oneboardingai.com/terms" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/terms</a><br/>' +
+          '<a href="https://oneboardingai.com/trademark" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/trademark</a>',
       },
       { kind: "hr" },
     ],
@@ -75,13 +82,20 @@ const COPY: Record<Lang, Copy> = {
         items: [
           "Name: Benmehdi Mohamed Rida",
           "E-mail: office.benmehdi@gmail.com",
-          "Address: Casablanca, Morocco",
         ],
       },
       {
         kind: "p",
         html:
           'For more details, see our <a href="/legal?lang=en" class="underline text-blue-700 hover:text-blue-900">full Privacy Policy</a>.',
+      },
+      {
+        kind: "p",
+        html:
+          'For additional information, please consult:<br/>' +
+          '<a href="https://oneboardingai.com/legal" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/legal</a><br/>' +
+          '<a href="https://oneboardingai.com/terms?lang=en" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/terms</a><br/>' +
+          '<a href="https://oneboardingai.com/trademark" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/trademark</a>',
       },
       { kind: "hr" },
     ],
@@ -114,13 +128,20 @@ const COPY: Record<Lang, Copy> = {
         items: [
           "الاسم: بنمهدي محمد رضى",
           "البريد الإلكتروني: office.benmehdi@gmail.com",
-          "العنوان: الدار البيضاء، المغرب",
         ],
       },
       {
         kind: "p",
         html:
           'لمزيد من المعلومات، راجع <a href="/legal?lang=ar" class="underline text-blue-700 hover:text-blue-900">سياسة الخصوصية الكاملة</a>.',
+      },
+      {
+        kind: "p",
+        html:
+          'للمزيد من المعلومات، يُرجى زيارة:<br/>' +
+          '<a href="https://oneboardingai.com/legal" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/legal</a><br/>' +
+          '<a href="https://oneboardingai.com/terms?lang=ar" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/terms</a><br/>' +
+          '<a href="https://oneboardingai.com/trademark" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/trademark</a>',
       },
       { kind: "hr" },
     ],
