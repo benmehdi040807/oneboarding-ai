@@ -17,7 +17,7 @@ export type Copy = {
 
 const COPY: Record<Lang, Copy> = {
   fr: {
-    title: "Terms • OneBoarding AI",
+    title: "Termes • OneBoarding AI",
     sections: [
       { kind: "h2", text: "🌍 Manifeste de Confiance" },
       {
