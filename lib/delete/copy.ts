@@ -14,7 +14,7 @@ export type Copy = {
 
 const COPY: Record<Lang, Copy> = {
   fr: {
-    title: "Suppression des données — OneBoarding AI",
+    title: "Suppression des données utilisateur — OneBoarding AI",
     sections: [
       {
         kind: "p",
@@ -41,12 +41,7 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         html:
-          'Pour plus d’informations, consultez notre <a href="/legal" class="underline text-blue-700 hover:text-blue-900">Politique de confidentialité complète</a>.',
-      },
-      {
-        kind: "p",
-        html:
-          'Pour toute information complémentaire, veuillez consulter :<br/>' +
+          'Pour toute information complémentaire, vous pouvez consulter :<br/>' +
           '<a href="https://oneboardingai.com/legal" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/legal</a><br/>' +
           '<a href="https://oneboardingai.com/terms" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/terms</a><br/>' +
           '<a href="https://oneboardingai.com/trademark" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/trademark</a>',
@@ -60,7 +55,7 @@ const COPY: Record<Lang, Copy> = {
   },
 
   en: {
-    title: "Data Deletion — OneBoarding AI",
+    title: "User Data Deletion — OneBoarding AI",
     sections: [
       {
         kind: "p",
@@ -87,12 +82,7 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         html:
-          'For more details, see our <a href="/legal?lang=en" class="underline text-blue-700 hover:text-blue-900">full Privacy Policy</a>.',
-      },
-      {
-        kind: "p",
-        html:
-          'For additional information, please consult:<br/>' +
+          'For additional information, you can consult:<br/>' +
           '<a href="https://oneboardingai.com/legal" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/legal</a><br/>' +
           '<a href="https://oneboardingai.com/terms?lang=en" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/terms</a><br/>' +
           '<a href="https://oneboardingai.com/trademark" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/trademark</a>',
@@ -106,7 +96,7 @@ const COPY: Record<Lang, Copy> = {
   },
 
   ar: {
-    title: "حذف البيانات — OneBoarding AI",
+    title: "حذف بيانات المستخدم — OneBoarding AI",
     sections: [
       {
         kind: "p",
@@ -133,12 +123,7 @@ const COPY: Record<Lang, Copy> = {
       {
         kind: "p",
         html:
-          'لمزيد من المعلومات، راجع <a href="/legal?lang=ar" class="underline text-blue-700 hover:text-blue-900">سياسة الخصوصية الكاملة</a>.',
-      },
-      {
-        kind: "p",
-        html:
-          'للمزيد من المعلومات، يُرجى زيارة:<br/>' +
+          'للمزيد من المعلومات، يُمكنكم الاطّلاع على:<br/>' +
           '<a href="https://oneboardingai.com/legal" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/legal</a><br/>' +
           '<a href="https://oneboardingai.com/terms?lang=ar" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/terms</a><br/>' +
           '<a href="https://oneboardingai.com/trademark" class="underline text-blue-700 hover:text-blue-900">oneboardingai.com/trademark</a>',
