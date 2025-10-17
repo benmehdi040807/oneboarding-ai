@@ -38,15 +38,15 @@ export default function LegalPage({
   const embed = isEmbed(sp);
   const t = COPY[lang];
 
-  // Localisations (bouton + paragraphe de consentement)
+  // Libellés localisés (bouton + consentement)
   const approveLabel =
-    lang === "en" ? "Read & approved" : lang === "ar" ? "قُرِئ وتمت الموافقة" : "Lu et approuvé";
+    lang === "ar" ? "تمّ الاطلاع والموافقة" : lang === "en" ? "Read & approved" : "Lu et approuvé";
 
   const consentText =
-    lang === "en"
-      ? "By accessing the service, you acknowledge that you have read these notices. Public-order rules applicable in the user’s country remain fully in force."
-      : lang === "ar"
-      ? "بدخولك إلى الخدمة، فإنك تُقِرّ بأنك اطّلعت على هذه المعلومات. تبقى قواعد النظام العام المطبقة في بلد المستخدم سارية المفعول بالكامل."
+    lang === "ar"
+      ? "بدخولك إلى الخدمة، فإنك تُقِرّ بأنك اطلعت على هذه المعلومات. تبقى قواعد النظام العام المعمول بها في بلد المستخدم سارية المفعول بالكامل."
+      : lang === "en"
+      ? "By accessing the service, you acknowledge having taken note of this information. Public-order rules applicable in the user’s country remain fully enforceable."
       : "En accédant au service, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.";
 
   return (
@@ -117,7 +117,7 @@ export default function LegalPage({
         <p className="opacity-90">{t.version.note}</p>
 
         {!embed && (
-          <div className="mt-6 text-sm opacity-70 space-y-3" dir={lang === "ar" ? "rtl" : "ltr"}>
+          <div className="mt-6 text-sm opacity-70 space-y-3">
             <p>{consentText}</p>
             <p className="text-center font-medium">
               <a
@@ -139,4 +139,4 @@ export default function LegalPage({
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-                }
+}
