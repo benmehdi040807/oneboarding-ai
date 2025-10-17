@@ -1,5 +1,5 @@
 // app/delete/page.tsx
-import { COPY, deleteCopyFor, type Lang } from "@/lib/delete/copy";
+import { deleteCopyFor, type Lang } from "@/lib/delete/copy";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,7 @@ export const metadata = {
 
 function pickLang(sp?: URLSearchParams): Lang {
   const raw = sp?.get("lang")?.toLowerCase();
-  if (raw === "en" || raw === "ar") return raw;
+  if (raw === "en" || raw === "ar") return raw as Lang;
   return "fr";
 }
 
@@ -56,17 +56,15 @@ export default function DeletePage({
         contactType: "Data protection officer",
         name: "Benmehdi Mohamed Rida",
         email: "office.benmehdi@gmail.com",
-        address: {
-          "@type": "PostalAddress",
-          addressLocality: "Casablanca",
-          addressCountry: "MA",
-        },
       },
     },
     policyStatus: "Active",
     lastReviewed: "2025-10-01",
     mainEntityOfPage: "https://oneboardingai.com/delete",
   };
+
+  const backLabel =
+    lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
   return (
     <main
@@ -75,7 +73,7 @@ export default function DeletePage({
       }`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
-      {/* ✅ JSON-LD pour Google / Meta */}
+      {/* ✅ JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -150,9 +148,13 @@ export default function DeletePage({
         <p className="mt-6 text-center">
           <a
             href="/"
-            className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
+            className="
+              inline-block px-5 py-2 rounded-xl border border-transparent
+              bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
+              text-white shadow-sm hover:opacity-90 transition
+            "
           >
-            {lang === "ar" ? "عودة" : lang === "en" ? "Back" : "Retour"}
+            {backLabel}
           </a>
         </p>
       </article>
