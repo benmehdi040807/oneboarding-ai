@@ -46,21 +46,9 @@ const TITLES: Record<"fr" | "en" | "ar", string> = {
 export default function Page() {
   const [lang, setLang] = useState<"fr" | "en" | "ar">("fr");
 
-  // Libellé du bouton Retour — même logique que /terms
+  // Libellé du bouton Retour — harmonisé (2 mots) comme /legal et /terms
   const backLabel =
-    lang === "ar" ? (
-      <>
-        عودة <span aria-hidden>→</span>
-      </>
-    ) : lang === "en" ? (
-      <>
-        <span aria-hidden>←</span> Back
-      </>
-    ) : (
-      <>
-        <span aria-hidden>←</span> Retour
-      </>
-    );
+    lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -93,7 +81,7 @@ export default function Page() {
         {COPY[lang]}
       </div>
 
-      {/* Bouton Retour — identique à /legal */}
+      {/* Bouton Retour — identique à /legal et /terms */}
       <div className="mt-10 text-center">
         <Link
           href="/"
