@@ -127,9 +127,13 @@ export default function TermsPage({
         })}
 
         <hr className="border-black/10 my-3" />
-        <h3 className="font-semibold">{t.version.h}</h3>
-        <p className="font-semibold">{t.version.v}</p>
-        <p className="opacity-90">{t.version.note}</p>
+
+        {/* Bloc version : texte plus petit et SANS espaces entre les lignes */}
+        <div className="text-sm leading-6">
+          <h3 className="font-semibold m-0">{t.version.h}</h3>
+          <p className="font-semibold m-0">{t.version.v}</p>
+          <p className="opacity-90 m-0">{t.version.note}</p>
+        </div>
 
         {/* Espace distinct au-dessus du bouton (même rythme que /legal) */}
         {!embed && <div className="mt-6" />}
