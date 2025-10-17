@@ -435,11 +435,11 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — “cheveu” = 33px */}
+      {/* Bouton flottant principal — “cheveu” = 39px */}
       <div
         className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
         style={{
-          bottom: "calc(env(safe-area-inset-bottom) + 33px)",
+          bottom: "calc(env(safe-area-inset-bottom) + 39px)",
         }}
       >
         <button
