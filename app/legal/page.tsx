@@ -51,7 +51,6 @@ export default function LegalPage({
 
   return (
     <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
-      {/* Sélecteur de langue seulement hors embed */}
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
           <span className="opacity-70 mr-2">Langue:</span>
@@ -118,21 +117,17 @@ export default function LegalPage({
 
         {!embed && (
           <>
-            {/* Paragraphe de consentement (petit et atténué) */}
-            <p className="mt-6 text-sm opacity-70">
-              {consentText}
-            </p>
+            {/* Texte de consentement (petit & atténué) */}
+            <p className="mt-6 text-sm opacity-70">{consentText}</p>
 
-            {/* Bouton harmonisé (mêmes classes que /terms & /trademark) */}
+            {/* Bouton – même classes que /terms & /trademark */}
             <p className="mt-3 text-center">
               <a
                 href="/"
                 className="
-                  inline-flex items-center justify-center gap-2
-                  h-11 min-w-[220px] px-5 rounded-xl border border-transparent
-                  font-medium tracking-wide text-[15px] leading-none
+                  inline-block px-5 py-2 rounded-xl border border-transparent
                   bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                  text-white shadow-sm hover:opacity-90 active:scale-[.985] transition
+                  text-white shadow-sm hover:opacity-90 transition
                 "
               >
                 {approveLabel}
@@ -142,7 +137,6 @@ export default function LegalPage({
         )}
       </article>
 
-      {/* utilitaire pour garder un nom arabe sur une seule ligne */}
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
