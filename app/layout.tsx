@@ -71,7 +71,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* JSON-LD schema.org */}
         <script
           type="application/ld+json"
-          // Vérifié : domaine meta déjà validé via DNS — aucune balise facebook-domain-verification nécessaire.
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -84,19 +83,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
 
-      {/* Natif :
-          - Texte noir par défaut (inputs/selects système lisibles)
-          - color-scheme: light pour éviter les thèmes "dark" auto
-          - Pas d’overflow global ni de fond imposé ici
-      */}
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
-        {/* Layout en colonne pour pousser le footer en bas sans overlap */}
+        {/* Layout en colonne pour un footer fixe et sans overlap */}
         <div className="min-h-dvh flex flex-col">
           <main className="flex-1">
             <div className="mx-auto w-full max-w-xl px-4 pb-6">
               {children}
             </div>
           </main>
+          {/* Footer final – version 18px confirmée */}
           <Footer />
         </div>
       </body>
