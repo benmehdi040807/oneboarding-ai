@@ -90,15 +90,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           - Pas d’overflow global ni de fond imposé ici
       */}
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
-        {/* Contenu principal */}
-        <main className="min-h-[92dvh]">
-          <div className="mx-auto w-full max-w-xl px-4 min-h-dvh">
-            {children}
-          </div>
-        </main>
-
-        {/* Footer légal discret */}
-        <Footer />
+        {/* Layout en colonne pour pousser le footer en bas sans overlap */}
+        <div className="min-h-dvh flex flex-col">
+          <main className="flex-1">
+            <div className="mx-auto w-full max-w-xl px-4 pb-6">
+              {children}
+            </div>
+          </main>
+          <Footer />
+        </div>
       </body>
     </html>
   );
