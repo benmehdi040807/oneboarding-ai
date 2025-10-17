@@ -370,9 +370,9 @@ export default function Menu() {
         localStorage.setItem(CONSENT_KEY, "1");
         localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
       } catch {}
-        setConsented(true);
-        window.dispatchEvent(new Event("ob:consent-updated"));
-        toast("Merci, consentement enregistré.");
+      setConsented(true);
+      window.dispatchEvent(new Event("ob:consent-updated"));
+      toast("Merci, consentement enregistré.");
     }
     closeLegalModal();
   }
@@ -435,11 +435,11 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal — remonté juste ce qu’il faut */}
+      {/* Bouton flottant principal — “cheveu” = 33px */}
       <div
         className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
         style={{
-          bottom: "calc(env(safe-area-inset-bottom) + 28px)", // 56px -> 28px (hauteur divisée par 2)
+          bottom: "calc(env(safe-area-inset-bottom) + 33px)",
         }}
       >
         <button
@@ -728,4 +728,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-              }
+}
