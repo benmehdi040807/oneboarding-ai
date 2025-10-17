@@ -38,6 +38,17 @@ export default function LegalPage({
   const embed = isEmbed(sp);
   const t = COPY[lang];
 
+  // Localisations (bouton + paragraphe de consentement)
+  const approveLabel =
+    lang === "en" ? "Read & approved" : lang === "ar" ? "قُرِئ وتمت الموافقة" : "Lu et approuvé";
+
+  const consentText =
+    lang === "en"
+      ? "By accessing the service, you acknowledge that you have read these notices. Public-order rules applicable in the user’s country remain fully in force."
+      : lang === "ar"
+      ? "بدخولك إلى الخدمة، فإنك تُقِرّ بأنك اطّلعت على هذه المعلومات. تبقى قواعد النظام العام المطبقة في بلد المستخدم سارية المفعول بالكامل."
+      : "En accédant au service, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.";
+
   return (
     <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
       {/* Sélecteur de langue seulement hors embed */}
@@ -106,24 +117,18 @@ export default function LegalPage({
         <p className="opacity-90">{t.version.note}</p>
 
         {!embed && (
-          <div className="mt-6 text-sm opacity-70 space-y-3">
-            <p>
-              En accédant au service, vous reconnaissez avoir pris connaissance de ces
-              informations. Les règles d’ordre public applicables dans le pays de l’utilisateur
-              demeurent de plein droit.
-            </p>
+          <div className="mt-6 text-sm opacity-70 space-y-3" dir={lang === "ar" ? "rtl" : "ltr"}>
+            <p>{consentText}</p>
             <p className="text-center font-medium">
               <a
                 href="/"
                 className="
-                  inline-flex items-center justify-center gap-2
-                  h-11 min-w-[220px] px-5 rounded-xl border border-transparent
-                  font-medium tracking-wide text-[15px] leading-none
+                  inline-block px-5 py-2 rounded-xl border border-transparent
                   bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                  text-white shadow-sm hover:opacity-90 active:scale-[.985] transition
+                  text-white shadow-sm hover:opacity-90 transition
                 "
               >
-                Lu et approuvé
+                {approveLabel}
               </a>
             </p>
           </div>
@@ -134,4 +139,4 @@ export default function LegalPage({
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-}
+                }
