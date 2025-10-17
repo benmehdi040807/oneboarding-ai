@@ -147,9 +147,9 @@ export default function TermsPage({
             <a
               href="/"
               className="
-                inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-white
-                shadow-md transition active:scale-[.98] hover:opacity-90
-                bg-gradient-to-r from-[#4facfe] to-[#8e2de2]
+                inline-block px-5 py-2 rounded-xl border border-transparent
+                bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
+                text-white shadow-sm hover:opacity-90 transition
               "
             >
               {backLabel}
