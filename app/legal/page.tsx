@@ -83,8 +83,8 @@ export default function LegalPage({
               </h2>
             );
           if (s.kind === "p")
-            return s.html ? (
-              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: s.text }} />
+            return (s as any).html ? (
+              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
             ) : (
               <p key={i} className="opacity-90">
                 {s.text}
@@ -94,9 +94,7 @@ export default function LegalPage({
             return (
               <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
                 {"items" in s &&
-                  s.items.map((li, j) => (
-                    <li key={j}>{li}</li>
-                  ))}
+                  (s as any).items.map((li: string, j: number) => <li key={j}>{li}</li>)}
               </ul>
             );
           return null;
@@ -117,7 +115,11 @@ export default function LegalPage({
             <p className="text-center font-medium">
               <a
                 href="/"
-                className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
+                className="
+                  inline-block px-5 py-2 rounded-xl border border-transparent
+                  bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
+                  text-white shadow-sm hover:opacity-90 transition
+                "
               >
                 Lu et approuvé
               </a>
