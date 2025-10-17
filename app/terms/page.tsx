@@ -19,7 +19,7 @@ import { COPY, type Lang, type Section } from "@/lib/terms/copy";
 
 function pickLang(sp?: URLSearchParams): Lang {
   const raw = sp?.get("lang")?.toLowerCase();
-  if (raw === "en" || raw === "ar") return raw;
+  if (raw === "en" || raw === "ar") return raw as Lang;
   return "fr";
 }
 function isEmbed(sp?: URLSearchParams): boolean {
@@ -44,21 +44,9 @@ export default function TermsPage({
   const embed = isEmbed(sp);
   const t = COPY[lang];
 
-  // Libellé du bouton retour (avec flèche adaptée)
+  // Libellé harmonisé en 2 mots pour uniformité avec /legal
   const backLabel =
-    lang === "ar" ? (
-      <>
-        عودة <span aria-hidden>→</span>
-      </>
-    ) : lang === "en" ? (
-      <>
-        <span aria-hidden>←</span> Back
-      </>
-    ) : (
-      <>
-        <span aria-hidden>←</span> Retour
-      </>
-    );
+    lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
   return (
     <main
@@ -67,6 +55,7 @@ export default function TermsPage({
       } ${lang === "ar" ? "pr-4" : ""}`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
+      {/* Sélecteur de langue seulement hors embed */}
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
           <span className="opacity-70 mr-2">
@@ -142,6 +131,7 @@ export default function TermsPage({
         <p className="font-semibold">{t.version.v}</p>
         <p className="opacity-90">{t.version.note}</p>
 
+        {/* Bouton de retour harmonisé avec /legal */}
         {!embed && (
           <p className="mt-6 text-center">
             <a
@@ -159,4 +149,4 @@ export default function TermsPage({
       </article>
     </main>
   );
-}
+    }
