@@ -44,6 +44,22 @@ export default function TermsPage({
   const embed = isEmbed(sp);
   const t = COPY[lang];
 
+  // Libellé du bouton retour (avec flèche adaptée)
+  const backLabel =
+    lang === "ar" ? (
+      <>
+        عودة <span aria-hidden>→</span>
+      </>
+    ) : lang === "en" ? (
+      <>
+        <span aria-hidden>←</span> Back
+      </>
+    ) : (
+      <>
+        <span aria-hidden>←</span> Retour
+      </>
+    );
+
   return (
     <main
       className={`px-4 py-8 mx-auto w-full max-w-3xl text-black leading-7 ${
@@ -130,9 +146,13 @@ export default function TermsPage({
           <p className="mt-6 text-center">
             <a
               href="/"
-              className="inline-block px-4 py-2 rounded-xl border border-black/20 bg-black text-white hover:bg-gray-800 transition"
+              className="
+                inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-white
+                shadow-md transition active:scale-[.98] hover:opacity-90
+                bg-gradient-to-r from-[#4facfe] to-[#8e2de2]
+              "
             >
-              {lang === "ar" ? "عودة" : lang === "en" ? "Back" : "Retour"}
+              {backLabel}
             </a>
           </p>
         )}
