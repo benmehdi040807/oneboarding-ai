@@ -14,12 +14,12 @@ export default function Footer() {
         flex items-center justify-center
       "
       style={{
-        height: "33px",
-        paddingBottom: "max(env(safe-area-inset-bottom), 4px)",
+        height: "27px",
+        paddingBottom: "max(env(safe-area-inset-bottom), 3px)",
       }}
     >
       <p className="text-[10px] tracking-tight leading-none text-center">
-        OneBoarding AI® — Benmehdi Mohamed Rida — Tous droits réservés © 2025
+        OneBoarding AI® • Benmehdi Mohamed Rida • Tous droits réservés • © 2025
       </p>
     </footer>
   );
