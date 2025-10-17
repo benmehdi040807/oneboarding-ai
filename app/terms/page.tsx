@@ -131,9 +131,12 @@ export default function TermsPage({
         <p className="font-semibold">{t.version.v}</p>
         <p className="opacity-90">{t.version.note}</p>
 
-        {/* Bouton de retour harmonisé avec /legal */}
+        {/* Espace distinct au-dessus du bouton (même rythme que /legal) */}
+        {!embed && <div className="mt-6" />}
+
+        {/* Bouton – exactement les mêmes classes que /legal */}
         {!embed && (
-          <p className="mt-6 text-center">
+          <p className="mt-3 text-center">
             <a
               href="/"
               className="
@@ -149,4 +152,4 @@ export default function TermsPage({
       </article>
     </main>
   );
-    }
+}
