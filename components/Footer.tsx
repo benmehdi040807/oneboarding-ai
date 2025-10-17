@@ -14,7 +14,7 @@ export default function Footer() {
         flex items-center justify-center
       "
       style={{
-        height: "27px",
+        height: "18px",
         paddingBottom: "max(env(safe-area-inset-bottom), 3px)",
       }}
     >
