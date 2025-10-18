@@ -691,6 +691,14 @@ function Accordion({
 /** ===================== Rendu inline du document légal ===================== */
 function LegalDoc({ lang }: { lang: LegalLang }) {
   const t = legalCopyFor(lang);
+
+  const linksTitle =
+    lang === "ar"
+      ? "للمزيد من المعلومات، يُرجى زيارة:"
+      : lang === "en"
+      ? "For additional information, please consult:"
+      : "Pour toute information complémentaire, vous pouvez consulter:";
+
   return (
     <main className="px-4 py-4 mx-auto w-full max-w-2xl text-black">
       <h1 className="text-xl font-bold mb-4">{t.title}</h1>
@@ -721,11 +729,47 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
             );
           return null;
         })}
+
+        {/* ===== Liens complémentaires ===== */}
         <hr className="border-black/10 my-3" />
-        <h3 className="font-semibold">{t.version.h}</h3>
-        <p className="font-semibold">{t.version.v}</p>
-        <p className="opacity-90">{t.version.note}</p>
+        <div className="opacity-90">
+          <p className="mb-2">{linksTitle}</p>
+          <ul className="list-none pl-0 space-y-1">
+            <li>
+              <a
+                href="https://oneboardingai.com/delete"
+                className="underline text-blue-700 hover:text-blue-900"
+              >
+                oneboardingai.com/delete
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://oneboardingai.com/terms"
+                className="underline text-blue-700 hover:text-blue-900"
+              >
+                oneboardingai.com/terms
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://oneboardingai.com/trademark"
+                className="underline text-blue-700 hover:text-blue-900"
+              >
+                oneboardingai.com/trademark
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        {/* ===== Version & Mises à jour (style réduit, espacement serré) ===== */}
+        <hr className="border-black/10 my-3" />
+        <div className="text-sm leading-5 space-y-1">
+          <h3 className="font-semibold">{t.version.h}</h3>
+          <p className="font-semibold">{t.version.v}</p>
+          <p className="opacity-90">{t.version.note}</p>
+        </div>
       </article>
     </main>
   );
-}
+      }
