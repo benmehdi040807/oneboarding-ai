@@ -50,6 +50,14 @@ export default function Page() {
   const backLabel =
     lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
+  // Libellé du bloc “infos complémentaires”
+  const moreInfoLabel =
+    lang === "ar"
+      ? "للمزيد من المعلومات، يُرجى زيارة:"
+      : lang === "en"
+      ? "For additional information, please consult:"
+      : "Pour toute information complémentaire, vous pouvez consulter :";
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       {/* Titre traduit */}
@@ -79,6 +87,37 @@ export default function Page() {
       {/* Contenu principal avec langue & direction */}
       <div lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-8">
         {COPY[lang]}
+
+        {/* Bloc “informations complémentaires” */}
+        <div className="mt-6 border-t border-black/10 pt-4">
+          <p className="opacity-90">{moreInfoLabel}</p>
+          <div className="mt-2">
+            <p>
+              <Link
+                href={`/legal?lang=${lang}`}
+                className="underline text-blue-700 hover:text-blue-900 break-all"
+              >
+                oneboardingai.com/legal
+              </Link>
+            </p>
+            <p>
+              <Link
+                href={`/terms?lang=${lang}`}
+                className="underline text-blue-700 hover:text-blue-900 break-all"
+              >
+                oneboardingai.com/terms
+              </Link>
+            </p>
+            <p>
+              <Link
+                href={`/delete?lang=${lang}`}
+                className="underline text-blue-700 hover:text-blue-900 break-all"
+              >
+                oneboardingai.com/delete
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Bouton Retour — identique à /legal et /terms */}
