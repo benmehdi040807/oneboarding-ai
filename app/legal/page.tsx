@@ -38,7 +38,6 @@ export default function LegalPage({
   const embed = isEmbed(sp);
   const t = COPY[lang];
 
-  // Libellés localisés (bouton + consentement)
   const approveLabel =
     lang === "ar" ? "تمّ الاطلاع والموافقة" : lang === "en" ? "Read & approved" : "Lu et approuvé";
 
@@ -49,11 +48,20 @@ export default function LegalPage({
       ? "By accessing the service, you acknowledge having taken note of this information. Public-order rules applicable in the user’s country remain fully enforceable."
       : "En accédant au service, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.";
 
+  const langLabel = lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:";
+
+  const linksTitle =
+    lang === "ar"
+      ? "للمزيد من المعلومات، يُرجى زيارة:"
+      : lang === "en"
+      ? "For additional information, please consult:"
+      : "Pour toute information complémentaire, vous pouvez consulter:";
+
   return (
     <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
-          <span className="opacity-70 mr-2">Langue:</span>
+          <span className="opacity-70 mr-2">{langLabel}</span>
           <a
             href="?lang=fr"
             className={`px-2 py-1 rounded border mr-1 ${
@@ -110,10 +118,36 @@ export default function LegalPage({
           return null;
         })}
 
+        {/* ===== Section liens complémentaires (avant la section Version) ===== */}
         <hr className="border-black/10 my-3" />
-        <h3 className="font-semibold">{t.version.h}</h3>
-        <p className="font-semibold">{t.version.v}</p>
-        <p className="opacity-90">{t.version.note}</p>
+        <div className="opacity-90">
+          <p className="mb-2">{linksTitle}</p>
+          <ul className="list-none pl-0 space-y-1">
+            <li>
+              <a href="https://oneboardingai.com/delete" className="underline text-blue-700 hover:text-blue-900">
+                oneboardingai.com/delete
+              </a>
+            </li>
+            <li>
+              <a href="https://oneboardingai.com/terms" className="underline text-blue-700 hover:text-blue-900">
+                oneboardingai.com/terms
+              </a>
+            </li>
+            <li>
+              <a href="https://oneboardingai.com/trademark" className="underline text-blue-700 hover:text-blue-900">
+                oneboardingai.com/trademark
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        {/* ===== Section Version (harmonisée : petite taille + espacement serré) ===== */}
+        <hr className="border-black/10 my-3" />
+        <div className="text-sm leading-tight space-y-0.5">
+          <h3 className="font-semibold">{t.version.h}</h3>
+          <p className="font-semibold">{t.version.v}</p>
+          <p className="opacity-90">{t.version.note}</p>
+        </div>
 
         {!embed && (
           <>
