@@ -75,9 +75,9 @@ const COPY: Record<Lang, Copy> = {
       },
     ],
     version: {
-      h: "Version & mise à jour",
+      h: "Version & Mises à jour",
       v: "Version 1.0.0 — Octobre 2025",
-      note: "Un changelog discret indiquera les futures évolutions.",
+      note: "Un changelog indiquera les évolutions futures.",
     },
   },
 
@@ -143,7 +143,7 @@ const COPY: Record<Lang, Copy> = {
     version: {
       h: "Version & Updates",
       v: "Version 1.0.0 — October 2025",
-      note: "A discreet changelog will indicate future evolutions.",
+      note: "A changelog will indicate future evolutions.",
     },
   },
 
@@ -207,7 +207,7 @@ const COPY: Record<Lang, Copy> = {
     version: {
       h: "الإصدار والتحديث",
       v: "الإصدار 1.0.0 — أكتوبر 2025",
-      note: "سيُعرض سجلّ تغييرات موجز للتحديثات القادمة.",
+      note: "سيُعرض سجلّ تغييرات للتحديثات القادمة.",
     },
   },
 };
