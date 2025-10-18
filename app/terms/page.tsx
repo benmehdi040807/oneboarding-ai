@@ -48,6 +48,20 @@ export default function TermsPage({
   const backLabel =
     lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
+  // Liens “infos complémentaires” — respectent la langue courante
+  const qs = lang === "fr" ? "" : `?lang=${lang}`;
+  const links = {
+    legalHref: `/legal${qs}`,
+    deleteHref: `/delete${qs}`,
+    trademarkHref: `/trademark${qs}`,
+  };
+  const moreLabel =
+    lang === "ar"
+      ? "للمزيد من المعلومات، يُرجى زيارة:"
+      : lang === "en"
+      ? "For additional information, please consult:"
+      : "Pour toute information complémentaire, vous pouvez consulter :";
+
   return (
     <main
       className={`px-4 py-8 mx-auto w-full max-w-3xl text-black leading-7 ${
@@ -100,8 +114,8 @@ export default function TermsPage({
               </h2>
             );
           if (s.kind === "p")
-            return s.html ? (
-              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: s.text }} />
+            return (s as any).html ? (
+              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
             ) : (
               <p key={i} className="opacity-90">
                 {s.text}
@@ -110,7 +124,7 @@ export default function TermsPage({
           if (s.kind === "ul")
             return (
               <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
-                {s.items.map((li, j) => (
+                {(s as any).items.map((li: string, j: number) => (
                   <li key={j}>{li}</li>
                 ))}
               </ul>
@@ -118,13 +132,32 @@ export default function TermsPage({
           if (s.kind === "ol")
             return (
               <ol key={i} className="list-decimal pl-5 space-y-1.5 opacity-90">
-                {s.items.map((li, j) => (
+                {(s as any).items.map((li: string, j: number) => (
                   <li key={j}>{li}</li>
                 ))}
               </ol>
             );
           return null;
         })}
+
+        {/* Bloc “informations complémentaires” */}
+        <div className="mt-2">
+          <p className="opacity-90">
+            {moreLabel}
+            <br />
+            <a href={links.legalHref} className="underline text-blue-700 hover:text-blue-900">
+              oneboardingai.com/legal
+            </a>
+            <br />
+            <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
+              oneboardingai.com/delete
+            </a>
+            <br />
+            <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
+              oneboardingai.com/trademark
+            </a>
+          </p>
+        </div>
 
         <hr className="border-black/10 my-3" />
 
@@ -156,4 +189,4 @@ export default function TermsPage({
       </article>
     </main>
   );
-}
+                                      }
