@@ -4,23 +4,39 @@ import { ppAccessToken, PP_BASE } from "@/lib/paypal";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type ReqBody = {
   phoneE164: string;
   deviceId: string;
-  // optional: amount / currency
-  amount?: string;
-  currency?: string;
-  return_url?: string; // where PayPal should redirect after approval
-  cancel_url?: string;
+  amount?: string;           // optionnel (par défaut 1.00)
+  currency?: string;         // optionnel (par défaut EUR)
+  return_url?: string;       // optionnel: où PayPal doit renvoyer (après approval)
+  cancel_url?: string;       // optionnel: où PayPal doit renvoyer (annulation)
 };
 
-const AMOUNT = "1.00";
-const CURRENCY = "EUR";
+const DEFAULT_AMOUNT = "1.00";
+const DEFAULT_CURRENCY = "EUR";
 
-async function createOrder(token: string, opts: { amount: string; currency: string; return_url: string; cancel_url: string }) {
-  const url = `${PP_BASE.replace?.(/\/$/, "") || PP_BASE}/v2/checkout/orders`;
+function sanitizeAmount(a?: string) {
+  // Format "X.YY" simple ; si invalide -> défaut
+  if (!a) return DEFAULT_AMOUNT;
+  const m = a.match(/^\d+(\.\d{1,2})?$/);
+  return m ? a : DEFAULT_AMOUNT;
+}
+
+function baseUrl() {
+  const b = process.env.NEXT_PUBLIC_BASE_URL || "";
+  if (!b) return "https://your-domain.tld";
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+}
+
+async function createOrder(
+  token: string,
+  opts: { amount: string; currency: string; return_url: string; cancel_url: string }
+) {
+  const url = `${PP_BASE.replace(/\/$/, "")}/v2/checkout/orders`;
   const body = {
     intent: "CAPTURE",
     purchase_units: [
@@ -51,12 +67,11 @@ async function createOrder(token: string, opts: { amount: string; currency: stri
   });
 
   if (!res.ok) {
-    const j = await res.text().catch(() => "");
-    throw new Error(`PP_ORDER_FAIL ${res.status} ${j}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`PP_ORDER_FAIL ${res.status} ${text}`);
   }
 
-  const j = await res.json();
-  return j;
+  return res.json();
 }
 
 export async function POST(req: Request) {
@@ -64,10 +79,10 @@ export async function POST(req: Request) {
     const body: ReqBody = await req.json().catch(() => ({} as ReqBody));
     const { phoneE164, deviceId } = body || ({} as ReqBody);
 
-    if (!phoneE164 || !phoneE164.startsWith("+")) {
+    if (typeof phoneE164 !== "string" || !phoneE164.startsWith("+")) {
       return NextResponse.json({ ok: false, error: "BAD_PHONE" }, { status: 400 });
     }
-    if (!deviceId || typeof deviceId !== "string") {
+    if (typeof deviceId !== "string" || !deviceId.trim()) {
       return NextResponse.json({ ok: false, error: "BAD_DEVICE_ID" }, { status: 400 });
     }
 
@@ -76,51 +91,61 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "NO_USER" }, { status: 404 });
     }
 
-    const amount = body.amount || AMOUNT;
-    const currency = body.currency || CURRENCY;
+    const amount = sanitizeAmount(body.amount);
+    const currency = (body.currency || DEFAULT_CURRENCY).toUpperCase();
 
-    // Build return/cancel urls (caller should pass real ones; fallback to root)
-    const return_url = body.return_url || `${process.env.NEXT_PUBLIC_BASE_URL || "https://your-domain.tld"}/?paypal_return=1`;
-    const cancel_url = body.cancel_url || `${process.env.NEXT_PUBLIC_BASE_URL || "https://your-domain.tld"}/?paypal_cancel=1`;
+    // URLs de retour/annulation
+    const B = baseUrl();
+    const return_url =
+      body.return_url ||
+      `${B}/?paypal_return=1&purpose=authorize_device&device=${encodeURIComponent(deviceId)}`;
+    const cancel_url =
+      body.cancel_url ||
+      `${B}/?paypal_cancel=1&purpose=authorize_device&device=${encodeURIComponent(deviceId)}`;
 
+    // Créer l'Order PayPal (CAPTURE)
     const token = await ppAccessToken();
-
     const order = await createOrder(token, { amount, currency, return_url, cancel_url });
 
-    const approval = (order?.links || []).find((l: any) => l.rel === "approve")?.href;
-    const orderId = order?.id;
+    const approvalUrl =
+      (order?.links || []).find((l: any) => l?.rel === "approve")?.href || null;
+    const orderId = order?.id as string | undefined;
 
-    if (!approval) {
-      return NextResponse.json({ ok: false, error: "NO_APPROVAL_URL", raw: order }, { status: 500 });
+    if (!approvalUrl || !orderId) {
+      return NextResponse.json(
+        { ok: false, error: "NO_APPROVAL_URL", raw: order },
+        { status: 500 }
+      );
     }
 
-    // Store a lightweight intent in DB to link orderId -> device/user so webhook can finalize (optional)
-    await prisma.deviceAuthorizationIntent?.create?.({
-      // Note: this only works if you added a corresponding model. Instead, we'll create a History row
-      // as a durable record tying the order -> user/device. If you prefer a dedicated table, add it.
-      data: {
-        // This block will fail if model doesn't exist. So as safe default we write to History table
-      },
-    }).catch(() => null);
-
-    // As safe fallback, create a History record to trace the intent (so you can correlate orderId later)
+    // Journalisation durable (tracabilité) via History
+    // Permet au webhook de recoller l’intent (user/device ↔ orderId).
     try {
       await prisma.history.create({
         data: {
           userId: user.id,
           plan: "DEVICE_AUTH",
           templateId: "paypal_order_intent",
-          inputJson: JSON.stringify({ deviceId, orderId }),
+          inputJson: JSON.stringify({
+            deviceId,
+            orderId,
+            amount,
+            currency,
+            createdAt: new Date().toISOString(),
+          }),
           outputText: `paypal_order_intent:${orderId}`,
         },
       });
     } catch {
-      // ignore
+      // Ne bloque pas le flux si l'écriture de log échoue
     }
 
-    return NextResponse.json({ ok: true, approvalUrl: approval, orderId });
+    return NextResponse.json({ ok: true, approvalUrl, orderId });
   } catch (e: any) {
     console.error("PAY_AUTHORIZE_DEVICE_ERR", e);
-    return NextResponse.json({ ok: false, error: e?.message || "SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
-  }
+}
