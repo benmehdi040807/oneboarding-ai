@@ -1,11 +1,16 @@
 {
   "name": "oneboarding-ai",
   "private": true,
+  "engines": {
+    "node": ">=18.17"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "5.18.0",
@@ -24,5 +29,8 @@
     "prisma": "5.18.0",
     "tailwindcss": "3.4.7",
     "typescript": "5.5.4"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.33.0"
   }
 }
