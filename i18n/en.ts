@@ -1,18 +1,17 @@
-export default {
-  step: ["Home", "Info", "Result"],
-  welcome: "Welcome — Your personal ticket",
-  subtitle: "Fill 3 fields. The richer your profile, the better the AI fits you.",
-  start: "Start",
-  later: "Later",
-  whatToGenerate: "What do you want to generate today?",
-  fillMinimal: "Fill minimal info. AI does the rest.",
-  resultReady: "Your result is ready",
-  copy: "Copy",
-  new: "New",
-  upgrade: "Upgrade to Pro",
-  manageSub: "Manage subscription",
-  profile: "Biography / Profile",
-  name: "Display name",
-  title: "Title / Role",
-  org: "Organization (optional)"
-};
+const EN = {
+  PROMO: {
+    TITLE: "✨ Your 3 free interactions for today are used up.",
+    LEAD_1: "To keep exploring OneBoarding AI without limits,",
+    LEAD_2: "activate your personal space in 30 seconds (payment included).",
+    PLANS_TITLE: "Choose your plan:",
+    PLAN_A: "🔹 Subscription €5/month — continuous, uninterrupted access.",
+    PLAN_B: "🔸 One-month access €5 — full month, no commitment.",
+    OR: "Or: come back tomorrow for 3 new free interactions.",
+    WELCOME_1: "Welcome to OneBoarding AI",
+    WELCOME_2: "👉 Your personal AI, at your service.",
+    WELCOME_3: "👉 Activate your future today.",
+    CTA: "Activate my space",
+  },
+} as const;
+
+export default EN;
