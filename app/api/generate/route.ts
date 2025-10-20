@@ -4,7 +4,7 @@ import {
   isCreatorQuestion,
   creatorAutoAnswer,
   SYSTEM_PROMPT,
-} from "@/app/lib/creator-policy";
+} from "@/lib/creator-policy"; // ← chemin corrigé
 
 export const runtime = "edge";
 
@@ -130,7 +130,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ---------- 3) Fallback + sanitation finale ----------
-    // Fallback plus cohérent : évite l’effet “échec de génération”.
     let text: string =
       data?.choices?.[0]?.message?.content?.trim() ||
       "Désolé, je n’ai pas le droit de vous fournir plus d’informations à ce sujet.";
