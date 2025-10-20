@@ -6,6 +6,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function baseUrl() {
+  const b = process.env.NEXT_PUBLIC_BASE_URL || "https://oneboardingai.com";
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+}
+
 /**
  * Body JSON:
  * { kind: "subscription" | "one-month", phone: string }
@@ -27,19 +32,19 @@ export async function POST(req: NextRequest) {
     // Map UI -> PayPal PLAN_IDS keys
     const planKey = kind === "subscription" ? "CONTINU" : "PASS1MOIS";
     const planId = PLAN_IDS[planKey];
+    if (!planId) {
+      return NextResponse.json({ ok: false, error: "PLAN_ID_MISSING" }, { status: 500 });
+    }
 
     const token = await ppAccessToken();
 
-    // IMPORTANT:
-    // - return_url: où PayPal renvoie l’utilisateur après APPROVE
-    // - cancel_url : où il revient si annulé
-    // Tu peux ajuster ces URLs si besoin.
-    const returnUrl = `${process.env.PUBLIC_BASE_URL || "https://oneboardingai.com"}/?paid=1`;
-    const cancelUrl = `${process.env.PUBLIC_BASE_URL || "https://oneboardingai.com"}/?cancel=1`;
+    const B = baseUrl();
+    const returnUrl = `${B}/?paid=1`;
+    const cancelUrl = `${B}/?cancel=1`;
 
     // Création de la souscription
     // https://developer.paypal.com/docs/api/subscriptions/v1/#subscriptions_create
-    const createRes = await fetch(`${PP_BASE}/v1/billing/subscriptions`, {
+    const createRes = await fetch(`${PP_BASE.replace(/\/$/, "")}/v1/billing/subscriptions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -48,7 +53,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         plan_id: planId,
-        custom_id: phone, // on injecte le phone pour le retrouver au webhook
+        custom_id: phone, // pour le rattacher au webhook
         application_context: {
           brand_name: "OneBoarding AI",
           user_action: "SUBSCRIBE_NOW",
@@ -56,6 +61,7 @@ export async function POST(req: NextRequest) {
           cancel_url: cancelUrl,
         },
       }),
+      cache: "no-store",
     });
 
     const data = await createRes.json().catch(() => ({}));
@@ -85,4 +91,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+      }
