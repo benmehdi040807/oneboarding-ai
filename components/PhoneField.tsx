@@ -54,7 +54,12 @@ export default function PhoneField({ value, onChange }: Props) {
 
   // Décomposer value -> pays + local si on reçoit une E.164
   useEffect(() => {
-    if (!value || !value.startsWith("+")) return;
+    if (!value) {
+      setIdx(DEFAULT_INDEX);
+      setLocal("");
+      return;
+    }
+    if (!value.startsWith("+")) return;
     if (isSettingFromProp.current) {
       isSettingFromProp.current = false;
       return;
@@ -90,6 +95,7 @@ export default function PhoneField({ value, onChange }: Props) {
       {/* Sélecteur pays natif */}
       <div className="relative">
         <select
+          aria-label="Pays / indicatif téléphonique"
           value={idx}
           onChange={(e) => setIdx(parseInt(e.target.value, 10))}
           className="w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 pr-10 text-black"
@@ -112,6 +118,7 @@ export default function PhoneField({ value, onChange }: Props) {
           {dial}
         </div>
         <input
+          aria-label="Numéro local sans zéro initial"
           type="tel"
           inputMode="numeric"
           autoComplete="tel"
@@ -124,4 +131,4 @@ export default function PhoneField({ value, onChange }: Props) {
       </div>
     </div>
   );
-      }
+}
