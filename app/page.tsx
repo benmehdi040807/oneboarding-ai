@@ -2,7 +2,7 @@
 "use client";
 export const runtime = "nodejs";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
@@ -10,11 +10,19 @@ import Menu from "@/components/Menu";
 import CodeAccessDialog from "@/components/CodeAccessDialog";
 import SubscribeModal from "@/components/SubscribeModal";
 
+// 🔔 Bannière quota + i18n
+import QuotaPromoBanner from "@/components/QuotaPromoBanner";
+import FR from "@/i18n/fr";
+import EN from "@/i18n/en";
+import AR from "@/i18n/ar";
+import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
+
 // Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
 
 /* =================== Const =================== */
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
+const PLAN_KEY = "oneboarding.plan"; // null (non-membre) | "subscription" | "one-month"
 
 /* =================== Modal confirmation générique =================== */
 function ConfirmDialog({
@@ -65,22 +73,17 @@ function CguPrivacyModal({
   const [consented, setConsented] = useState(false);
   const didPushRef = useRef(false);
 
-  // Gestion native du bouton Retour : on pousse 1 entrée à l’ouverture, on ferme sur popstate,
-  // et quand on ferme par un bouton on appelle history.back() si on l’a poussée.
   useEffect(() => {
     if (!open) return;
 
-    // état consentement au moment de l’ouverture
     try { setConsented(localStorage.getItem(CONSENT_KEY) === "1"); } catch {}
 
     const onPop = () => {
-      // ferme le modal quand l’utilisateur clique Retour
       cleanupListeners();
       didPushRef.current = false;
       onRequestClose();
     };
 
-    // Pousser une seule fois
     if (!didPushRef.current) {
       history.pushState({ obModal: "legal" }, "", typeof window !== "undefined" ? window.location.href : undefined);
       didPushRef.current = true;
@@ -94,19 +97,15 @@ function CguPrivacyModal({
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("keydown", onEsc);
     }
-
-    // fermeture programmée via close button / overlay
     function handleCloseViaUI() {
       cleanupListeners();
       if (didPushRef.current) {
         didPushRef.current = false;
-        history.back(); // retourne à l’état précédent et déclenche onPop si nécessaire
+        history.back();
       } else {
         onRequestClose();
       }
     }
-
-    // Expose la fermeture UI via dataset pour les handlers inline
     (ref as any).currentClose = handleCloseViaUI;
 
     return () => cleanupListeners();
@@ -120,7 +119,6 @@ function CguPrivacyModal({
       setConsented(true);
       window.dispatchEvent(new Event("ob:consent-updated"));
     }
-    // referme via la logique UI afin de rester sync avec l'historique
     (ref as any).currentClose?.();
   };
 
@@ -213,6 +211,16 @@ export default function Page() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // i18n pour la bannière
+  const lang = useMemo<"fr" | "en" | "ar">(() => {
+    if (typeof window === "undefined") return "fr";
+    return (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
+  }, []);
+  const promoI18N = useMemo(() => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO), [lang]);
+
+  // Initialiser le quota (reset à minuit si page ouverte)
+  useEffect(() => { resetIfNewDay(); }, []);
 
   // OCR
   const [showOcr, setShowOcr] = useState(false);
@@ -335,6 +343,17 @@ export default function Page() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // 🧮 Quota gratuit (non-membres) — comptage “au clic OK”
+    const plan = localStorage.getItem(PLAN_KEY); // null si non-membre
+    if (!plan) {
+      const { reached } = noteInteractionAndMaybeLock();
+      if (reached) {
+        // On bloque l’envoi et on laisse la bannière inviter à activer l’espace
+        return;
+      }
+    }
+
     const q = input.trim();
     const hasOcr = Boolean(ocrText.trim());
     if (!q && !hasOcr) return;
@@ -392,7 +411,6 @@ export default function Page() {
     setHistory([]);
     try { localStorage.removeItem("oneboarding.history"); } catch {}
     setShowClearModal(false);
-    // informer les autres (au cas où)
     window.dispatchEvent(new Event("ob:history-cleared"));
   }
 
@@ -491,6 +509,11 @@ export default function Page() {
           <OcrUploader onText={(t) => setOcrText(t)} onPreview={() => {}} />
         </div>
       )}
+
+      {/* 🔔 Bannière quota (apparaît si non-membre et quota atteint / flag actif) */}
+      <div className="w-full max-w-md">
+        <QuotaPromoBanner i18nPromo={promoI18N} />
+      </div>
 
       {/* Historique */}
       <div className="w-full max-w-md space-y-3 pb-10 z-[1]">
@@ -625,4 +648,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-}
+                                                                     }
