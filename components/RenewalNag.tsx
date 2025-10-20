@@ -28,8 +28,8 @@ const PHONE_KEY = "oneboarding.phoneE164";
 const DISMISS_LOCAL_KEY = "oneboarding.nagDismissedAt";
 const DISMISS_SESSION_KEY = "oneboarding.nagDismissed.session";
 
-// RgpdBanner utilise ce key côté localStorage
-const RGPD_CONSENT_KEY = "oneboarding.rgpdConsent";
+// Aligne la clé avec le modal CGU/Privacy (app/page.tsx)
+const RGPD_CONSENT_KEY = "oneboarding.legalConsent.v1";
 
 type Plan = "one-month" | "subscription" | null;
 
@@ -38,10 +38,7 @@ export default function RenewalNag() {
   const [now, setNow] = useState<number>(() => Date.now());
   const [visible, setVisible] = useState(false);
 
-  // marquer la session (optionnel)
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   // rafraîchit "now" toutes les 60s pour refléter l'écoulement du temps
   useEffect(() => {
@@ -52,13 +49,7 @@ export default function RenewalNag() {
   // lecture des états persistés
   const state = useMemo(() => {
     if (!mounted) {
-      return {
-        plan: null as Plan,
-        activeUntil: null as number | null,
-        nagAt: null as number | null,
-        dismissedAt: null as number | null,
-        phone: "",
-      };
+      return { plan: null as Plan, activeUntil: null as number | null, nagAt: null as number | null, dismissedAt: null as number | null, phone: "" };
     }
     try {
       const plan = (localStorage.getItem(PLAN_KEY) as Plan) ?? null;
@@ -76,13 +67,7 @@ export default function RenewalNag() {
 
       return { plan, activeUntil, nagAt, dismissedAt, phone };
     } catch {
-      return {
-        plan: null as Plan,
-        activeUntil: null,
-        nagAt: null,
-        dismissedAt: null,
-        phone: "",
-      };
+      return { plan: null as Plan, activeUntil: null, nagAt: null, dismissedAt: null, phone: "" };
     }
   }, [mounted, now]);
 
@@ -163,7 +148,7 @@ export default function RenewalNag() {
           left: 50%;
           transform: translateX(-50%);
           width: min(720px, 92vw);
-          z-index: 2147483190; /* au-dessus de la plupart des overlays, en dessous d’un éventuel 2147483200 */
+          z-index: 2147483190; /* au-dessus de la plupart des overlays */
           background: rgba(255, 255, 255, 0.94);
           color: #0b1b2b;
           border: 1px solid rgba(11, 27, 43, 0.12);
