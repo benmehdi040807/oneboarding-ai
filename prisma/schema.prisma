@@ -1,6 +1,8 @@
+// prisma/schema.prisma
+
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // ex: postgres://user:pass@host:5432/dbname
 }
 
 generator client {
@@ -10,31 +12,34 @@ generator client {
 model User {
   id         String   @id @default(cuid())
   phoneE164  String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
 
   profile        Profile?
   subscriptions  Subscription[]
   histories      History[]
+
+  @@index([createdAt])
 }
 
 model Subscription {
   id                String    @id @default(cuid())
   userId            String
   paypalId          String    @unique
-  // plan/status en STRING (pas d’enum SQLite)
-  plan              String    @default("CONTINU")   // "CONTINU" | "PASS1MOIS"
-  status            String    @default("ACTIVE")    // "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "SUSPENDED" | "CANCELLED" | "EXPIRED"
-  currentPeriodEnd  DateTime?
+  // plan/status en STRING (compat & flex)
+  plan              String    @default("CONTINU")    // "CONTINU" | "PASS1MOIS"
+  status            String    @default("ACTIVE")     // "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "SUSPENDED" | "CANCELLED" | "EXPIRED"
+  currentPeriodEnd  DateTime? @db.Timestamptz
   cancelAtPeriodEnd Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([paypalId])
   @@index([status])
+  @@index([createdAt])
 }
 
 model Profile {
@@ -44,8 +49,8 @@ model Profile {
   title     String?
   org       String?
   locale    String   @default("fr")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -57,11 +62,12 @@ model History {
   templateId  String
   inputJson   String
   outputText  String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([createdAt])
 }
 
 model Template {
@@ -71,6 +77,9 @@ model Template {
   locale    String   @default("fr")
   config    String
   isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@index([locale])
+  @@index([isActive])
 }
