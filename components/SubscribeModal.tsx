@@ -1,14 +1,160 @@
+// components/SubscribeModal.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import PhoneField from "./PhoneField";
 
 /* ---------------------------------- Types --------------------------------- */
 type ControlledProps = { open?: boolean; onClose?: () => void };
-type Step = "phone" | "otp" | "plan" | "pay" | "done";
+type Step = "phone" | "plan" | "pay" | "done";
+type Lang = "fr" | "en" | "ar";
+
+/* ---------------------------- i18n (inline) -------------------------------- */
+const I18N: Record<Lang, {
+  DIR: "ltr" | "rtl";
+  TITLE: { phone: string; plan: string; pay: string; done: string };
+  PHONE: {
+    hint1: string; placeholder: string;
+    cancel: string; next: string; nextLoading: string; foot: string;
+  };
+  PLAN: {
+    monthlyTitle: string; monthlySub: string;
+    oneoffTitle: string; oneoffSub: string;
+    back: string; next: string;
+  };
+  PAY: {
+    leadMonthly: string; leadOneoff: string;
+    back: string; errorLoad: string; errorInterrupted: string;
+  };
+  DONE: { h: string; p: string; cta: string };
+  ERR: { numRequired: string; cfgIncomplete: (missing: string[]) => string };
+}> = {
+  fr: {
+    DIR: "ltr",
+    TITLE: {
+      phone: "Créer / activer mon espace",
+      plan: "Choisir ma formule",
+      pay: "Paiement sécurisé",
+      done: "Bienvenue !",
+    },
+    PHONE: {
+      hint1: "Identité = numéro de téléphone. Aucun nom/prénom requis.",
+      placeholder: "+2126…",
+      cancel: "Annuler",
+      next: "Continuer",
+      nextLoading: "…",
+      foot: "Après validation du paiement, votre appareil est autorisé automatiquement.",
+    },
+    PLAN: {
+      monthlyTitle: "Abonnement mensuel continu — 5 € / mois",
+      monthlySub: "Renouvellement automatique. Résiliation à tout moment.",
+      oneoffTitle: "Pass 1 mois — 5 € / 30 jours",
+      oneoffSub: "Paiement unique. Non reconduit.",
+      back: "Retour",
+      next: "Continuer vers le paiement",
+    },
+    PAY: {
+      leadMonthly: "Paiement sécurisé via PayPal — Abonnement 5 € / mois.",
+      leadOneoff: "Paiement sécurisé via PayPal — Pass 1 mois 5 €.",
+      back: "Retour au choix des formules",
+      errorLoad: "Impossible de charger PayPal. Réessayez.",
+      errorInterrupted: "Paiement interrompu. Réessayez.",
+    },
+    DONE: {
+      h: "Activation réussie 🎉",
+      p: "Votre espace OneBoarding AI est actif. Vous êtes maintenant connecté.",
+      cta: "Continuer",
+    },
+    ERR: {
+      numRequired: "Numéro requis.",
+      cfgIncomplete: (m) => `Configuration incomplète: ${m.join(", ")}. Merci d’ajouter ces variables d’environnement.`,
+    },
+  },
+  en: {
+    DIR: "ltr",
+    TITLE: {
+      phone: "Create / activate my space",
+      plan: "Choose my plan",
+      pay: "Secure payment",
+      done: "Welcome!",
+    },
+    PHONE: {
+      hint1: "Identity = phone number. No name required.",
+      placeholder: "+1…",
+      cancel: "Cancel",
+      next: "Continue",
+      nextLoading: "…",
+      foot: "After payment, your device is authorized automatically.",
+    },
+    PLAN: {
+      monthlyTitle: "Continuous monthly subscription — €5 / month",
+      monthlySub: "Auto-renewal. Cancel anytime.",
+      oneoffTitle: "One-month pass — €5 / 30 days",
+      oneoffSub: "One-time payment. No renewal.",
+      back: "Back",
+      next: "Proceed to payment",
+    },
+    PAY: {
+      leadMonthly: "Secure payment via PayPal — €5 / month (subscription).",
+      leadOneoff: "Secure payment via PayPal — One-month pass €5.",
+      back: "Back to plans",
+      errorLoad: "Unable to load PayPal. Try again.",
+      errorInterrupted: "Payment interrupted. Try again.",
+    },
+    DONE: {
+      h: "Activation successful 🎉",
+      p: "Your OneBoarding AI space is active. You are now signed in.",
+      cta: "Continue",
+    },
+    ERR: {
+      numRequired: "Phone number required.",
+      cfgIncomplete: (m) => `Incomplete configuration: ${m.join(", ")}. Please set these environment variables.`,
+    },
+  },
+  ar: {
+    DIR: "rtl",
+    TITLE: {
+      phone: "إنشاء / تفعيل مساحتي",
+      plan: "اختيار خطتي",
+      pay: "دفع آمن",
+      done: "أهلًا بك!",
+    },
+    PHONE: {
+      hint1: "الهوية = رقم الهاتف. لا حاجة للاسم.",
+      placeholder: "+2126…",
+      cancel: "إلغاء",
+      next: "متابعة",
+      nextLoading: "…",
+      foot: "بعد الدفع، يتم تفويض جهازك تلقائيًا.",
+    },
+    PLAN: {
+      monthlyTitle: "اشتراك شهري مستمر — 5€ / الشهر",
+      monthlySub: "تجديد تلقائي. إلغاء في أي وقت.",
+      oneoffTitle: "صلاحية شهر — 5€ / 30 يومًا",
+      oneoffSub: "دفعة واحدة. بلا تجديد.",
+      back: "عودة",
+      next: "المتابعة إلى الدفع",
+    },
+    PAY: {
+      leadMonthly: "دفع آمن عبر PayPal — 5€ / شهريًا (اشتراك).",
+      leadOneoff: "دفع آمن عبر PayPal — صلاحية شهر 5€.",
+      back: "عودة لاختيار الخطة",
+      errorLoad: "تعذّر تحميل PayPal. أعد المحاولة.",
+      errorInterrupted: "انقطع الدفع. أعد المحاولة.",
+    },
+    DONE: {
+      h: "تم التفعيل بنجاح 🎉",
+      p: "مساحة OneBoarding AI الخاصة بك نشِطة. لقد تم تسجيل دخولك.",
+      cta: "متابعة",
+    },
+    ERR: {
+      numRequired: "الرقم مطلوب.",
+      cfgIncomplete: (m) => `إعداد غير مكتمل: ${m.join(", ")}. يُرجى ضبط هذه المتغيّرات.`,
+    },
+  },
+};
 
 /* ---------------------------- Config / constantes -------------------------- */
-// Toutes les valeurs viennent des env publics (Vercel / .env.local)
+// Env publics (Vercel / .env.local)
 // → NEXT_PUBLIC_PAYPAL_CLIENT_ID
 // → NEXT_PUBLIC_PP_PLAN_CONTINU
 // → NEXT_PUBLIC_PP_PLAN_PASS1MOIS
@@ -30,8 +176,8 @@ function assertEnv() {
 /* ----------------------------- Utilitaires DOM ---------------------------- */
 function loadPayPalSdk(params: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    // @ts-ignore déjà chargé ?
-    if (window.paypal) return resolve();
+    // @ts-ignore
+    if (typeof window !== "undefined" && (window as any).paypal) return resolve();
     const s = document.createElement("script");
     s.src = `https://www.paypal.com/sdk/js?${params}`;
     s.async = true;
@@ -41,9 +187,37 @@ function loadPayPalSdk(params: string): Promise<void> {
   });
 }
 
+/* --------------------------- LocalStorage helpers ------------------------- */
+const PLAN_KEY = "oneboarding.plan";
+const ACTIVE_KEY = "oneboarding.spaceActive";
+const UNTIL_KEY = "oneboarding.activeUntil";
+const NAG_AT_KEY = "oneboarding.renewalNagAt";
+const PHONE_KEY = "oneboarding.phoneE164";
+
+// 30 jours
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+// Abonnement : horizon long (≈ 10 ans)
+const SUBSCRIPTION_HORIZON_MS = 3650 * 24 * 60 * 60 * 1000;
+
 /* --------------------------------- Component ------------------------------ */
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+
+  // Langue (écoute + init depuis localStorage)
+  const [lang, setLang] = useState<Lang>(() => {
+    try { return (localStorage.getItem("oneboarding.lang") as Lang) || "fr"; } catch { return "fr"; }
+  });
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ lang?: Lang }>;
+      const l = ce.detail?.lang || (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
+      setLang(l);
+    };
+    window.addEventListener("ob:lang-changed", handler as EventListener);
+    return () => window.removeEventListener("ob:lang-changed", handler as EventListener);
+  }, []);
+  const t = I18N[lang];
+  const dir = t.DIR;
 
   // Mode contrôlé OU autonome
   const [internalOpen, setInternalOpen] = useState(false);
@@ -54,22 +228,15 @@ export default function SubscribeModal(props: ControlledProps) {
     // reset soft
     setStep("phone");
     setError(null);
-    setOtp("");
-    setOtpToken(null);
     setChoice("CONTINU");
+    setE164("");
   };
 
   /* ------------------------------- États UI -------------------------------- */
   const [step, setStep] = useState<Step>("phone");
   const [e164, setE164] = useState("");
-  const [sending, setSending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [sending, setSending] = useState(false); // pour le bouton “Continuer”
   const [error, setError] = useState<string | null>(null);
-
-  const [otp, setOtp] = useState("");
-  const [otpToken, setOtpToken] = useState<string | null>(null); // <<< NEW (stateless)
-  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
-  const [leftSec, setLeftSec] = useState<number>(0);
 
   const [choice, setChoice] = useState<PlanKey>("CONTINU");
   const paypalDivRef = useRef<HTMLDivElement | null>(null);
@@ -112,112 +279,44 @@ export default function SubscribeModal(props: ControlledProps) {
     if (!inside) onClose();
   };
 
-  /* -------------------------- Compte à rebours OTP ------------------------- */
-  useEffect(() => {
-    if (!otpExpiresAt) return;
-    const id = setInterval(() => {
-      const left = Math.max(0, Math.floor((otpExpiresAt - Date.now()) / 1000));
-      setLeftSec(left);
-      if (left === 0) clearInterval(id);
-    }, 250);
-    return () => clearInterval(id);
-  }, [otpExpiresAt]);
-
-  /* ----------------------------- Envoi du code ----------------------------- */
-  async function requestOtp() {
+  /* ------------------------ Passer Phone -> Plan (direct) ------------------- */
+  async function continueFromPhone() {
     try {
       setSending(true);
       setError(null);
       if (!e164) {
-        setError("Numéro requis.");
+        setError(t.ERR.numRequired);
         return;
       }
-      const res = await fetch("/api/otp/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneE164: e164 }),
-      });
 
-      // Si l’API répond, on récupère le token stateless
-      if (res.ok) {
-        const j = await res.json();
-        if (j?.token) setOtpToken(j.token);
-      } else {
-        // Fallback développeur
-        const devCode = "123456";
-        console.info("[DEV] OTP simulé :", devCode);
-        (window as any).__DEV_OTP__ = devCode;
-      }
-
-      const expiresAt = Date.now() + 5 * 60 * 1000;
-      setOtpExpiresAt(expiresAt);
-      try {
-        localStorage.setItem("oneboarding.phoneE164", e164);
-        localStorage.setItem("oneboarding.otpExpiresAt", String(expiresAt));
-      } catch {}
-      setStep("otp");
-    } catch {
-      setError("SERVER_ERROR");
+      // (Optionnel futur) interroger backend pour état du numéro.
+      try { localStorage.setItem(PHONE_KEY, e164); } catch {}
+      setStep("plan");
     } finally {
       setSending(false);
     }
   }
 
-  /* ---------------------------- Vérification OTP --------------------------- */
-  async function verifyOtp() {
-    try {
-      setVerifying(true);
-      setError(null);
-      if (!otp) {
-        setError("Entrez le code reçu.");
-        return;
-      }
-      const res = await fetch("/api/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneE164: e164, code: otp, otpToken }), // <<< NEW (stateless)
-      });
-
-      // Fallback DEV : accepte le code simulé
-      if (!res.ok) {
-        // @ts-ignore
-        if ((window as any).__DEV_OTP__ && otp === (window as any).__DEV_OTP__) {
-          setStep("plan");
-          return;
-        }
-        const j = await res.json().catch(() => null);
-        setError(j?.error === "EXPIRED" ? "Code expiré." : "Code invalide.");
-        return;
-      }
-      setStep("plan");
-    } catch {
-      setError("SERVER_ERROR");
-    } finally {
-      setVerifying(false);
-    }
-  }
-
   /* --------------------------- Rendu bouton PayPal ------------------------- */
   const paypalParams = useMemo(() => {
-    // FR par défaut ; sinon le SDK utilise la langue du navigateur de l’utilisateur.
-    // On force Subscriptions.
+    const locale =
+      lang === "fr" ? "fr_FR" :
+      lang === "ar" ? "ar_EG" :
+      "en_US";
     return new URLSearchParams({
       "client-id": PAYPAL_CLIENT_ID,
       intent: "subscription",
       vault: "true",
+      locale,
     }).toString();
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     if (step !== "pay") return;
 
     const missing = assertEnv();
     if (missing.length) {
-      setError(
-        `Configuration incomplète: ${missing.join(
-          ", "
-        )}. Merci d’ajouter ces variables d’environnement.`
-      );
+      setError(t.ERR.cfgIncomplete(missing));
       return;
     }
 
@@ -227,7 +326,7 @@ export default function SubscribeModal(props: ControlledProps) {
       try {
         await loadPayPalSdk(paypalParams);
       } catch {
-        if (!cancelled) setError("Impossible de charger PayPal. Réessayez.");
+        if (!cancelled) setError(t.PAY.errorLoad);
         return;
       }
       if (cancelled) return;
@@ -247,6 +346,7 @@ export default function SubscribeModal(props: ControlledProps) {
             return actions.subscription.create({ plan_id });
           },
           onApprove: async (data: any) => {
+            // Côté serveur : enregistrer la souscription
             try {
               await fetch("/api/paypal/subscription", {
                 method: "POST",
@@ -258,9 +358,34 @@ export default function SubscribeModal(props: ControlledProps) {
                 }),
               });
             } catch {}
+
+            // Côté client : poser les clés locales
+            const now = Date.now();
+            let activeUntil = now + THIRTY_DAYS_MS;
+            let nagAt: number | null = activeUntil - 3 * 24 * 60 * 60 * 1000;
+
+            if (choice === "CONTINU") {
+              activeUntil = now + SUBSCRIPTION_HORIZON_MS;
+              nagAt = null;
+            }
+
+            try {
+              localStorage.setItem(PLAN_KEY, choice === "CONTINU" ? "subscription" : "one-month");
+              localStorage.setItem(ACTIVE_KEY, "1");
+              localStorage.setItem(UNTIL_KEY, String(activeUntil));
+              if (nagAt) localStorage.setItem(NAG_AT_KEY, String(nagAt));
+              else localStorage.removeItem(NAG_AT_KEY);
+              if (e164) localStorage.setItem(PHONE_KEY, e164);
+            } catch {}
+
+            // 🔔 Signaux globaux
+            window.dispatchEvent(new Event("ob:space-activated"));
+            window.dispatchEvent(new Event("ob:connected"));
+            window.dispatchEvent(new Event("ob:auth-changed"));
+
             setStep("done");
           },
-          onError: () => setError("Paiement interrompu. Réessayez."),
+          onError: () => setError(t.PAY.errorInterrupted),
         })
         .render(paypalDivRef.current);
     })();
@@ -268,7 +393,7 @@ export default function SubscribeModal(props: ControlledProps) {
     return () => {
       cancelled = true;
     };
-  }, [step, choice, paypalParams, e164]);
+  }, [step, choice, paypalParams, e164, t]);
 
   /* --------------------------------- JSX ---------------------------------- */
   return (
@@ -280,38 +405,38 @@ export default function SubscribeModal(props: ControlledProps) {
         onMouseDown={onBackdropClick}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
       >
-        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
+        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl" dir={dir}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">
-              {step === "phone" && "Créer / activer mon espace"}
-              {step === "otp" && "Confirmer mon code"}
-              {step === "plan" && "Choisir ma formule"}
-              {step === "pay" && "Paiement sécurisé"}
-              {step === "done" && "Bienvenue !"}
+              {step === "phone" && t.TITLE.phone}
+              {step === "plan" && t.TITLE.plan}
+              {step === "pay" && t.TITLE.pay}
+              {step === "done" && t.TITLE.done}
             </h2>
             <button
               type="button"
               onClick={onClose}
               className="h-10 w-10 rounded-full bg-black/[0.06] hover:bg-black/[0.1] text-black/80 grid place-items-center text-xl"
-              aria-label="Fermer"
+              aria-label="Close"
             >
               ×
             </button>
           </div>
 
-          {/* PHONE */}
+          {/* PHONE — sans OTP */}
           {step === "phone" && (
             <div className="space-y-4">
               <div className="text-xs text-black/70">
-                Identité = <strong>numéro de téléphone</strong> (WhatsApp). Aucun nom/prénom requis.
+                {t.PHONE.hint1}
               </div>
 
-              <PhoneField
+              <input
                 value={e164}
-                onChange={(v) => {
-                  setE164(v);
-                  setError(null);
-                }}
+                onChange={(e) => { setE164(e.target.value); setError(null); }}
+                placeholder={t.PHONE.placeholder}
+                inputMode="tel"
+                className="w-full rounded-2xl border border-black/15 px-4 py-3 font-mono"
+                dir="ltr"
               />
 
               <div className="pt-2 flex gap-3">
@@ -320,75 +445,23 @@ export default function SubscribeModal(props: ControlledProps) {
                   onClick={onClose}
                   className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
                 >
-                  Annuler
+                  {t.PHONE.cancel}
                 </button>
                 <button
                   type="button"
-                  onClick={requestOtp}
+                  onClick={continueFromPhone}
                   disabled={!e164 || sending}
                   className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
                 >
-                  {sending ? "Envoi…" : "Recevoir mon code"}
+                  {sending ? t.PHONE.nextLoading : t.PHONE.next}
                 </button>
               </div>
 
               {error && <div className="text-sm text-red-600">{error}</div>}
 
               <div className="text-[11px] text-black/55 pt-1">
-                Après validation du code (5 min), vous choisirez votre formule :
-                <br />— Abonnement 5 €/mois • accès continu
-                <br />— Accès libre 5 € • 1 mois sans engagement
-              </div>
-            </div>
-          )}
-
-          {/* OTP */}
-          {step === "otp" && (
-            <div className="space-y-4">
-              <div className="text-sm text-black/70">
-                Entrez le code reçu par WhatsApp pour <span className="font-mono">{e164}</span>.
-                {leftSec > 0 && (
-                  <span className="ml-2 text-black/60">
-                    ({Math.floor(leftSec / 60)}:{String(leftSec % 60).padStart(2, "0")} restantes)
-                  </span>
-                )}
-              </div>
-
-              <input
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="Code à 6 chiffres"
-                value={otp}
-                onChange={(e) => {
-                  setOtp(e.target.value.replace(/\D/g, ""));
-                  setError(null);
-                }}
-                className="w-full rounded-2xl border border-black/15 px-4 py-3 font-mono tracking-widest text-center"
-              />
-
-              <div className="pt-1 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep("phone")}
-                  className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
-                >
-                  Retour
-                </button>
-                <button
-                  type="button"
-                  onClick={verifyOtp}
-                  disabled={!otp || verifying}
-                  className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
-                >
-                  {verifying ? "Vérification…" : "Valider"}
-                </button>
-              </div>
-
-              {error && <div className="text-sm text-red-600">{error}</div>}
-              <div className="text-[11px] text-black/45">
-                Vous n’avez rien reçu ? (dev) essayez le code <code className="font-mono">123456</code>.
+                {t.PHONE.foot}
               </div>
             </div>
           )}
@@ -405,9 +478,9 @@ export default function SubscribeModal(props: ControlledProps) {
                     onChange={() => setChoice("CONTINU")}
                   />
                   <div>
-                    <div className="font-semibold">Abonnement mensuel continu — 5 € / mois</div>
+                    <div className="font-semibold">{t.PLAN.monthlyTitle}</div>
                     <div className="text-sm text-black/60">
-                      Renouvellement automatique. Résiliation à tout moment.
+                      {t.PLAN.monthlySub}
                     </div>
                   </div>
                 </label>
@@ -420,8 +493,8 @@ export default function SubscribeModal(props: ControlledProps) {
                     onChange={() => setChoice("PASS1MOIS")}
                   />
                   <div>
-                    <div className="font-semibold">Pass 1 mois — 5 € / 30 jours</div>
-                    <div className="text-sm text-black/60">Paiement unique. Non reconduit.</div>
+                    <div className="font-semibold">{t.PLAN.oneoffTitle}</div>
+                    <div className="text-sm text-black/60">{t.PLAN.oneoffSub}</div>
                   </div>
                 </label>
               </fieldset>
@@ -429,10 +502,10 @@ export default function SubscribeModal(props: ControlledProps) {
               <div className="pt-1 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep("otp")}
+                  onClick={() => setStep("phone")}
                   className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
                 >
-                  Retour
+                  {t.PLAN.back}
                 </button>
                 <button
                   type="button"
@@ -440,18 +513,17 @@ export default function SubscribeModal(props: ControlledProps) {
                   className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow"
                   style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
                 >
-                  Continuer vers le paiement
+                  {t.PLAN.next}
                 </button>
               </div>
             </div>
           )}
 
-          {/* PAY */}
+          {/* PAY (PayPal Subscriptions) */}
           {step === "pay" && (
             <div className="space-y-4">
               <div className="text-sm text-black/70">
-                Paiement sécurisé via PayPal —{" "}
-                {choice === "CONTINU" ? "Abonnement 5 € / mois" : "Pass 1 mois 5 €"}.
+                {choice === "CONTINU" ? t.PAY.leadMonthly : t.PAY.leadOneoff}
               </div>
 
               <div ref={paypalDivRef} />
@@ -464,7 +536,7 @@ export default function SubscribeModal(props: ControlledProps) {
                   onClick={() => setStep("plan")}
                   className="rounded-2xl border border-black/15 px-4 py-3 w-full"
                 >
-                  Retour au choix des formules
+                  {t.PAY.back}
                 </button>
               </div>
             </div>
@@ -473,9 +545,9 @@ export default function SubscribeModal(props: ControlledProps) {
           {/* DONE */}
           {step === "done" && (
             <div className="space-y-4">
-              <div className="text-lg font-semibold">Activation réussie 🎉</div>
+              <div className="text-lg font-semibold">{t.DONE.h}</div>
               <div className="text-sm text-black/70">
-                Votre espace OneBoarding AI est actif. Vous êtes maintenant connecté.
+                {t.DONE.p}
               </div>
               <button
                 type="button"
@@ -483,7 +555,7 @@ export default function SubscribeModal(props: ControlledProps) {
                 className="rounded-2xl px-4 py-3 text-white font-semibold w-full"
                 style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
               >
-                Continuer
+                {t.DONE.cta}
               </button>
             </div>
           )}
@@ -491,4 +563,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-}
+          }
