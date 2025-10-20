@@ -3,16 +3,16 @@ import { NextResponse } from "next/server";
 export const runtime = "edge";
 
 export async function GET() {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { ok: false, where: "env", error: "OPENAI_API_KEY is not set" },
+      { ok: false, where: "env", error: "GROQ_API_KEY is not set" },
       { status: 500 }
     );
   }
 
   try {
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -20,8 +20,8 @@ export async function GET() {
       },
       cache: "no-store",
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.6,
+        model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+        temperature: 0.3,
         max_tokens: 60,
         messages: [
           { role: "system", content: "Réponds en une phrase." },
@@ -35,9 +35,9 @@ export async function GET() {
     if (!resp.ok) {
       const msg =
         (data && (data.error?.message || data.message)) ||
-        `OpenAI error (status ${resp.status})`;
+        `Groq error (status ${resp.status})`;
       return NextResponse.json(
-        { ok: false, where: "openai", status: resp.status, error: msg, raw: data },
+        { ok: false, where: "groq", status: resp.status, error: msg, raw: data },
         { status: 500 }
       );
     }
