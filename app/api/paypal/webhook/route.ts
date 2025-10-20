@@ -2,6 +2,10 @@
 import { NextResponse } from "next/server";
 import { applyWebhookChange } from "@/lib/subscriptions";
 
+export const runtime = "nodejs";          // on utilise Buffer + appel PayPal -> Node
+export const dynamic = "force-dynamic";   // pas de cache ISR/Edge ici
+export const revalidate = 0;
+
 /* --- ENV --- */
 const PP_CLIENT_ID = process.env.PAYPAL_CLIENT_ID!;
 const PP_SECRET = process.env.PAYPAL_SECRET!;
@@ -87,11 +91,6 @@ export async function POST(req: Request) {
     }
 
     // 4) Déléguer au domaine (Prisma, etc.)
-    //    -> Brancher ici ta persistance et tes règles :
-    //       - lier subId ⇄ user
-    //       - mettre à jour status
-    //       - ajuster endAt pour PASS1MOIS
-    //       - journaliser les paiements/rate
     switch (type) {
       case "BILLING.SUBSCRIPTION.ACTIVATED":
       case "BILLING.SUBSCRIPTION.SUSPENDED":
@@ -106,12 +105,11 @@ export async function POST(req: Request) {
         break;
     }
 
-    // 5) Répondre 200 rapidement (PayPal attend un ACK rapide)
+    // 5) Répondre 200 rapidement (ACK)
     return new NextResponse("OK", { status: 200 });
   } catch (e) {
     console.error("PP_WEBHOOK_ERR", e);
-    // On renvoie 200 quand même pour éviter les retries infinis en cas de bug temporaire,
-    // mais on loggue bien pour corriger.
+    // On renvoie 200 pour éviter des retries en boucle si bug temporaire (on loggue et on corrige).
     return new NextResponse("OK", { status: 200 });
   }
-    }
+}
