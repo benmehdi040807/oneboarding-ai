@@ -25,7 +25,6 @@ const MAX_DEVICES_DEFAULT = 3;
 
 /** ===================== Utils ===================== */
 function uuid4() {
-  // mini UUID v4
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0,
       v = c === "x" ? r : (r & 0x3) | 0x8;
@@ -144,7 +143,7 @@ const I18N: Record<Lang, any> = {
       PHONE_LABEL: "Numéro de téléphone (membre)",
       PHONE_PH: "+33 612 34 56 78",
       CONNECT_INFO:
-        "Si cet appareil n’est pas encore autorisé, une vérification à 1 € peut être requise pour confirmer votre identité et ajouter cet appareil.",
+        "Nous allons vérifier votre espace et vous guider (activation ou connexion).",
       CONNECT_BTN: "Continuer",
       CANCEL: "Annuler",
 
@@ -219,7 +218,7 @@ const I18N: Record<Lang, any> = {
       PHONE_LABEL: "Phone number (member)",
       PHONE_PH: "+1 415 555 2671",
       CONNECT_INFO:
-        "If this device isn’t authorized yet, a €1 verification may be required to confirm your identity and add this device.",
+        "We’ll check your space and guide you (activation or sign-in).",
       CONNECT_BTN: "Continue",
       CANCEL: "Cancel",
 
@@ -292,7 +291,7 @@ const I18N: Record<Lang, any> = {
       PHONE_LABEL: "رقم الهاتف (عضو)",
       PHONE_PH: "+212 6 12 34 56 78",
       CONNECT_INFO:
-        "إذا لم يكن هذا الجهاز مُفوضًا بعد، قد نطلب تحققًا بمبلغ 1€ لتأكيد هويتك وإضافة هذا الجهاز.",
+        "سنفحص حسابك ونرشدك للخطوة المناسبة (تفعيل أو تسجيل دخول).",
       CONNECT_BTN: "متابعة",
       CANCEL: "إلغاء",
 
@@ -372,15 +371,11 @@ export default function Menu() {
       setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
       setMessages(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
-      getOrCreateDeviceId(); // s'assure qu'on a un deviceId
-
-      // pré-remplir le téléphone si déjà stocké
-      const savedPhone = localStorage.getItem("oneboarding.phoneE164");
-      if (savedPhone) setPhone(savedPhone);
+      getOrCreateDeviceId();
     } catch {}
   }, []);
 
-  // écoute cross-composants + écoute CTA activation externe
+  // écoute cross-composants
   useEffect(() => {
     const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
     const onSpaceActivated = () => {
@@ -391,23 +386,11 @@ export default function Menu() {
     const onHistoryCleared = () => setMessages([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
-    // 🔗 Ouverture depuis QuotaPromoBanner / autres (ob:open-activate)
-    const onOpenActivate = (e: Event) => {
-      // si un numéro est déjà connu en localStorage, le récupérer
-      try {
-        const saved = localStorage.getItem("oneboarding.phoneE164");
-        if (saved) setPhone(saved);
-      } catch {}
-      setActivateOpen(true);
-      pushHistoryFor("auth");
-    };
-
     window.addEventListener("ob:connected-changed", onAuthChanged);
     window.addEventListener("ob:space-activated", onSpaceActivated);
     window.addEventListener("ob:plan-changed", onPlanChanged);
     window.addEventListener("ob:history-cleared", onHistoryCleared);
     window.addEventListener("ob:consent-updated", onConsentUpdated);
-    window.addEventListener("ob:open-activate", onOpenActivate as EventListener);
 
     return () => {
       window.removeEventListener("ob:connected-changed", onAuthChanged);
@@ -415,7 +398,6 @@ export default function Menu() {
       window.removeEventListener("ob:plan-changed", onPlanChanged);
       window.removeEventListener("ob:history-cleared", onHistoryCleared);
       window.removeEventListener("ob:consent-updated", onConsentUpdated);
-      window.removeEventListener("ob:open-activate", onOpenActivate as EventListener);
     };
   }, []);
 
@@ -426,11 +408,7 @@ export default function Menu() {
 
   /** ============ Actions compte ============ */
   function handleConnect() {
-    // préremplir si dispo
-    try {
-      const saved = localStorage.getItem("oneboarding.phoneE164");
-      if (saved) setPhone(saved);
-    } catch {}
+    setPhone("");
     setAuthState(null);
     setRevokeOldest(false);
     openAuthModal();
@@ -445,12 +423,6 @@ export default function Menu() {
     emit("ob:connected-changed");
   }
   function handleActivate() {
-    // ouverture directe de l'écran d’activation (choix du plan)
-    // pré-remplir le téléphone si déjà connu
-    try {
-      const saved = localStorage.getItem("oneboarding.phoneE164");
-      if (saved) setPhone(saved);
-    } catch {}
     setActivateOpen(true);
     pushHistoryFor("auth");
   }
@@ -628,21 +600,32 @@ export default function Menu() {
 
   /** ===================== Handlers serveur (fetch) ===================== */
   async function apiCheck(phone: string): Promise<CheckState> {
-    const deviceId = getOrCreateDeviceId();
-    const res = await fetch("/api/auth/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, deviceId }),
-    });
-    if (!res.ok) throw new Error("check failed");
-    const data = await res.json();
-    return {
-      hasAnyDevice: !!data?.hasAnyDevice,
-      deviceKnown: !!data?.deviceKnown,
-      planActive: !!data?.planActive,
-      deviceCount: Number(data?.deviceCount ?? 0),
-      maxDevices: Number(data?.maxDevices ?? MAX_DEVICES_DEFAULT),
-    };
+    try {
+      const deviceId = getOrCreateDeviceId();
+      const res = await fetch("/api/auth/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, deviceId }),
+      });
+      if (!res.ok) throw new Error("check failed");
+      const data = await res.json();
+      return {
+        hasAnyDevice: !!data?.hasAnyDevice,
+        deviceKnown: !!data?.deviceKnown,
+        planActive: !!data?.planActive,
+        deviceCount: Number(data?.deviceCount ?? 0),
+        maxDevices: Number(data?.maxDevices ?? MAX_DEVICES_DEFAULT),
+      };
+    } catch {
+      // fallback gracieux : on traite comme une première activation
+      return {
+        hasAnyDevice: false,
+        deviceKnown: false,
+        planActive: false,
+        deviceCount: 0,
+        maxDevices: MAX_DEVICES_DEFAULT,
+      };
+    }
   }
 
   async function apiAuthorizeDeviceOneEuro(phone: string, revokeOldest: boolean) {
@@ -697,11 +680,8 @@ export default function Menu() {
       setAuthState(state);
 
       if (state.deviceKnown) {
-        // appareil déjà autorisé => connexion immédiate
-        try {
-          localStorage.setItem("ob_connected", "1");
-          if (phone) localStorage.setItem("oneboarding.phoneE164", phone); // 🔗 propagation du phone
-        } catch {}
+        localStorage.setItem("ob_connected", "1");
+        try { localStorage.setItem("oneboarding.phoneE164", phone); } catch {}
         setConnected(true);
         emit("ob:connected-changed");
         toast(t.AUTH.WELCOME_OK);
@@ -710,19 +690,17 @@ export default function Menu() {
       }
 
       if (!state.hasAnyDevice) {
-        // aucun appareil encore — première activation => choisir plan
         setAuthOpen(false);
         setActivateOpen(true);
         return;
       }
 
-      // il existe >=1 device pour ce phone, mais pas celui-ci => flux 1 €
       const max = state.maxDevices || MAX_DEVICES_DEFAULT;
       const limitReached = state.deviceCount >= max;
       setRevokeOldest(limitReached);
       setAuthOpen(false);
       setOneEuroOpen(true);
-    } catch (e) {
+    } catch {
       toast(t.AUTH.ERROR);
     } finally {
       setChecking(false);
@@ -740,18 +718,18 @@ export default function Menu() {
       await apiAuthorizeDeviceOneEuro(phone, revokeOldest);
       await apiMarkDeviceAuthorized(phone);
 
-      // connexion & statut + phone persisté
-      try {
-        localStorage.setItem("ob_connected", "1");
-        if (phone) localStorage.setItem("oneboarding.phoneE164", phone); // 🔗 propagation du phone
-      } catch {}
-
+      localStorage.setItem("ob_connected", "1");
+      try { localStorage.setItem("oneboarding.phoneE164", phone); } catch {}
       setConnected(true);
+
+      if (!spaceActive) {
+        // pas de changement côté espace si aucun plan n'est actif
+      }
 
       emit("ob:connected-changed");
       toast(t.AUTH.WELCOME_OK);
       setOneEuroOpen(false);
-    } catch (e) {
+    } catch {
       toast(t.AUTH.ERROR);
     } finally {
       setChecking(false);
@@ -764,11 +742,8 @@ export default function Menu() {
       const planSet = await apiStartPlan(kind, phone);
       await apiMarkDeviceAuthorized(phone);
 
-      // statut local + phone persisté
-      try {
-        localStorage.setItem("ob_connected", "1");
-        if (phone) localStorage.setItem("oneboarding.phoneE164", phone); // 🔗 propagation du phone
-      } catch {}
+      localStorage.setItem("ob_connected", "1");
+      try { localStorage.setItem("oneboarding.phoneE164", phone); } catch {}
       writeJSON("oneboarding.spaceActive", true);
       writeJSON("oneboarding.plan", planSet);
 
@@ -782,7 +757,7 @@ export default function Menu() {
 
       toast(t.AUTH.SPACE_OK);
       setActivateOpen(false);
-    } catch (e) {
+    } catch {
       toast(t.AUTH.ERROR);
     } finally {
       setChecking(false);
@@ -1074,7 +1049,6 @@ export default function Menu() {
 
             <p className="text-sm opacity-90 mt-3">{t.AUTH.ONE_EURO_LEAD}</p>
 
-            {/* Hint limite atteinte */}
             {authState && authState.deviceCount >= (authState.maxDevices || MAX_DEVICES_DEFAULT) && (
               <div className="mt-3 p-3 rounded-xl border border-yellow-400/30 bg-yellow-300/15 text-yellow-100">
                 {t.AUTH.REVOKE_OLDEST_HINT.replaceAll("{max}", String(authState.maxDevices || MAX_DEVICES_DEFAULT))}
@@ -1111,15 +1085,9 @@ export default function Menu() {
       {/* styles locaux */}
       <style jsx global>{`
         @keyframes ob-float {
-          0% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-2px);
-          }
-          100% {
-            transform: translateY(0);
-          }
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+          100% { transform: translateY(0); }
         }
         .menu-float:focus-visible {
           animation: ob-float 0.9s ease-in-out;
@@ -1300,4 +1268,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-          }
+}
