@@ -1,13 +1,15 @@
 // components/AppMvp.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Menu from "@/components/Menu";
-import SubscribeModal from "@/components/SubscribeModal";
-import CodeAccessDialog from "@/components/CodeAccessDialog";
-import PaymentModal from "@/components/PaymentModal";
-import RenewalNag from "@/components/RenewalNag";
-import { attachAutoTokenGuard } from "@/lib/validateToken";
+
+// 🔔 Bannière quota + i18n (même logique que app/page.tsx)
+import QuotaPromoBanner from "@/components/QuotaPromoBanner";
+import FR from "@/i18n/fr";
+import EN from "@/i18n/en";
+import AR from "@/i18n/ar";
+import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
 
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
@@ -15,118 +17,52 @@ export default function AppMvp() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
-  const [debug, setDebug] = useState("(prêt)");
 
-  // Modals contrôlés par la page
-  const [openSubscribe, setOpenSubscribe] = useState(false);
-  const [openCodeDialog, setOpenCodeDialog] = useState(false);
-
-  // ✅ Garde auto: revalide le token au chargement et à chaque changement de connexion
-  useEffect(() => {
-    const dispose = attachAutoTokenGuard();
-    return dispose;
+  // i18n pour la bannière
+  const lang = useMemo<"fr" | "en" | "ar">(() => {
+    if (typeof window === "undefined") return "fr";
+    return (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
   }, []);
+  const promoI18N = useMemo(() => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO), [lang]);
 
-  // ---------- helpers état d’accès ----------
-  const isSpaceActive = useMemo(() => {
-    try {
-      const active = localStorage.getItem("oneboarding.spaceActive") === "1";
-      const plan = localStorage.getItem("oneboarding.plan") as
-        | "subscription"
-        | "one-month"
-        | null;
-      if (!active || !plan) return false;
-      if (plan === "subscription") return true;
-      const until = Number(localStorage.getItem("oneboarding.activeUntil") || 0);
-      return until > Date.now();
-    } catch {
-      return false;
-    }
-  }, [history.length]);
-
-  const freeUsedRef = useRef<number>(0);
+  // Reset quota à minuit si la page reste ouverte
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("oneboarding.freeUsed");
-      freeUsedRef.current = s ? parseInt(s) || 0 : 0;
-    } catch {
-      freeUsedRef.current = 0;
-    }
+    resetIfNewDay();
   }, []);
-  function incFreeCount() {
-    try {
-      freeUsedRef.current += 1;
-      localStorage.setItem("oneboarding.freeUsed", String(freeUsedRef.current));
-    } catch {}
-  }
 
   // Charger / Sauver l'historique local
   useEffect(() => {
     try {
       const saved = localStorage.getItem("oneboarding.history");
       if (saved) setHistory(JSON.parse(saved));
-    } catch (e) {
-      setDebug(`Erreur lecture localStorage: ${(e as Error).message}`);
-    }
+    } catch {}
   }, []);
   useEffect(() => {
     try {
       localStorage.setItem("oneboarding.history", JSON.stringify(history));
-    } catch (e) {
-      setDebug(`Erreur écriture localStorage: ${(e as Error).message}`);
-    }
+    } catch {}
   }, [history]);
 
-  // ---------- Raccordement aux événements Menu ----------
-  useEffect(() => {
-    const openConnect = () => setOpenCodeDialog(true);
-    const openActivate = () => setOpenSubscribe(true);
-    const openPayment = (e: Event) => {
-      const custom = e as CustomEvent<{ phoneE164?: string }>;
-      window.dispatchEvent(new CustomEvent("ob:open-payment", { detail: custom?.detail || {} }));
-      // NB: PaymentModal écoute déjà "ob:open-payment" pour s'ouvrir côté composant.
-    };
-    window.addEventListener("ob:open-connect", openConnect);
-    window.addEventListener("ob:open-activate", openActivate);
-    window.addEventListener("ob:open-payment", openPayment);
-    return () => {
-      window.removeEventListener("ob:open-connect", openConnect);
-      window.removeEventListener("ob:open-activate", openActivate);
-      window.removeEventListener("ob:open-payment", openPayment);
-    };
-  }, []);
-
-  // Connexion OTP → ouvrir Paiement automatiquement
-  useEffect(() => {
-    const onConnectedChanged = () => {
-      const connected = localStorage.getItem("ob_connected") === "1";
-      if (connected) {
-        const phoneE164 = localStorage.getItem("oneboarding.phoneE164") || undefined;
-        window.dispatchEvent(new CustomEvent("ob:open-payment", { detail: { phoneE164 } }));
-      }
-    };
-    window.addEventListener("ob:connected-changed", onConnectedChanged);
-    return () => window.removeEventListener("ob:connected-changed", onConnectedChanged);
-  }, []);
-
-  // ENVOI + AFFICHAGE RÉPONSE (avec gating 3 gratuites)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
     if (!q || loading) return;
 
-    // Gate: si pas actif et déjà 3 réponses, on bloque et on lance le flux d’activation
-    if (!isSpaceActive && freeUsedRef.current >= 3) {
-      setOpenSubscribe(true); // OTP
-      setDebug("Limite atteinte → OTP requis avant paiement");
-      return;
+    // 🧮 Quota gratuit (non-membres) — comptage “au clic OK”
+    const plan = localStorage.getItem("oneboarding.plan"); // null si non-membre
+    if (!plan) {
+      const { reached } = noteInteractionAndMaybeLock();
+      if (reached) {
+        // On bloque l’envoi et on laisse le Menu prendre le relais (activation)
+        window.dispatchEvent(new CustomEvent("ob:open-activate"));
+        return;
+      }
     }
 
     const now = new Date().toISOString();
     setHistory((h) => [{ role: "user", text: q, time: now }, ...h]);
     setInput("");
     setLoading(true);
-    setDebug("Appel /api/generate…");
 
     try {
       const res = await fetch("/api/generate", {
@@ -137,30 +73,22 @@ export default function AppMvp() {
       const data = await res.json();
 
       if (!res.ok || !data?.ok) {
-        const msg = data?.error || `HTTP ${res.status}`;
+        const raw = String(data?.error || `HTTP ${res.status}`);
+        const msg = raw.includes("GROQ_API_KEY")
+          ? "Service temporairement indisponible. (Configuration serveur requise)"
+          : `Erreur: ${raw}`;
+        setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
+      } else {
         setHistory((h) => [
-          { role: "error", text: `Erreur: ${msg}`, time: new Date().toISOString() },
+          { role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() },
           ...h,
         ]);
-        setDebug(`Erreur API: ${msg}`);
-        return;
       }
-
-      const aiText = String(data.text || "Réponse vide.");
-      setHistory((h) => [
-        { role: "assistant", text: aiText, time: new Date().toISOString() },
-        ...h,
-      ]);
-      setDebug(`OK (${data.model || "modèle inconnu"})`);
-
-      // Si l’espace n’est pas actif, on compte cette réponse offerte
-      if (!isSpaceActive) incFreeCount();
     } catch (err: any) {
       setHistory((h) => [
         { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
         ...h,
       ]);
-      setDebug(`Erreur JS: ${err?.message || "réseau"}`);
     } finally {
       setLoading(false);
     }
@@ -168,54 +96,48 @@ export default function AppMvp() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Modals “globaux” */}
-      <PaymentModal />
-      <RenewalNag />
-      <SubscribeModal
-        open={openSubscribe}
-        onClose={() => {
-          setOpenSubscribe(false);
-          // Enchaînement fluide vers la saisie du code OTP
-          setTimeout(() => setOpenCodeDialog(true), 80);
-        }}
-      />
-      <CodeAccessDialog
-        open={openCodeDialog}
-        onClose={() => setOpenCodeDialog(false)}
-      />
-
-      <div className="mx-auto max-w-screen-sm px-4 py-6 flex flex-col items-center">
+      <div className="mx-auto w-full max-w-screen-sm px-4 py-6 flex flex-col items-center">
+        {/* Menu (pilote auth/activation/paiement en natif) */}
         <div className="w-full mb-4">
           <Menu />
         </div>
 
-        <h1 className="text-2xl font-bold mb-6 text-center">OneBoarding AI ✨</h1>
+        <h1 className="text-2xl font-bold mb-4 text-center">OneBoarding AI ✨</h1>
 
-        {/* Champ + bouton */}
+        {/* Champ + bouton — mobile-first */}
         <form onSubmit={handleSubmit} className="w-full flex gap-2 mb-3">
           <input
             type="text"
             placeholder="Décrivez votre besoin…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 rounded-xl px-4 py-2 text-black"
+            className="flex-1 rounded-xl px-4 py-3 text-black"
           />
           <button
             type="submit"
             disabled={loading}
-            className="bg-white text-black px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-60"
+            className="px-4 py-3 rounded-xl font-semibold bg-white text-black hover:bg-gray-100 active:scale-[.985] transition disabled:opacity-60"
           >
             {loading ? "…" : "OK"}
           </button>
         </form>
 
-        {/* Petit panneau debug (sans compteur visuel) */}
-        <div className="w-full text-xs text-white/60 mb-4">
-          État : {debug}
+        {/* 🔔 Bannière quota (apparaît si non-membre et quota atteint / flag actif) */}
+        <div className="w-full mb-4">
+          <QuotaPromoBanner i18nPromo={promoI18N} />
         </div>
 
         {/* Historique */}
         <div className="w-full space-y-3">
+          {loading && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="opacity-90">
+                <span className="inline-block animate-pulse">•••</span>
+              </p>
+              <p className="text-xs opacity-60 mt-2">IA • {new Date().toLocaleString()}</p>
+            </div>
+          )}
+
           {history.map((item, idx) => (
             <div
               key={idx}
@@ -228,7 +150,7 @@ export default function AppMvp() {
               }`}
             >
               <p className="whitespace-pre-wrap">{item.text}</p>
-              <p className="text-xs text-white/50 mt-1">
+              <p className="text-xs text-white/60 mt-2">
                 {item.role === "user" ? "Vous" : item.role === "assistant" ? "IA" : "Erreur"} •{" "}
                 {new Date(item.time).toLocaleString()}
               </p>
