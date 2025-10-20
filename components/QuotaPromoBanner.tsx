@@ -1,3 +1,4 @@
+// components/QuotaPromoBanner.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -41,11 +42,11 @@ export default function QuotaPromoBanner({
   };
 }) {
   const [visible, setVisible] = useState(false);
-
-  const lang: Lang = useMemo(() => {
+  const [lang, setLang] = useState<Lang>(() => {
     try { return (localStorage.getItem(LS_KEYS.LANG) as Lang) || "fr"; } catch { return "fr"; }
-  }, []);
+  });
 
+  // Évaluer visibilité au montage
   useEffect(() => {
     // 1) Reset du compteur si on a changé de jour
     const stamp = localStorage.getItem(LS_KEYS.DAILY_STAMP);
@@ -72,9 +73,7 @@ export default function QuotaPromoBanner({
     setVisible(isNonMember && (quotaReached || promoActive));
   }, []);
 
-  // Écoute d’un évent éventuel : quand le 3e message vient d’être consommé,
-  // l’app courante peut émettre `ob:interaction-limit-reached`
-  // pour afficher immédiatement la bannière et la marquer jusqu’à minuit.
+  // Affichage immédiat quand le quota est atteint (événement émis par l’app)
   useEffect(() => {
     const onLimit = () => {
       writeLS(LS_KEYS.PROMO_UNTIL, endOfTodayTs());
@@ -82,6 +81,35 @@ export default function QuotaPromoBanner({
     };
     window.addEventListener("ob:interaction-limit-reached", onLimit);
     return () => window.removeEventListener("ob:interaction-limit-reached", onLimit);
+  }, []);
+
+  // Masquer la bannière dès que l’utilisateur devient membre / change de plan
+  useEffect(() => {
+    const hideIfMember = () => {
+      const plan = readLS<string | null>(LS_KEYS.PLAN, null);
+      if (plan) setVisible(false);
+    };
+    window.addEventListener("ob:space-activated", hideIfMember);
+    window.addEventListener("ob:plan-changed", hideIfMember);
+    return () => {
+      window.removeEventListener("ob:space-activated", hideIfMember);
+      window.removeEventListener("ob:plan-changed", hideIfMember);
+    };
+  }, []);
+
+  // Suivre le changement de langue global (Menu)
+  useEffect(() => {
+    const onLang = (e: Event) => {
+      try {
+        const det = (e as CustomEvent).detail;
+        if (det?.lang) setLang(det.lang as Lang);
+        else setLang(((localStorage.getItem(LS_KEYS.LANG) as Lang) || "fr") as Lang);
+      } catch {
+        setLang("fr");
+      }
+    };
+    window.addEventListener("ob:lang-changed", onLang as EventListener);
+    return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
   }, []);
 
   if (!visible) return null;
