@@ -8,16 +8,28 @@ type SessionPayload = {
   plan?: "CONTINU" | "PASS1MOIS";
   subscriptionID?: string;
   status?: string;       // ACTIVE | CANCELLED | ...
-  iat?: number;          // seconds
-  exp?: number;          // seconds
+  iat?: number;          // seconds (Unix)
+  exp?: number;          // seconds (Unix)
 };
+
+// Secret unique pour la signature du cookie de session (HS256)
+function getSessionSecret(): string {
+  const s = process.env.SESSION_SECRET || "";
+  if (process.env.NODE_ENV === "production" && !s) {
+    // En production, on exige absolument la présence du secret
+    throw new Error("SESSION_SECRET manquant (production)");
+  }
+  // En dev, fallback pour faciliter le run local
+  return s || "dev_secret";
+}
 
 /** Décode et vérifie le cookie ob_session (HS256) */
 export function getSessionPayload(): SessionPayload | null {
   const token = cookies().get("ob_session")?.value;
   if (!token) return null;
 
-  const secret = process.env.DEV_OTP_SECRET || "dev_secret";
+  const secret = getSessionSecret();
+
   try {
     const [h, b, s] = token.split(".");
     if (!h || !b || !s) return null;
@@ -31,7 +43,9 @@ export function getSessionPayload(): SessionPayload | null {
 
     const payload = JSON.parse(Buffer.from(b, "base64url").toString()) as SessionPayload;
 
+    // exp/iat en SECONDES (Unix)
     if (!payload?.exp || Date.now() / 1000 > payload.exp) return null;
+
     return payload;
   } catch {
     return null;
@@ -57,7 +71,7 @@ export function clearSessionCookie() {
 /**
  * Vérifie l’accès payant :
  * - session valide
- * - et abonnement actif OU annulé mais encore dans la période en cours
+ * - ET abonnement actif OU annulé mais encore dans la période en cours
  */
 export async function assertPaidAccess(): Promise<{ ok: boolean; phone?: string }> {
   const phone = getSessionPhone();
