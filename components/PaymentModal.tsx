@@ -3,18 +3,20 @@
 
 import { useEffect, useRef, useState } from "react";
 
+type Plan = "subscription" | "one-month";
+
 type Props = {
   open?: boolean;
   onClose?: () => void;
-  plan?: "subscription" | "one-month";
-  phoneE164?: string;
+  plan?: Plan;            // pré-sélection (mode contrôlé)
+  phoneE164?: string;     // identifiant (mode contrôlé)
 };
 
-const PLAN_KEY = "oneboarding.plan";
+const PLAN_KEY  = "oneboarding.plan";
 const ACTIVE_KEY = "oneboarding.spaceActive";
-const UNTIL_KEY = "oneboarding.activeUntil";
+const UNTIL_KEY  = "oneboarding.activeUntil";
 const NAG_AT_KEY = "oneboarding.renewalNagAt";
-const PHONE_KEY = "oneboarding.phoneE164";
+const PHONE_KEY  = "oneboarding.phoneE164";
 
 // 30 jours
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -24,28 +26,51 @@ const SUBSCRIPTION_HORIZON_MS = 3650 * 24 * 60 * 60 * 1000;
 export default function PaymentModal(props: Props) {
   const controlled = typeof props.open === "boolean";
   const [open, setOpen] = useState<boolean>(Boolean(props.open));
-  const [pickedPlan, setPickedPlan] = useState<"subscription" | "one-month">(
-    props.plan || "subscription"
-  );
+  const [pickedPlan, setPickedPlan] = useState<Plan>(props.plan || "subscription");
   const [e164, setE164] = useState<string>(props.phoneE164 || "");
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
-  // s’ouvrir via event global
+  /* ==================== Ouverture via évènement global ==================== */
   useEffect(() => {
     const handler = (e: Event) => {
-      if (controlled) return;
-      const ce = e as CustomEvent<{ phoneE164?: string }>;
-      if (ce.detail?.phoneE164) setE164(ce.detail.phoneE164);
+      if (controlled) return; // en mode contrôlé, on ignore l’event
+      const ce = e as CustomEvent<{ phoneE164?: string; plan?: Plan }>;
+
+      // téléphone passé par l’event
+      if (ce.detail?.phoneE164) {
+        setE164(ce.detail.phoneE164);
+        try { localStorage.setItem(PHONE_KEY, ce.detail.phoneE164); } catch {}
+      } else {
+        // fallback : si pas fourni, on tente le LS
+        try {
+          const lsPhone = localStorage.getItem(PHONE_KEY) || "";
+          if (lsPhone) setE164(lsPhone);
+        } catch {}
+      }
+
+      // plan passé par l’event
+      if (ce.detail?.plan) {
+        setPickedPlan(ce.detail.plan);
+      }
+
       setOpen(true);
       setTimeout(() => dialogRef.current?.showModal(), 0);
     };
+
     window.addEventListener("ob:open-payment", handler as EventListener);
     return () => window.removeEventListener("ob:open-payment", handler as EventListener);
   }, [controlled]);
 
-  // suivre props.open en mode contrôlé
+  /* ==================== Suivre props en mode contrôlé ===================== */
   useEffect(() => {
     if (!controlled) return;
+    // plan contrôlé : si la prop change, on met à jour la sélection
+    if (props.plan) setPickedPlan(props.plan);
+    if (typeof props.phoneE164 === "string") {
+      setE164(props.phoneE164);
+      try { if (props.phoneE164) localStorage.setItem(PHONE_KEY, props.phoneE164); } catch {}
+    }
+
     if (props.open && !dialogRef.current?.open) {
       setOpen(true);
       dialogRef.current?.showModal();
@@ -53,8 +78,9 @@ export default function PaymentModal(props: Props) {
       setOpen(false);
       dialogRef.current?.close();
     }
-  }, [controlled, props.open]);
+  }, [controlled, props.open, props.plan, props.phoneE164]);
 
+  /* ============================== Fermer modal ============================ */
   function closeInternal() {
     if (controlled) props.onClose?.();
     else {
@@ -62,7 +88,6 @@ export default function PaymentModal(props: Props) {
       dialogRef.current?.close();
     }
   }
-
   function onBackdropClick(e: React.MouseEvent<HTMLDialogElement>) {
     const d = dialogRef.current;
     if (!d) return;
@@ -70,29 +95,22 @@ export default function PaymentModal(props: Props) {
     const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
     if (!inside) closeInternal();
   }
-
   useEffect(() => {
     const d = dialogRef.current;
     if (!d) return;
-    const onCancel = (e: Event) => {
-      e.preventDefault();
-      closeInternal();
-    };
+    const onCancel = (e: Event) => { e.preventDefault(); closeInternal(); };
     d.addEventListener("cancel", onCancel);
     return () => d.removeEventListener("cancel", onCancel);
   }, []);
-
   useEffect(() => {
-    if (!controlled && open && !dialogRef.current?.open) {
-      dialogRef.current?.showModal();
-    }
+    if (!controlled && open && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [controlled, open]);
 
-  // ---------- Simulation paiement ----------
+  /* ============================ “Paiement” natif ========================== */
   function confirmPayment() {
     const now = Date.now();
-
     const plan = pickedPlan;
+
     let activeUntil = now + THIRTY_DAYS_MS;
     let nagAt: number | null = activeUntil - 3 * 24 * 60 * 60 * 1000;
 
@@ -109,29 +127,22 @@ export default function PaymentModal(props: Props) {
       else localStorage.removeItem(NAG_AT_KEY);
       if (e164) localStorage.setItem(PHONE_KEY, e164);
 
-      // 🔔 Événements normalisés pour le Menu
+      // 🔔 Événements normalisés pour l’écosystème (Menu, bannière, etc.)
       window.dispatchEvent(new Event("ob:space-activated"));
       window.dispatchEvent(new Event("ob:plan-changed"));
-      window.dispatchEvent(new Event("ob:connected"));     // au cas où
-
-      // alias large si d’autres composants écoutent
+      window.dispatchEvent(new Event("ob:connected")); // alias
       window.dispatchEvent(new Event("ob:auth-changed"));
     } catch {
       // noop
     }
 
-    alert(
-      plan === "subscription"
-        ? "✅ Espace activé (abonnement)."
-        : "✅ Espace activé pour 1 mois."
-    );
-
+    alert(plan === "subscription" ? "✅ Espace activé (abonnement)." : "✅ Espace activé pour 1 mois.");
     closeInternal();
   }
 
+  /* ================================ UI ==================================== */
   const title = "Activer mon espace";
   const subtitle = "Choisissez librement votre formule. L’accès est le même, la liberté aussi.";
-
   const primaryBg =
     pickedPlan === "subscription"
       ? "linear-gradient(135deg,#0EA5E9,#0284C7)"
@@ -168,7 +179,7 @@ export default function PaymentModal(props: Props) {
           <p className="text-sm text-black/70 mb-3">{subtitle}</p>
 
           {e164 ? (
-            <p className="text-xs text-black/60 mb-3">
+            <p className="text-xs text:black/60 mb-3">
               Identifiant : <span className="font-mono">{e164}</span>
             </p>
           ) : null}
