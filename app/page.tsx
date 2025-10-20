@@ -7,8 +7,6 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
-import CodeAccessDialog from "@/components/CodeAccessDialog";
-import SubscribeModal from "@/components/SubscribeModal";
 
 // 🔔 Bannière quota + i18n
 import QuotaPromoBanner from "@/components/QuotaPromoBanner";
@@ -245,20 +243,6 @@ export default function Page() {
     };
     window.addEventListener("ob:open-legal", onOpen as EventListener);
     return () => window.removeEventListener("ob:open-legal", onOpen as EventListener);
-  }, []);
-
-  // 🔐 Modals natifs: connexion / activation espace
-  const [showConnect, setShowConnect] = useState(false);
-  const [showSubscribe, setShowSubscribe] = useState(false);
-  useEffect(() => {
-    const onOpenConnect = () => setShowConnect(true);
-    const onOpenActivate = () => setShowSubscribe(true);
-    window.addEventListener("ob:open-connect", onOpenConnect as EventListener);
-    window.addEventListener("ob:open-activate", onOpenActivate as EventListener);
-    return () => {
-      window.removeEventListener("ob:open-connect", onOpenConnect as EventListener);
-      window.removeEventListener("ob:open-activate", onOpenActivate as EventListener);
-    };
   }, []);
 
   // Textarea auto-expansion (×3 lignes)
@@ -567,11 +551,7 @@ export default function Page() {
       />
       <CguPrivacyModal open={showLegal} onRequestClose={() => setShowLegal(false)} />
 
-      {/* 🔐 Modals connexion/abonnement ouverts via Menu */}
-      <CodeAccessDialog open={showConnect} onClose={() => setShowConnect(false)} />
-      <SubscribeModal open={showSubscribe} onClose={() => setShowSubscribe(false)} />
-
-      {/* Bouton Menu flottant */}
+      {/* Bouton Menu flottant + modales natives gérées à l’intérieur */}
       <Menu />
     </div>
   );
@@ -648,4 +628,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-                                                                     }
+      }
