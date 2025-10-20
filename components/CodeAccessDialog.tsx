@@ -1,6 +1,8 @@
+// components/CodeAccessDialog.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import PhoneField from "./PhoneField";
 
 type ControlledProps = { open?: boolean; onClose?: () => void };
 
@@ -19,7 +21,7 @@ export default function CodeAccessDialog(props: ControlledProps) {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // gestion expiration OTP
+  // gestion expiration OTP (UI)
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number>(0); // en secondes
 
@@ -83,7 +85,7 @@ export default function CodeAccessDialog(props: ControlledProps) {
     return () => clearInterval(id);
   }, [expiresAt]);
 
-  /* ---------- Vérification OTP ---------- */
+  /* ---------- Vérification (code) ---------- */
   async function verify() {
     setError(null);
 
@@ -184,13 +186,9 @@ export default function CodeAccessDialog(props: ControlledProps) {
           </div>
 
           <div className="space-y-4">
+            {/* Téléphone E.164 avec la liste des 33 pays */}
             <label className="block text-sm">Numéro (E.164)</label>
-            <input
-              className="w-full rounded-2xl border border-black/10 px-4 py-3 font-mono"
-              placeholder="+2126…"
-              value={phoneE164}
-              onChange={(e) => setPhoneE164(e.target.value)}
-            />
+            <PhoneField value={phoneE164} onChange={setPhoneE164} />
 
             <div className="flex items-center justify-between">
               <label className="block text-sm">Code d’accès</label>
@@ -207,6 +205,10 @@ export default function CodeAccessDialog(props: ControlledProps) {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="Code reçu (ex: 4B5MPS)"
+              inputMode="text"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              aria-label="Code d’accès"
             />
 
             <button
