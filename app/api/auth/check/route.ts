@@ -7,69 +7,93 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Lit l'ID de session depuis Authorization: Bearer <id> ou cookie "ob.sess"
-function readSessionId(req: NextRequest): string | null {
-  const auth = req.headers.get("authorization");
-  if (auth?.toLowerCase().startsWith("bearer ")) {
-    const v = auth.slice(7).trim();
-    if (v) return v;
-  }
-  const cookie = req.headers.get("cookie") || "";
-  const m = cookie.match(/(?:^|;\s*)ob\.sess=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
+type Ok = {
+  ok: true;
+  phone?: string;
+  planActive: boolean;
+  devices: {
+    hasAnyDevice: boolean;
+    deviceKnown: boolean;
+    deviceCount: number;
+    maxDevices: number;
+  };
+  // Info purement indicative pour l’UI / debug
+  last: null | {
+    plan: string;
+    status: string;
+    currentPeriodEnd: Date | null;
+    paypalId: string | null;
+  };
+};
+
+type Err = { ok: false; error: string };
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({} as any));
-    const deviceId: string | undefined =
-      typeof body?.deviceId === "string" ? body.deviceId : undefined;
+    const body = (await req.json().catch(() => ({}))) as {
+      phone?: string;
+      deviceId?: string;
+    };
 
-    const sessionId =
-      readSessionId(req) ||
-      (typeof body?.sessionId === "string" ? body.sessionId : null);
+    const phone = (body.phone || "").trim();
+    const deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : undefined;
 
-    if (!sessionId) {
-      return NextResponse.json({ ok: false, error: "NO_SESSION" }, { status: 401 });
+    // Validation minimale du téléphone (le front fait déjà la vraie validation)
+    if (!phone || !phone.startsWith("+") || phone.length < 6) {
+      // On renvoie une erreur explicite (le front affiche déjà un toast côté client)
+      return NextResponse.json<Err>(
+        { ok: false, error: "INVALID_PHONE" },
+        { status: 400 }
+      );
     }
 
-    // 1) Session DB (avec user)
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
-      include: { user: { select: { id: true, phoneE164: true } } },
-    });
-
-    if (!session || session.revoked || session.expiresAt < new Date()) {
-      return NextResponse.json({ ok: false, error: "SESSION_INVALID" }, { status: 401 });
-    }
-
-    const phone = session.user.phoneE164;
-
-    // 2) Accès payant (abonnement actif OU annulé mais non échue)
-    const planActive = await userHasPaidAccess(phone);
-
-    // 3) État des appareils autorisés
     const MAX_DEVICES = Number(process.env.MAX_DEVICES || 3);
 
-    const devices = await prisma.device.findMany({
-      where: { userId: session.userId, authorized: true, revokedAt: null },
+    // 1) Trouver l’utilisateur par numéro
+    const user = await prisma.user.findUnique({
+      where: { phoneE164: phone },
+      select: { id: true, phoneE164: true },
+    });
+
+    // 2) Si pas d’utilisateur → non-membre
+    if (!user) {
+      const payload: Ok = {
+        ok: true,
+        planActive: false,
+        devices: {
+          hasAnyDevice: false,
+          deviceKnown: false,
+          deviceCount: 0,
+          maxDevices: MAX_DEVICES,
+        },
+        last: null,
+      };
+      return NextResponse.json(payload);
+    }
+
+    // 3) Accès payant actif ?
+    const planActive = await userHasPaidAccess(phone);
+
+    // 4) État des appareils
+    const authedDevices = await prisma.device.findMany({
+      where: { userId: user.id, authorized: true, revokedAt: null },
       select: { deviceId: true },
     });
 
-    const deviceCount = devices.length;
+    const deviceCount = authedDevices.length;
     const hasAnyDevice = deviceCount > 0;
-    const deviceKnown = !!(deviceId && devices.some((d) => d.deviceId === deviceId));
+    const deviceKnown = !!(deviceId && authedDevices.some((d) => d.deviceId === deviceId));
 
-    // 4) Dernière souscription (pour affichage état)
+    // 5) Dernière souscription (facultatif pour l’UI)
     const lastSub = await prisma.subscription.findFirst({
-      where: { user: { phoneE164: phone } },
+      where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       select: { plan: true, status: true, currentPeriodEnd: true, paypalId: true },
     });
 
-    return NextResponse.json({
+    const payload: Ok = {
       ok: true,
-      phone,
+      phone: user.phoneE164,
       planActive,
       devices: {
         hasAnyDevice,
@@ -85,13 +109,11 @@ export async function POST(req: NextRequest) {
             paypalId: lastSub.paypalId,
           }
         : null,
-      session: {
-        id: session.id,
-        expiresAt: session.expiresAt,
-      },
-    });
+    };
+
+    return NextResponse.json(payload);
   } catch (e: any) {
-    return NextResponse.json(
+    return NextResponse.json<Err>(
       { ok: false, error: e?.message || "SERVER_ERROR" },
       { status: 500 }
     );
