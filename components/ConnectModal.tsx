@@ -220,6 +220,7 @@ export default function ConnectModal() {
       const deviceId = getOrCreateDeviceId();
       const res = await fetch("/api/auth/check", {
         method: "POST",
+        credentials: "include", // s'assurer que le cookie de session part bien
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phoneE164, deviceId }),
       });
@@ -253,19 +254,16 @@ export default function ConnectModal() {
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out?.ok) {
       if (out?.error === "NO_USER") {
-        // non-membre → l’écran 1 € n’est pas prévu pour eux (on renvoie vers activation)
-        throw new Error("NO_USER");
+        throw new Error("NO_USER"); // non-membre → pas d’écran 1€
       }
       throw new Error(out?.error || `HTTP_${res.status}`);
     }
     const approval = out?.approvalUrl as string | undefined;
     if (!approval) throw new Error("NO_APPROVAL_URL");
-    // redirection native (même onglet)
     window.location.href = approval;
   }
 
   async function connectKnown() {
-    // marquer “connecté”
     try {
       localStorage.setItem("ob_connected", "1");
       localStorage.setItem("oneboarding.phoneE164", phone);
@@ -281,7 +279,6 @@ export default function ConnectModal() {
     try {
       setChecking(true);
 
-      // validation basique
       const p = (phone || "").trim();
       if (!p.startsWith("+") || p.length < 6) {
         toast(t.INVALID_PHONE);
@@ -292,7 +289,7 @@ export default function ConnectModal() {
         localStorage.setItem("oneboarding.phoneE164", p);
       } catch {}
 
-      // 1) Vérifier côté serveur
+      // 1) Vérification côté serveur (session + device)
       const chk = await apiCheck(p);
       const deviceKnown = !!chk.devices?.deviceKnown;
       const planActive = !!chk.planActive;
@@ -313,7 +310,7 @@ export default function ConnectModal() {
         return;
       }
 
-      // c) Non-membre → ouvrir directement l'activation (plans). Pas d’écran 1 €.
+      // c) NO_SESSION / SESSION_INVALID / non-membre → ouverture directe de l’activation
       toast(t.NOT_MEMBER);
       window.dispatchEvent(new Event("ob:open-activate"));
       handleClose();
@@ -328,10 +325,9 @@ export default function ConnectModal() {
     try {
       setChecking(true);
       await startOneEuro(phone, revokeOldest);
-      // Retour de paiement géré via event ob:device-authorized
+      // retour de paiement → event ob:device-authorized (géré plus haut)
     } catch (e: any) {
       if (e?.message === "NO_USER") {
-        // Cas théorique si l’API répond ça : on renvoie vers activation
         toast(t.NOT_MEMBER);
         window.dispatchEvent(new Event("ob:open-activate"));
         handleClose();
