@@ -81,6 +81,95 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }),
           }}
         />
+
+        {/* ---- Bootstrap PayPal return/cancel + 1€ authorize ---- */}
+        <script
+          id="ob-bootstrap"
+          dangerouslySetInnerHTML={{
+            __html: `
+(function(){
+  try {
+    function toast(msg){
+      try{
+        var el=document.createElement('div');
+        el.textContent=msg;
+        el.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:20px;"+
+          "background:rgba(12,16,28,.92);color:#fff;padding:10px 14px;border-radius:14px;"+
+          "border:1px solid rgba(255,255,255,.16);z-index:100000;font-size:14px;"+
+          "box-shadow:0 8px 24px rgba(0,0,0,.25)";
+        document.body.appendChild(el);
+        setTimeout(function(){el.remove();},1700);
+      }catch(_){}
+    }
+
+    function clearParams(keys){
+      try{
+        var url=new URL(window.location.href);
+        var changed=false;
+        keys.forEach(function(k){ if(url.searchParams.has(k)){ url.searchParams.delete(k); changed=true; }});
+        if(changed) window.history.replaceState({}, "", url.toString());
+      }catch(_){}
+    }
+
+    var url=new URL(window.location.href);
+    var paid = url.searchParams.get("paid")==="1";
+    var cancel = url.searchParams.get("cancel")==="1";
+    var ppReturn = url.searchParams.get("paypal_return")==="1";
+    var ppCancel = url.searchParams.get("paypal_cancel")==="1";
+    var purpose = url.searchParams.get("purpose") || "";
+    var device = url.searchParams.get("device") || "";
+
+    // Retour souscription (activation plan)
+    if(paid){
+      // Essayer de récupérer infos locales
+      var phone = "";
+      var plan = "subscription";
+      try{
+        phone = localStorage.getItem("oneboarding.phoneE164") || "";
+        var cand = localStorage.getItem("oneboarding.planCandidate");
+        if(cand==="one-month"||cand==="subscription") plan=cand;
+      }catch(_){}
+
+      // Marquer connecté côté front (UX immédiate)
+      try{ localStorage.setItem("ob_connected","1"); }catch(_){}
+
+      // Émettre l'event app
+      try{
+        window.dispatchEvent(new CustomEvent("ob:subscription-active", {
+          detail: { status:"active", plan: plan, deviceId: localStorage.getItem("oneboarding.deviceId") || undefined, source: "Return" }
+        }));
+      }catch(_){}
+
+      toast("Paiement confirmé. Espace activé.");
+      clearParams(["paid"]);
+    }
+
+    // Retour autorisation 1€ (nouvel appareil pour membre existant)
+    if(ppReturn && purpose==="authorize_device"){
+      var phone2 = "";
+      try{ phone2 = localStorage.getItem("oneboarding.phoneE164") || ""; }catch(_){}
+      try{
+        window.dispatchEvent(new CustomEvent("ob:device-authorized", {
+          detail: { status:"active", phoneE164: phone2, deviceId: device || undefined, planActive: true, source:"Return" }
+        }));
+      }catch(_){}
+      toast("Appareil autorisé.");
+      clearParams(["paypal_return","purpose","device"]);
+    }
+
+    // Annulations
+    if(cancel){
+      toast("Paiement annulé.");
+      clearParams(["cancel"]);
+    }
+    if(ppCancel){
+      toast("Opération annulée.");
+      clearParams(["paypal_cancel","purpose","device"]);
+    }
+  } catch(_) {}
+})();`,
+          }}
+        />
       </head>
 
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
