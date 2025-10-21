@@ -1,6 +1,5 @@
 // app/page.tsx
 "use client";
-export const runtime = "nodejs";
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
@@ -189,7 +188,9 @@ function PaymentReturnBridge() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const url = new URL(window.location.href);
+    let url: URL | null = null;
+    try { url = new URL(window.location.href); } catch { return; }
+
     const paid = url.searchParams.get("paid");
     const cancel = url.searchParams.get("cancel");
     const paidError = url.searchParams.get("paid_error");
@@ -197,6 +198,7 @@ function PaymentReturnBridge() {
     if (!paid && !cancel && !paidError) return;
 
     const clean = () => {
+      if (!url) return;
       url.searchParams.delete("paid");
       url.searchParams.delete("cancel");
       url.searchParams.delete("paid_error");
@@ -261,12 +263,14 @@ function AuthorizeReturnBridge() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const url = new URL(window.location.href);
-    const ok = url.searchParams.get("device_authorized");
-    const phoneQS = url.searchParams.get("phone") || "";
-    const deviceQS = url.searchParams.get("device") || "";
-    const payref = url.searchParams.get("payref") || "";
-    const err = url.searchParams.get("device_error");
+    let url: URL | null = null;
+    try { url = new URL(window.location.href); } catch { /* Safari weird href */ }
+
+    const ok = url?.searchParams.get("device_authorized");
+    const phoneQS = url?.searchParams.get("phone") || "";
+    const deviceQS = url?.searchParams.get("device") || "";
+    const payref = url?.searchParams.get("payref") || "";
+    const err = url?.searchParams.get("device_error");
 
     const emitAndClean = (phoneE164: string, deviceId?: string) => {
       // normaliser deviceId: si non fourni en QS, tente LS
@@ -288,10 +292,12 @@ function AuthorizeReturnBridge() {
         })
       );
       // nettoie QS
-      ["device_authorized", "phone", "device", "payref", "device_error"].forEach((k) =>
-        url.searchParams.delete(k)
-      );
-      window.history.replaceState({}, "", url.toString());
+      if (url) {
+        ["device_authorized", "phone", "device", "payref", "device_error"].forEach((k) =>
+          url!.searchParams.delete(k)
+        );
+        window.history.replaceState({}, "", url.toString());
+      }
     };
 
     // 1) Chemin “params d’URL” (route /api/pay/authorize/return qui redirige avec flags)
@@ -302,10 +308,12 @@ function AuthorizeReturnBridge() {
     }
     if (err) {
       // Erreur → juste nettoyer l’URL
-      ["device_authorized", "phone", "device", "payref", "device_error"].forEach((k) =>
-        url.searchParams.delete(k)
-      );
-      window.history.replaceState({}, "", url.toString());
+      if (url) {
+        ["device_authorized", "phone", "device", "payref", "device_error"].forEach((k) =>
+          url!.searchParams.delete(k)
+        );
+        window.history.replaceState({}, "", url.toString());
+      }
       return;
     }
 
@@ -313,8 +321,11 @@ function AuthorizeReturnBridge() {
     try {
       const ck = document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith("ob.deviceAuth="));
       if (!ck) return;
-      // Effacer immédiatement pour éviter re-trigger
-      document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax; Secure";
+
+      // Effacer immédiatement pour éviter re-trigger (compatible dev http & https)
+      document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax";
+      try { document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax; Secure"; } catch {}
+
       const val = ck.split("=")[1];
       if (val === "ok") {
         const phone = (() => { try { return localStorage.getItem(PHONE_KEY) || ""; } catch { return ""; } })();
@@ -429,13 +440,17 @@ export default function Page() {
     r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
 
     recogRef.current = r;
-  }, []);
+  }, [input]);
 
   function toggleMic() {
     const r = recogRef.current; if (!r) return;
     if (!listening) { try { r.start(); } catch {} return; }
     try { r.stop(); } catch {}
-    setTimeout(() => { if (listening) { try { r.abort?.(); } catch {} setListening(false); } }, 600);
+    setTimeout(() => {
+      const rr = recogRef.current as any;
+      if (rr && rr.abort) { try { rr.abort(); } catch {} }
+      setListening(false);
+    }, 600);
   }
 
   // historique persist
@@ -696,7 +711,7 @@ export default function Page() {
       {/* Modals utilitaires */}
       <ConfirmDialog
         open={showClearModal}
-        title="Effacer l’historique ?"
+        title="Effacer l’histoire ?"
         description="Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible."
         confirmLabel="Effacer"
         cancelLabel="Annuler"
@@ -782,4 +797,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-  }
+      }
