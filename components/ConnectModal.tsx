@@ -8,7 +8,7 @@ type Lang = "fr" | "en" | "ar";
 
 type CheckReply = {
   ok: boolean;
-  planActive?: boolean; // membre avec plan actif ?
+  planActive?: boolean;
   devices?: {
     hasAnyDevice: boolean;
     deviceKnown: boolean;
@@ -220,7 +220,7 @@ export default function ConnectModal() {
       const deviceId = getOrCreateDeviceId();
       const res = await fetch("/api/auth/check", {
         method: "POST",
-        credentials: "include", // s'assurer que le cookie de session part bien
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phoneE164, deviceId }),
       });
@@ -254,7 +254,7 @@ export default function ConnectModal() {
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out?.ok) {
       if (out?.error === "NO_USER") {
-        throw new Error("NO_USER"); // non-membre → pas d’écran 1€
+        throw new Error("NO_USER");
       }
       throw new Error(out?.error || `HTTP_${res.status}`);
     }
@@ -310,7 +310,7 @@ export default function ConnectModal() {
         return;
       }
 
-      // c) NO_SESSION / SESSION_INVALID / non-membre → ouverture directe de l’activation
+      // c) NO_USER / non-membre → PaymentModal
       toast(t.NOT_MEMBER);
       window.dispatchEvent(new Event("ob:open-activate"));
       handleClose();
@@ -343,7 +343,11 @@ export default function ConnectModal() {
   return (
     <>
       <style>{`dialog::backdrop{background:rgba(0,0,0,.45);-webkit-backdrop-filter:saturate(120%) blur(2px);backdrop-filter:saturate(120%) blur(2px);}`}</style>
-      <dialog ref={dialogRef} onMouseDown={onBackdropClick} className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg">
+      <dialog
+        ref={dialogRef}
+        onMouseDown={onBackdropClick}
+        className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
+      >
         <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">{t.TITLE}</h2>
@@ -435,4 +439,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-    }
+      }
