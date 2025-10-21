@@ -22,10 +22,11 @@ const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), 
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
 const PLAN_KEY = "oneboarding.plan"; // null (non-membre) | "subscription" | "one-month"
 
-// 👇 Bridge: clés utilisées pour l’auto-connect après retour PayPal
+// Bridges: clés utilisées pour l’auto-connect après retour PayPal
 const PHONE_KEY = "oneboarding.phoneE164";
 const PENDING_PLAN_KEY_A = "oneboarding.pendingPlanKind";   // ancien nom
 const PENDING_PLAN_KEY_B = "oneboarding.planCandidate";     // autre alias
+const DEVICE_ID_KEY = "oneboarding.deviceId";
 
 /* =================== Modal confirmation générique =================== */
 function ConfirmDialog({
@@ -255,33 +256,74 @@ function PaymentReturnBridge() {
   return null;
 }
 
-/* =================== AuthorizeReturnBridge (1 €) =================== */
+/* =================== AuthorizeReturnBridge (1 € : URL + cookie) =================== */
 function AuthorizeReturnBridge() {
   useEffect(() => {
-    try {
-      // Cookie posé par /api/pay/authorize/return (Max-Age court)
-      const ck = document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith("ob.deviceAuth="));
-      if (!ck) return;
+    if (typeof window === "undefined") return;
 
-      // Efface immédiatement pour éviter un re-trigger
-      document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax; Secure";
+    const url = new URL(window.location.href);
+    const ok = url.searchParams.get("device_authorized");
+    const phoneQS = url.searchParams.get("phone") || "";
+    const deviceQS = url.searchParams.get("device") || "";
+    const payref = url.searchParams.get("payref") || "";
+    const err = url.searchParams.get("device_error");
 
-      const val = ck.split("=")[1];
-      if (val === "ok") {
-        const phoneE164 = localStorage.getItem(PHONE_KEY) || "";
-        const deviceId = localStorage.getItem("oneboarding.deviceId") || undefined;
-
-        window.dispatchEvent(new CustomEvent("ob:device-authorized", {
+    const emitAndClean = (phoneE164: string, deviceId?: string) => {
+      // normaliser deviceId: si non fourni en QS, tente LS
+      if (!deviceId) {
+        try { deviceId = localStorage.getItem(DEVICE_ID_KEY) || undefined; } catch {}
+      }
+      // mémoriser le phone localement
+      try { if (phoneE164) localStorage.setItem(PHONE_KEY, phoneE164); } catch {}
+      window.dispatchEvent(
+        new CustomEvent("ob:device-authorized", {
           detail: {
             status: "active",
             phoneE164,
             deviceId,
             planActive: true,
-            source: "AuthorizeReturn",
-          }
-        }));
+            paymentRef: payref || undefined,
+            source: "AuthorizeReturnBridge",
+          },
+        })
+      );
+      // nettoie QS
+      ["device_authorized", "phone", "device", "payref", "device_error"].forEach((k) =>
+        url.searchParams.delete(k)
+      );
+      window.history.replaceState({}, "", url.toString());
+    };
+
+    // 1) Chemin “params d’URL” (route /api/pay/authorize/return qui redirige avec flags)
+    if (ok === "1") {
+      const phone = phoneQS || (() => { try { return localStorage.getItem(PHONE_KEY) || ""; } catch { return ""; } })();
+      emitAndClean(phone, deviceQS || undefined);
+      return;
+    }
+    if (err) {
+      // Erreur → juste nettoyer l’URL
+      ["device_authorized", "phone", "device", "payref", "device_error"].forEach((k) =>
+        url.searchParams.delete(k)
+      );
+      window.history.replaceState({}, "", url.toString());
+      return;
+    }
+
+    // 2) Fallback “cookie” (route qui pose ob.deviceAuth=ok;Path=/;Max-Age=…)
+    try {
+      const ck = document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith("ob.deviceAuth="));
+      if (!ck) return;
+      // Effacer immédiatement pour éviter re-trigger
+      document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax; Secure";
+      const val = ck.split("=")[1];
+      if (val === "ok") {
+        const phone = (() => { try { return localStorage.getItem(PHONE_KEY) || ""; } catch { return ""; } })();
+        const deviceId = (() => { try { return localStorage.getItem(DEVICE_ID_KEY) || undefined; } catch { return undefined; } })();
+        emitAndClean(phone, deviceId);
       }
-    } catch {}
+    } catch {
+      /* noop */
+    }
   }, []);
   return null;
 }
@@ -597,8 +639,8 @@ export default function Page() {
             <button
               type="button"
               onClick={triggerHiddenFileInput}
-              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text={[var(--fg)] as any}
-            ">
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)]"
+            >
               Charger 1 fichier
             </button>
           </div>
@@ -740,4 +782,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-      }
+  }
