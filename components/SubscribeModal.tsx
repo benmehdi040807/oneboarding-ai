@@ -45,14 +45,12 @@ export default function SubscribeModal(props: ControlledProps) {
     // reset doux
     setStep("phone");
     setE164(safeGet("oneboarding.phoneE164"));
-    setConfirmOneEur(false);
     setError(null);
   };
 
   /* --------------------------------- États --------------------------------- */
   const [step, setStep] = useState<Step>("phone");
   const [e164, setE164] = useState<string>(safeGet("oneboarding.phoneE164"));
-  const [confirmOneEur, setConfirmOneEur] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /* ------------------------ Ouverture via évènement ------------------------- */
@@ -64,13 +62,12 @@ export default function SubscribeModal(props: ControlledProps) {
 
   /* ------ Écoute de l'activation réussie pour passage direct connecté ------- */
   useEffect(() => {
-    // Quand le PaymentModal (ou backend) confirme l'abonnement actif,
-    // il doit émettre: new CustomEvent("ob:subscription-active", { detail })
+    // Le PaymentModal (ou backend) doit émettre:
+    // new CustomEvent("ob:subscription-active", { detail: SubscriptionActiveDetail })
     const onActive = (e: Event) => {
       const detail = (e as CustomEvent<SubscriptionActiveDetail>).detail;
       if (!detail) return;
       if (detail.status === "active") {
-        // Propager un évènement unique pour le passage en mode connecté global
         window.dispatchEvent(new CustomEvent("ob:set-connected", {
           detail: {
             phoneE164: e164,
@@ -126,13 +123,9 @@ export default function SubscribeModal(props: ControlledProps) {
 
   function pickPlan(plan: Plan) {
     setError(null);
-    if (!confirmOneEur) {
-      setError("Veuillez confirmer l'autorisation de vérification 1 € pour activer immédiatement votre espace.");
-      return;
-    }
-    // Ouvre le PaymentModal en lui passant le numéro + plan + consentement 1 €
+    // Ouvre le PaymentModal en lui passant le numéro + plan
     window.dispatchEvent(
-      new CustomEvent("ob:open-payment", { detail: { phoneE164: e164, plan, confirmOneEur: true } })
+      new CustomEvent("ob:open-payment", { detail: { phoneE164: e164, plan } })
     );
     // La fermeture se fera à la réception de ob:subscription-active (succès).
   }
@@ -223,21 +216,6 @@ export default function SubscribeModal(props: ControlledProps) {
                 <div className="text-sm text-black/60">Un mois complet, sans engagement.</div>
               </button>
 
-              {/* Consentement 1€ */}
-              <label className="flex items-start gap-2 text-sm pt-1">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={confirmOneEur}
-                  onChange={(e) => setConfirmOneEur(e.target.checked)}
-                />
-                <span>
-                  Je confirme l'autorisation d'un prélèvement de <strong>1 €</strong> si nécessaire (remboursé/ajusté). Ceci permet d'activer immédiatement mon espace.
-                </span>
-              </label>
-
-              {error && <div className="text-sm text-red-600">{error}</div>}
-
               <div className="pt-2">
                 <button
                   type="button"
@@ -253,4 +231,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-}
+              }
