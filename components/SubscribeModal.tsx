@@ -20,13 +20,16 @@ type SubscriptionActiveDetail = {
 };
 
 /* -------------------------------------------------------------------------- */
-/*                             Utils & Local Storage                          */
+/*                          LocalStorage helpers (safe)                       */
 /* -------------------------------------------------------------------------- */
-function safeSet(k: string, v: string) {
-  try { localStorage.setItem(k, v); } catch {}
+const LS_PHONE = "oneboarding.phoneE164";
+const LS_PENDING_PLAN = "oneboarding.pendingPlanKind";
+
+function lsSet(key: string, val: string) {
+  try { localStorage.setItem(key, val); } catch {}
 }
-function safeGet(k: string): string {
-  try { return localStorage.getItem(k) || ""; } catch { return ""; }
+function lsGet(key: string, fallback = ""): string {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -35,23 +38,15 @@ function safeGet(k: string): string {
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
-  // Mode contrôlé OU autonome (événements)
+  // Mode contrôlé OU autonome (via évènement global)
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
 
-  const closeAll = () => {
-    if (props.onClose) props.onClose();
-    else setInternalOpen(false);
-    // reset doux
-    setStep("phone");
-    setE164(safeGet("oneboarding.phoneE164"));
-    setError(null);
-  };
-
   /* --------------------------------- États --------------------------------- */
   const [step, setStep] = useState<Step>("phone");
-  const [e164, setE164] = useState<string>(safeGet("oneboarding.phoneE164"));
+  const [e164, setE164] = useState<string>(() => lsGet(LS_PHONE));
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   /* ------------------------ Ouverture via évènement ------------------------- */
   useEffect(() => {
@@ -60,30 +55,21 @@ export default function SubscribeModal(props: ControlledProps) {
     return () => window.removeEventListener("ob:open-activate", onAct);
   }, []);
 
-  /* ------ Écoute de l'activation réussie pour passage direct connecté ------- */
+  /* ------ Écoute activation réussie → connexion + fermeture automatique ----- */
   useEffect(() => {
-    // Le PaymentModal (ou backend) doit émettre:
-    // new CustomEvent("ob:subscription-active", { detail: SubscriptionActiveDetail })
+    // Emis par le bridge de retour PayPal / backend:
+    // new CustomEvent("ob:subscription-active", { detail: { status:'active', plan, ... } })
     const onActive = (e: Event) => {
       const detail = (e as CustomEvent<SubscriptionActiveDetail>).detail;
       if (!detail) return;
       if (detail.status === "active") {
-        window.dispatchEvent(new CustomEvent("ob:set-connected", {
-          detail: {
-            phoneE164: e164,
-            plan: detail.plan,
-            deviceId: detail.deviceId,
-            customerId: detail.customerId,
-            paymentRef: detail.paymentRef,
-            source: "SubscribeModal",
-          },
-        }));
+        // L’app globale s’aligne déjà dessus (Menu/Connect etc.)
         closeAll();
       }
     };
     window.addEventListener("ob:subscription-active", onActive as EventListener);
     return () => window.removeEventListener("ob:subscription-active", onActive as EventListener);
-  }, [e164]);
+  }, []);
 
   /* --------------------------- Sync <dialog> natif -------------------------- */
   useEffect(() => {
@@ -109,6 +95,16 @@ export default function SubscribeModal(props: ControlledProps) {
     if (!inside) closeAll();
   };
 
+  function closeAll() {
+    if (props.onClose) props.onClose();
+    else setInternalOpen(false);
+    // reset doux
+    setStep("phone");
+    setE164(lsGet(LS_PHONE));
+    setError(null);
+    setLoading(false);
+  }
+
   /* ------------------------------ Navigation UI ----------------------------- */
   function goPlan() {
     setError(null);
@@ -117,17 +113,44 @@ export default function SubscribeModal(props: ControlledProps) {
       setError("Numéro de téléphone invalide (format E.164, ex : +2126…).");
       return;
     }
-    safeSet("oneboarding.phoneE164", p);
+    lsSet(LS_PHONE, p);
     setStep("plan");
   }
 
-  function pickPlan(plan: Plan) {
-    setError(null);
-    // Ouvre le PaymentModal en lui passant le numéro + plan
-    window.dispatchEvent(
-      new CustomEvent("ob:open-payment", { detail: { phoneE164: e164, plan } })
-    );
-    // La fermeture se fera à la réception de ob:subscription-active (succès).
+  async function startPlan(plan: Plan) {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const p = (e164 || "").trim();
+      if (!p.startsWith("+") || p.length < 6) {
+        setError("Numéro de téléphone invalide (format E.164, ex : +2126…).");
+        setLoading(false);
+        return;
+      }
+
+      // Contexte pour le bridge de retour PayPal
+      lsSet(LS_PHONE, p);
+      lsSet(LS_PENDING_PLAN, plan);
+
+      // Appel backend: crée la souscription PayPal et nous renvoie l’approvalUrl
+      const res = await fetch("/api/pay/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: plan, phone: p }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || !out?.ok || !out?.approvalUrl) {
+        throw new Error(out?.error || `HTTP_${res.status}`);
+      }
+
+      // Redirection vers PayPal
+      window.location.href = out.approvalUrl as string;
+    } catch (e: any) {
+      setError(e?.message || "Impossible de démarrer le paiement.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   /* ---------------------------------- JSX ---------------------------------- */
@@ -195,13 +218,14 @@ export default function SubscribeModal(props: ControlledProps) {
             </div>
           )}
 
-          {/* Étape 2 — Plan */}
+          {/* Étape 2 — Plan (+ démarrage paiement PayPal) */}
           {step === "plan" && (
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => pickPlan("subscription")}
-                className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03]"
+                onClick={() => startPlan("subscription")}
+                disabled={loading}
+                className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
                 <div className="font-semibold">Abonnement — 5 €/mois</div>
                 <div className="text-sm text-black/60">Accès continu, sans interruption.</div>
@@ -209,14 +233,15 @@ export default function SubscribeModal(props: ControlledProps) {
 
               <button
                 type="button"
-                onClick={() => pickPlan("one-month")}
-                className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03]"
+                onClick={() => startPlan("one-month")}
+                disabled={loading}
+                className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
                 <div className="font-semibold">Accès libre — 5 €</div>
                 <div className="text-sm text-black/60">Un mois complet, sans engagement.</div>
               </button>
 
-              <div className="pt-2">
+              <div className="pt-2 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setStep("phone")}
@@ -224,11 +249,20 @@ export default function SubscribeModal(props: ControlledProps) {
                 >
                   Retour
                 </button>
+                <button
+                  type="button"
+                  onClick={closeAll}
+                  className="rounded-2xl border border-black/15 px-4 py-3"
+                >
+                  Fermer
+                </button>
               </div>
+
+              {error && <div className="text-sm text-red-600">{error}</div>}
             </div>
           )}
         </div>
       </dialog>
     </>
   );
-              }
+}
