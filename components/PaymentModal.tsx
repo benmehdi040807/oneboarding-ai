@@ -21,7 +21,7 @@ type Props = {
 
 const PHONE_KEY = "oneboarding.phoneE164";
 
-// Utils deviceId (pour API)
+// Utils deviceId (pour API 1€)
 function uuid4() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8;
@@ -58,6 +58,16 @@ export default function PaymentModal(props: Props) {
   // UI states
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // seed e164 depuis LS si non fourni (montage)
+  useEffect(() => {
+    if (!e164) {
+      try {
+        const lsPhone = localStorage.getItem(PHONE_KEY) || "";
+        if (lsPhone) setE164(lsPhone);
+      } catch {}
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ==================== Ouverture via évènement global ==================== */
   useEffect(() => {
@@ -156,22 +166,25 @@ export default function PaymentModal(props: Props) {
   }, [controlled, open]);
 
   /* =============================== API calls ============================== */
-  async function apiStartPlan(kind: Plan, phoneE164: string) {
-    const deviceId = getOrCreateDeviceId();
+  async function apiStartPlan(kind: Plan, phoneE164: string): Promise<{ ok: true; approvalUrl: string }> {
     const res = await fetch("/api/pay/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, phone: phoneE164, deviceId }),
+      // côté /api/pay/start : { kind, phone } uniquement
+      body: JSON.stringify({ kind, phone: phoneE164 }),
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out?.ok) {
       const msg = out?.error || `HTTP_${res.status}`;
       throw new Error(msg);
     }
-    return out as { ok: true; approvalUrl?: string; customerId?: string; paymentRef?: string };
+    return out as { ok: true; approvalUrl: string };
   }
 
-  async function apiAuthorizeDeviceOneEuro(phoneE164: string, revoke: boolean) {
+  async function apiAuthorizeDeviceOneEuro(
+    phoneE164: string,
+    revoke: boolean
+  ): Promise<{ ok: true; approvalUrl?: string; paymentRef?: string }> {
     const deviceId = getOrCreateDeviceId();
     const res = await fetch("/api/pay/authorize-device", {
       method: "POST",
@@ -198,26 +211,26 @@ export default function PaymentModal(props: Props) {
         return;
       }
 
-      // lancer la création de l’ordre PayPal
+      // lancer la création de la souscription PayPal
       const out = await apiStartPlan(pickedPlan, p);
 
-      // si approvalUrl → on redirige (retour/webhook émettront ob:subscription-active)
+      // si approvalUrl → rediriger (le retour + webhook finalisent l’activation)
       if (out.approvalUrl) {
         window.location.href = out.approvalUrl;
         return;
       }
 
-      // fallback “dev/demo” : on émet l’event de succès localement
-      window.dispatchEvent(new CustomEvent("ob:subscription-active", {
-        detail: {
-          status: "active",
-          plan: pickedPlan,
-          deviceId: getOrCreateDeviceId(),
-          customerId: out?.customerId,
-          paymentRef: out?.paymentRef,
-          source: "PaymentModal",
-        },
-      }));
+      // fallback “dev/demo” : succès local
+      window.dispatchEvent(
+        new CustomEvent("ob:subscription-active", {
+          detail: {
+            status: "active",
+            plan: pickedPlan,
+            deviceId: getOrCreateDeviceId(),
+            source: "PaymentModal",
+          },
+        })
+      );
       closeInternal();
     } catch (e: any) {
       setErr(e?.message || "Erreur inconnue.");
@@ -240,21 +253,23 @@ export default function PaymentModal(props: Props) {
       const out = await apiAuthorizeDeviceOneEuro(p, revokeOldest);
 
       if (out.approvalUrl) {
-        window.location.href = out.approvalUrl; // webhook/return → ob:device-authorized
+        window.location.href = out.approvalUrl; // retour/webhook → ob:device-authorized
         return;
       }
 
       // fallback “dev/demo”
-      window.dispatchEvent(new CustomEvent("ob:device-authorized", {
-        detail: {
-          status: "active",
-          phoneE164: p,
-          deviceId: getOrCreateDeviceId(),
-          planActive: true, // indicatif
-          paymentRef: out?.paymentRef,
-          source: "PaymentModal",
-        } as const,
-      }));
+      window.dispatchEvent(
+        new CustomEvent("ob:device-authorized", {
+          detail: {
+            status: "active",
+            phoneE164: p,
+            deviceId: getOrCreateDeviceId(),
+            planActive: true,
+            paymentRef: out?.paymentRef,
+            source: "PaymentModal",
+          } as const,
+        })
+      );
       closeInternal();
     } catch (e: any) {
       if (e?.message === "NO_USER") {
@@ -395,4 +410,4 @@ export default function PaymentModal(props: Props) {
       </dialog>
     </>
   );
-}
+      }
