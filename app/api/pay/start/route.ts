@@ -9,7 +9,7 @@ export const revalidate = 0;
 type PlanKind = "subscription" | "one-month";
 type Body = { kind?: PlanKind; phone?: string };
 type Ok = { ok: true; approvalUrl: string };
-type Err = { ok: false; error: string; raw?: unknown };
+type Err = { ok: false; error: string; raw?: unknown; debugId?: string };
 
 function baseUrl(): string {
   const b = process.env.NEXT_PUBLIC_BASE_URL || "https://oneboardingai.com";
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const token = await ppAccessToken();
 
     const B = baseUrl();
-    // ⇩⇩ redirige vers nos handlers qui finalisent le link & renvoient vers /?paid=1|?cancel=1
+    // ⇩⇩ on passe par nos handlers (link DB puis redirige UX)
     const returnUrl = `${B}/api/pay/return`;
     const cancelUrl = `${B}/api/pay/cancel`;
 
@@ -58,10 +58,13 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         // idempotency légère pour éviter les doublons en cas de retry réseau
         "PayPal-Request-Id": `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        // souvent utile pour obtenir l’objet complet dès la création
+        Prefer: "return=representation",
       },
       body: JSON.stringify({
         plan_id: planId,
-        custom_id: phone, // pour relier facilement via webhook/return
+        // on met notre identifiant utilisateur ici pour le récupérer sur /return et via webhook
+        custom_id: phone,
         application_context: {
           brand_name: "OneBoarding AI",
           user_action: "SUBSCRIBE_NOW",
@@ -72,6 +75,7 @@ export async function POST(req: NextRequest) {
       cache: "no-store",
     });
 
+    const debugId = createRes.headers.get("paypal-debug-id") || undefined;
     const data: any = await createRes.json().catch(() => ({}));
 
     if (!createRes.ok) {
@@ -79,14 +83,14 @@ export async function POST(req: NextRequest) {
         data?.details?.[0]?.issue ||
         data?.message ||
         `PayPal create subscription failed (HTTP ${createRes.status})`;
-      return NextResponse.json<Err>({ ok: false, error: msg, raw: data }, { status: 500 });
+      return NextResponse.json<Err>({ ok: false, error: msg, raw: data, debugId }, { status: 500 });
     }
 
     const links: Array<{ rel?: string; href?: string }> = Array.isArray(data?.links) ? data.links : [];
     const approvalUrl = links.find((l) => l?.rel === "approve")?.href;
 
     if (!approvalUrl) {
-      return NextResponse.json<Err>({ ok: false, error: "NO_APPROVAL_URL", raw: data }, { status: 500 });
+      return NextResponse.json<Err>({ ok: false, error: "NO_APPROVAL_URL", raw: data, debugId }, { status: 500 });
     }
 
     return NextResponse.json<Ok>({ ok: true, approvalUrl });
