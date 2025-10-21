@@ -45,8 +45,9 @@ export async function POST(req: NextRequest) {
     const token = await ppAccessToken();
 
     const B = baseUrl();
-    const returnUrl = `${B}/?paid=1`;
-    const cancelUrl = `${B}/?cancel=1`;
+    // ⇩⇩ redirige vers nos handlers qui finalisent le link & renvoient vers /?paid=1|?cancel=1
+    const returnUrl = `${B}/api/pay/return`;
+    const cancelUrl = `${B}/api/pay/cancel`;
 
     // https://developer.paypal.com/docs/api/subscriptions/v1/#subscriptions_create
     const ppBase = PP_BASE.replace(/\/$/, "");
@@ -55,11 +56,12 @@ export async function POST(req: NextRequest) {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        // idempotency légère pour éviter les doublons en cas de retry réseau
         "PayPal-Request-Id": `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       },
       body: JSON.stringify({
         plan_id: planId,
-        custom_id: phone, // pour relier facilement via webhook
+        custom_id: phone, // pour relier facilement via webhook/return
         application_context: {
           brand_name: "OneBoarding AI",
           user_action: "SUBSCRIBE_NOW",
