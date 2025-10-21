@@ -354,6 +354,29 @@ export default function Menu() {
     toast("Espace désactivé.");
   }
 
+  /** ============ Helpers Historique ============ */
+  function footerLabel(l: Lang) {
+    return l === "en" ? "My history" : l === "ar" ? "سِجِلّي" : "Mon historique";
+  }
+  function formatHistoryForText(msgs: Item[], l: Lang) {
+    const body = msgs
+      .slice()
+      .reverse()
+      .map((m) => {
+        const who = m.role === "user" ? (l === "en" ? "You" : l === "ar" ? "أنت" : "Vous")
+          : m.role === "assistant" ? (l === "en" ? "AI" : l === "ar" ? "الذكاء الاصطناعي" : "IA")
+          : (l === "en" ? "Error" : l === "ar" ? "خطأ" : "Erreur");
+        return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
+      })
+      .join("\n\n— — —\n\n");
+
+    const footer =
+      `\n\n— — —\n` +
+      `[OneBoarding AI ®\n^${footerLabel(l)}^\n oneboardingai.com\n]`;
+
+    return `${body}${footer}`;
+  }
+
   /** ============ Historique ============ */
   async function shareHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
@@ -361,21 +384,14 @@ export default function Menu() {
       toast(t.HIST.EMPTY);
       return;
     }
-    const full = msgs
-      .slice()
-      .reverse()
-      .map((m) => {
-        const who = m.role === "user" ? "Vous" : m.role === "assistant" ? "IA" : "Erreur";
-        return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
-      })
-      .join("\n\n— — —\n\n");
 
+    const textToShare = formatHistoryForText(msgs, lang);
     const title = "OneBoarding AI — Historique";
     try {
       if ((navigator as any).share) {
-        await (navigator as any).share({ title, text: full });
+        await (navigator as any).share({ title, text: textToShare });
       } else {
-        const ok = await copy(full);
+        const ok = await copy(textToShare);
         if (ok) toast(t.HIST.COPIED);
       }
     } catch {}
@@ -383,7 +399,12 @@ export default function Menu() {
 
   function saveHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
-    const blob = new Blob([JSON.stringify(msgs, null, 2)], { type: "text/plain;charset=utf-8" });
+    if (!msgs.length) {
+      toast(t.HIST.EMPTY);
+      return;
+    }
+    const txt = formatHistoryForText(msgs, lang);
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -485,14 +506,14 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal */}
+      {/* Bouton flottant principal (largeur x2) */}
       <div
         className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 39px)" }}
       >
         <button
           onClick={openMenu}
-          className="pointer-events-auto menu-float px-4 py-2 rounded-2xl border border-white/20 bg-[var(--panel)] text-white shadow-lg hover:bg-[color:rgba(12,16,28,.92)]"
+          className="pointer-events-auto menu-float px-4 py-2 rounded-2xl border border-white/20 bg-[var(--panel)] text-white shadow-lg hover:bg-[color:rgba(12,16,28,.92)] min-w-[200px]"
         >
           {t.MENU}
         </button>
@@ -828,4 +849,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-                                                                                }
+      }
