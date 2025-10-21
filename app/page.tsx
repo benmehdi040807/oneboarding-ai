@@ -22,6 +22,10 @@ const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), 
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
 const PLAN_KEY = "oneboarding.plan"; // null (non-membre) | "subscription" | "one-month"
 
+// 👇 Bridge: clés utilisées pour l’auto-connect après retour PayPal
+const PHONE_KEY = "oneboarding.phoneE164";
+const PENDING_PLAN_KEY = "oneboarding.pendingPlanKind"; // "subscription" | "one-month"
+
 /* =================== Modal confirmation générique =================== */
 function ConfirmDialog({
   open, title = "Confirmer", description = "", confirmLabel = "Confirmer", cancelLabel = "Annuler",
@@ -176,6 +180,78 @@ function CguPrivacyModal({
       </div>
     </div>
   );
+}
+
+/* =================== PaymentReturnBridge (auto-connect) =================== */
+function PaymentReturnBridge() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    const paid = url.searchParams.get("paid");
+    const cancel = url.searchParams.get("cancel");
+    const paidError = url.searchParams.get("paid_error");
+
+    // Rien à faire ? on sort.
+    if (!paid && !cancel && !paidError) return;
+
+    // Nettoie l’URL (PRG-lite) pour éviter de ré-émettre au prochain rendu
+    const clean = () => {
+      url.searchParams.delete("paid");
+      url.searchParams.delete("cancel");
+      url.searchParams.delete("paid_error");
+      window.history.replaceState({}, "", url.toString());
+    };
+
+    if (paid === "1") {
+      // Devine le plan choisi (si PaymentModal a posé la clé avant redirection)
+      let plan: "subscription" | "one-month" = "subscription";
+      try {
+        const stored = localStorage.getItem(PENDING_PLAN_KEY) as "subscription" | "one-month" | null;
+        if (stored === "subscription" || stored === "one-month") plan = stored;
+        // Bonus: on peut persister le plan local pour gérer le quota coté client
+        localStorage.setItem(PLAN_KEY, plan);
+        // On nettoie la clé tampon
+        localStorage.removeItem(PENDING_PLAN_KEY);
+      } catch {}
+
+      // Récup téléphone si dispo (sert à unifier l’état côté UI)
+      let phoneE164 = "";
+      try { phoneE164 = localStorage.getItem(PHONE_KEY) || ""; } catch {}
+
+      // Émettre l’event standard : SubscribeModal l’attrape et passe l’app en “connecté”
+      window.dispatchEvent(
+        new CustomEvent("ob:subscription-active", {
+          detail: {
+            status: "active",
+            plan,
+            deviceId: undefined,
+            customerId: undefined,
+            paymentRef: undefined,
+            phoneE164,
+            source: "PaymentReturnBridge",
+          },
+        })
+      );
+
+      clean();
+      return;
+    }
+
+    // Paiement annulé → on se contente de nettoyer l’URL (UX propre)
+    if (cancel === "1") {
+      clean();
+      return;
+    }
+
+    // Erreur de paiement (optionnel : tu peux afficher un toast global ici)
+    if (paidError) {
+      clean();
+      return;
+    }
+  }, []);
+
+  return null;
 }
 
 /* =================== Types & utils =================== */
@@ -400,6 +476,9 @@ export default function Page() {
 
   return (
     <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 pb-[120px] selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
+      {/* Bridge auto-connect (écoute ?paid=1 / ?cancel=1) */}
+      <PaymentReturnBridge />
+
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
@@ -628,4 +707,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-      }
+        }
