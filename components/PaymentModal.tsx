@@ -7,25 +7,26 @@ type Plan = "subscription" | "one-month";
 
 type OpenEventDetail = {
   phoneE164?: string;
-  plan?: Plan;                // si présent => activation plan
-  confirmOneEur?: boolean;    // si true & pas de plan => autorisation 1 €
-  revokeOldest?: boolean;     // optionnel, seulement pour l'autorisation 1 €
+  plan?: Plan;
+  confirmOneEur?: boolean;
+  revokeOldest?: boolean;
 };
 
 type Props = {
   open?: boolean;
   onClose?: () => void;
-  plan?: Plan;            // pré-sélection (mode contrôlé)
-  phoneE164?: string;     // identifiant (mode contrôlé)
+  plan?: Plan;
+  phoneE164?: string;
 };
 
 const PHONE_KEY = "oneboarding.phoneE164";
-const PLAN_CANDIDATE_KEY = "oneboarding.planCandidate";
+const PENDING_PLAN_KEY = "oneboarding.pendingPlanKind"; // <— clé alignée avec PaymentReturnBridge
 
 // Utils deviceId (pour API 1€)
 function uuid4() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8;
+    const r = (Math.random() * 16) | 0,
+      v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -46,21 +47,17 @@ export default function PaymentModal(props: Props) {
   const controlled = typeof props.open === "boolean";
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
-  // état open & contexte d’appel
   const [open, setOpen] = useState<boolean>(Boolean(props.open));
   const [e164, setE164] = useState<string>(props.phoneE164 || "");
   const [pickedPlan, setPickedPlan] = useState<Plan>(props.plan || "subscription");
 
-  // mode d’opération
   const [isPlanActivation, setIsPlanActivation] = useState<boolean>(Boolean(props.plan));
   const [isOneEuroAuth, setIsOneEuroAuth] = useState<boolean>(false);
   const [revokeOldest, setRevokeOldest] = useState<boolean>(false);
 
-  // UI states
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // seed e164 depuis LS si non fourni (montage)
   useEffect(() => {
     if (!e164) {
       try {
@@ -68,20 +65,19 @@ export default function PaymentModal(props: Props) {
         if (lsPhone) setE164(lsPhone);
       } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ==================== Ouverture via évènement global ==================== */
   useEffect(() => {
     const handler = (e: Event) => {
-      if (controlled) return; // en mode contrôlé, on ignore l’event
+      if (controlled) return;
       const ce = e as CustomEvent<OpenEventDetail>;
       const detail = ce.detail || {};
 
-      // phone
       if (detail.phoneE164) {
         setE164(detail.phoneE164);
-        try { localStorage.setItem(PHONE_KEY, detail.phoneE164); } catch {}
+        try {
+          localStorage.setItem(PHONE_KEY, detail.phoneE164);
+        } catch {}
       } else {
         try {
           const lsPhone = localStorage.getItem(PHONE_KEY) || "";
@@ -89,7 +85,6 @@ export default function PaymentModal(props: Props) {
         } catch {}
       }
 
-      // routing du flux
       if (detail.plan) {
         setPickedPlan(detail.plan);
         setIsPlanActivation(true);
@@ -98,7 +93,6 @@ export default function PaymentModal(props: Props) {
         setIsPlanActivation(false);
         setIsOneEuroAuth(true);
       } else {
-        // si rien n’est fourni, on reste en activation plan par défaut
         setIsPlanActivation(true);
         setIsOneEuroAuth(false);
       }
@@ -114,24 +108,19 @@ export default function PaymentModal(props: Props) {
     return () => window.removeEventListener("ob:open-payment", handler as EventListener);
   }, [controlled]);
 
-  /* ==================== Suivre props en mode contrôlé ===================== */
   useEffect(() => {
     if (!controlled) return;
-
-    // phone
     if (typeof props.phoneE164 === "string") {
       setE164(props.phoneE164);
-      try { if (props.phoneE164) localStorage.setItem(PHONE_KEY, props.phoneE164); } catch {}
+      try {
+        if (props.phoneE164) localStorage.setItem(PHONE_KEY, props.phoneE164);
+      } catch {}
     }
-
-    // plan -> activation
     if (props.plan) {
       setPickedPlan(props.plan);
       setIsPlanActivation(true);
       setIsOneEuroAuth(false);
     }
-
-    // open/close
     if (props.open && !dialogRef.current?.open) {
       setOpen(true);
       dialogRef.current?.showModal();
@@ -141,7 +130,6 @@ export default function PaymentModal(props: Props) {
     }
   }, [controlled, props.open, props.plan, props.phoneE164]);
 
-  /* ============================== Fermer modal ============================ */
   function closeInternal() {
     if (controlled) props.onClose?.();
     else {
@@ -159,7 +147,10 @@ export default function PaymentModal(props: Props) {
   useEffect(() => {
     const d = dialogRef.current;
     if (!d) return;
-    const onCancel = (e: Event) => { e.preventDefault(); closeInternal(); };
+    const onCancel = (e: Event) => {
+      e.preventDefault();
+      closeInternal();
+    };
     d.addEventListener("cancel", onCancel);
     return () => d.removeEventListener("cancel", onCancel);
   }, []);
@@ -167,12 +158,10 @@ export default function PaymentModal(props: Props) {
     if (!controlled && open && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [controlled, open]);
 
-  /* =============================== API calls ============================== */
   async function apiStartPlan(kind: Plan, phoneE164: string): Promise<{ ok: true; approvalUrl: string }> {
     const res = await fetch("/api/pay/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // côté /api/pay/start : { kind, phone } uniquement
       body: JSON.stringify({ kind, phone: phoneE164 }),
     });
     const out = await res.json().catch(() => ({}));
@@ -201,7 +190,6 @@ export default function PaymentModal(props: Props) {
     return out as { ok: true; approvalUrl?: string; paymentRef?: string };
   }
 
-  /* ============================= Actions flux ============================= */
   async function onConfirmPlan() {
     setErr(null);
     setLoading(true);
@@ -213,30 +201,23 @@ export default function PaymentModal(props: Props) {
         return;
       }
 
-      // Mémoriser le contexte pour le bootstrap (retour PayPal)
+      // Contexte pour le bridge de retour PayPal
       try {
         localStorage.setItem(PHONE_KEY, p);
-        localStorage.setItem(PLAN_CANDIDATE_KEY, pickedPlan);
+        localStorage.setItem(PENDING_PLAN_KEY, pickedPlan); // <— aligné
       } catch {}
 
-      // lancer la création de la souscription PayPal
       const out = await apiStartPlan(pickedPlan, p);
 
-      // si approvalUrl → rediriger (le retour + webhook finalisent l’activation)
       if (out.approvalUrl) {
         window.location.href = out.approvalUrl;
         return;
       }
 
-      // fallback “dev/demo” : succès local
+      // Fallback “dev/demo”
       window.dispatchEvent(
         new CustomEvent("ob:subscription-active", {
-          detail: {
-            status: "active",
-            plan: pickedPlan,
-            deviceId: getOrCreateDeviceId(),
-            source: "PaymentModal",
-          },
+          detail: { status: "active", plan: pickedPlan, deviceId: getOrCreateDeviceId(), source: "PaymentModal" },
         })
       );
       closeInternal();
@@ -258,17 +239,18 @@ export default function PaymentModal(props: Props) {
         return;
       }
 
-      // On garde aussi le phone localement pour l’event de retour
-      try { localStorage.setItem(PHONE_KEY, p); } catch {}
+      try {
+        localStorage.setItem(PHONE_KEY, p);
+      } catch {}
 
       const out = await apiAuthorizeDeviceOneEuro(p, revokeOldest);
 
       if (out.approvalUrl) {
-        window.location.href = out.approvalUrl; // retour/webhook → ob:device-authorized
+        window.location.href = out.approvalUrl;
         return;
       }
 
-      // fallback “dev/demo”
+      // Fallback “dev/demo”
       window.dispatchEvent(
         new CustomEvent("ob:device-authorized", {
           detail: {
@@ -293,7 +275,6 @@ export default function PaymentModal(props: Props) {
     }
   }
 
-  /* ================================= UI ================================== */
   const title = isPlanActivation ? "Activer mon espace" : "Autoriser cet appareil (1 €)";
   const subtitle = isPlanActivation
     ? "Choisissez librement votre formule."
@@ -335,7 +316,7 @@ export default function PaymentModal(props: Props) {
             </p>
           ) : null}
 
-          {isPlanActivation && (
+          {isPlanActivation ? (
             <>
               <div className="space-y-3 mb-4">
                 <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-3 hover:bg-black/[0.03] cursor-pointer">
@@ -385,11 +366,8 @@ export default function PaymentModal(props: Props) {
                 </button>
               </div>
             </>
-          )}
-
-          {isOneEuroAuth && (
+          ) : (
             <>
-              {/* Note: aucune case 1€ ici (déjà traitée côté ConnectModal) */}
               {revokeOldest && (
                 <div className="mb-3 p-3 rounded-xl border border-yellow-400/30 bg-yellow-300/15 text-black/85 text-sm">
                   Un ancien appareil sera révoqué automatiquement.
@@ -421,4 +399,4 @@ export default function PaymentModal(props: Props) {
       </dialog>
     </>
   );
-}
+    }
