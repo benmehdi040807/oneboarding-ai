@@ -2,8 +2,8 @@
 import { NextResponse } from "next/server";
 import { applyWebhookChange } from "@/lib/subscriptions";
 
-export const runtime = "nodejs";          // on utilise Buffer + appel PayPal -> Node
-export const dynamic = "force-dynamic";   // pas de cache ISR/Edge ici
+export const runtime = "nodejs";          // Node needed for Buffer & PayPal calls
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /* --- ENV --- */
@@ -68,48 +68,57 @@ async function verifySignature(rawBody: string, headers: Headers) {
 
 export async function POST(req: Request) {
   try {
-    // 1) Lire le RAW body (important pour la signature)
+    // 1) RAW body for signature verification
     const raw = await req.text();
 
-    // 2) Vérifier la signature PayPal
+    // 2) Verify PayPal signature
     const ok = await verifySignature(raw, req.headers);
     if (!ok) {
-      console.warn("[PP WEBHOOK] signature invalide");
-      // 400 = rejeté, PayPal réessaiera
+      console.warn("[PP WEBHOOK] invalid signature");
+      // 400 → rejected; PayPal will retry
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
-    // 3) Parser l’évènement et dispatcher
+    // 3) Parse event
     const evt = JSON.parse(raw);
     const type = evt?.event_type as string | undefined;
     const res = evt?.resource;
 
     if (!type || !res) {
-      // Toujours retourner 200 pour éviter les retries infinis si l’event est hors scope
-      console.warn("[PP WEBHOOK] event sans type/resource utilisable", evt);
+      console.warn("[PP WEBHOOK] missing event_type/resource", evt);
       return new NextResponse("OK", { status: 200 });
     }
 
-    // 4) Déléguer au domaine (Prisma, etc.)
+    // 4) Dispatch to domain handler
     switch (type) {
+      // ===== Subscriptions (v1) =====
       case "BILLING.SUBSCRIPTION.ACTIVATED":
       case "BILLING.SUBSCRIPTION.SUSPENDED":
       case "BILLING.SUBSCRIPTION.CANCELLED":
       case "BILLING.SUBSCRIPTION.EXPIRED":
-      case "PAYMENT.SALE.COMPLETED":
       case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
+      // (Some accounts may still emit) sale completed
+      case "PAYMENT.SALE.COMPLETED":
+
+      // ===== Checkout Orders v2 (1€ device auth) =====
+      // User clicked approve (resource.id = orderId)
+      case "CHECKOUT.ORDER.APPROVED":
+      // Money captured (resource.supplementary_data.related_ids.order_id = orderId)
+      case "PAYMENT.CAPTURE.COMPLETED":
         await applyWebhookChange({ event_type: type, resource: res });
         break;
+
       default:
-        // autres events ignorés silencieusement
+        // ignore other events quietly
+        // console.log("[PP WEBHOOK] ignored event:", type);
         break;
     }
 
-    // 5) Répondre 200 rapidement (ACK)
+    // 5) ACK
     return new NextResponse("OK", { status: 200 });
   } catch (e) {
     console.error("PP_WEBHOOK_ERR", e);
-    // On renvoie 200 pour éviter des retries en boucle si bug temporaire (on loggue et on corrige).
+    // Return 200 to avoid infinite retries if a temporary bug happens; logs will tell us.
     return new NextResponse("OK", { status: 200 });
   }
 }
