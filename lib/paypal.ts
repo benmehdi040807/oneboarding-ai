@@ -10,8 +10,8 @@ const PP_CID    = process.env.PAYPAL_CLIENT_ID!;
 const PP_SECRET = process.env.PAYPAL_SECRET!;
 
 // IDs de plans (obligatoires). On ne met plus de fallback en dur.
-const CONTINU    = process.env.PP_PLAN_CONTINU;
-const PASS1MOIS  = process.env.PP_PLAN_PASS1MOIS;
+const CONTINU   = process.env.PP_PLAN_CONTINU;
+const PASS1MOIS = process.env.PP_PLAN_PASS1MOIS;
 
 if (!PP_CID || !PP_SECRET) {
   throw new Error("PayPal credentials missing (PAYPAL_CLIENT_ID / PAYPAL_SECRET).");
@@ -26,6 +26,8 @@ export const PLAN_IDS = {
 } as const;
 
 export type PlanKey = keyof typeof PLAN_IDS;
+// Aligner avec subscriptions.ts (mêmes littéraux)
+export type PlanType = "CONTINU" | "PASS1MOIS";
 
 /** =========================
  *  OAuth: Access Token
@@ -65,6 +67,7 @@ export async function ppGetSubscription(subId: string): Promise<any> {
  *  ========================= */
 export function mapPPStatus(status?: string):
   | "APPROVAL_PENDING"
+  | "APPROVED"
   | "ACTIVE"
   | "SUSPENDED"
   | "CANCELLED"
@@ -72,21 +75,28 @@ export function mapPPStatus(status?: string):
   | "UNKNOWN" {
   switch ((status || "").toUpperCase()) {
     case "APPROVAL_PENDING": return "APPROVAL_PENDING";
-    case "ACTIVE":          return "ACTIVE";
-    case "SUSPENDED":       return "SUSPENDED";
-    case "CANCELLED":       return "CANCELLED";
-    case "EXPIRED":         return "EXPIRED";
-    default:                return "UNKNOWN";
+    case "APPROVED":         return "APPROVED";
+    case "ACTIVE":           return "ACTIVE";
+    case "SUSPENDED":        return "SUSPENDED";
+    case "CANCELLED":        return "CANCELLED";
+    case "EXPIRED":          return "EXPIRED";
+    default:                 return "UNKNOWN";
   }
 }
 
-export function extractPeriodEndFromPP(ppSub: any, plan: PlanKey): Date | null {
+/**
+ * Déduit la fin de période :
+ * - si PayPal fournit `billing_info.next_billing_time`, on l’utilise
+ * - sinon pour PASS1MOIS, on approxime +30j à partir de `start_time`
+ */
+export function extractPeriodEndFromPP(ppSub: any, plan: PlanType): Date | null {
   const next = ppSub?.billing_info?.next_billing_time;
   if (next) return new Date(next);
 
   const start = ppSub?.start_time;
   if (plan === "PASS1MOIS" && start) {
     const d = new Date(start);
+    // approximation simple +30j
     d.setDate(d.getDate() + 30);
     return d;
   }
@@ -94,7 +104,7 @@ export function extractPeriodEndFromPP(ppSub: any, plan: PlanKey): Date | null {
 }
 
 export function isPaidStatus(s?: string | null): boolean {
-  return s?.toUpperCase() === "ACTIVE";
+  return (s || "").toUpperCase() === "ACTIVE";
 }
 
 /** =========================
