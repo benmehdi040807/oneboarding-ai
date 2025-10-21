@@ -226,15 +226,19 @@ export default function Menu() {
 
   const t = useMemo(() => I18N[lang], [lang]);
 
-  // init lecture locale
+  // init lecture locale (avec normalisation du plan)
   useEffect(() => {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
       setLang(L);
       setConnected(localStorage.getItem("ob_connected") === "1");
+
       const act = localStorage.getItem("oneboarding.spaceActive");
       setSpaceActive(act === "1" || act === "true");
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
+
+      const p = localStorage.getItem("oneboarding.plan");
+      setPlan(p === "subscription" || p === "one-month" ? p : null);
+
       setMessages(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     } catch {}
@@ -252,22 +256,28 @@ export default function Menu() {
 
     const onSpaceActivated = () => {
       setSpaceActive(true);
-      setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
+      const p = localStorage.getItem("oneboarding.plan");
+      setPlan(p === "subscription" || p === "one-month" ? p : null);
     };
 
-    const onPlanChanged = () => setPlan((localStorage.getItem("oneboarding.plan") as Plan) || null);
+    const onPlanChanged = () => {
+      const p = localStorage.getItem("oneboarding.plan");
+      setPlan(p === "subscription" || p === "one-month" ? p : null);
+    };
+
     const onHistoryCleared = () => setMessages([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
     // 🔥 NEW: Abonnement activé (retour PayPal)
     const onSubscriptionActive = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
-      const newPlan = (d?.plan === "one-month" ? "one-month" : "subscription") as Plan;
+      const newPlan: Plan = d?.plan === "one-month" ? "one-month" : "subscription";
 
       try {
         localStorage.setItem("ob_connected", "1");
         localStorage.setItem("oneboarding.spaceActive", "1");
-        localStorage.setItem("oneboarding.plan", newPlan);
+        if (newPlan) localStorage.setItem("oneboarding.plan", newPlan);
+        else localStorage.removeItem("oneboarding.plan");
         if (d?.phoneE164) localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
       } catch {}
 
@@ -333,8 +343,11 @@ export default function Menu() {
     window.dispatchEvent(new Event("ob:open-activate"));
   }
   function handleDeactivate() {
-    writeJSON("oneboarding.spaceActive", false);
-    writeJSON("oneboarding.plan", null);
+    // Espace OFF, et on nettoie proprement la clé du plan
+    try {
+      localStorage.setItem("oneboarding.spaceActive", "0");
+      localStorage.removeItem("oneboarding.plan");
+    } catch {}
     setSpaceActive(false);
     setPlan(null);
     emit("ob:space-deactivated");
@@ -815,4 +828,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-}
+                                                                                }
