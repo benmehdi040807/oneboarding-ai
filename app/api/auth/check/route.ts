@@ -17,7 +17,7 @@ type Ok = {
     deviceCount: number;
     maxDevices: number;
   };
-  // Info purement indicative pour l’UI / debug
+  // Info indicative pour l’UI / debug
   last: null | {
     plan: string;
     status: string;
@@ -28,6 +28,16 @@ type Ok = {
 
 type Err = { ok: false; error: string };
 
+// Récupère MAX_DEVICES depuis env serveur OU public, avec fallback 3
+function getMaxDevices(): number {
+  const v =
+    process.env.MAX_DEVICES ??
+    process.env.NEXT_PUBLIC_MAX_DEVICES ??
+    "3";
+  const n = parseInt(String(v), 10);
+  return Number.isFinite(n) && n > 0 ? n : 3;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as {
@@ -36,18 +46,18 @@ export async function POST(req: NextRequest) {
     };
 
     const phone = (body.phone || "").trim();
-    const deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : undefined;
+    const deviceId =
+      typeof body.deviceId === "string" ? body.deviceId.trim() : undefined;
 
-    // Validation minimale du téléphone (le front fait déjà la vraie validation)
+    // Validation minimale (le front a déjà validé en E.164)
     if (!phone || !phone.startsWith("+") || phone.length < 6) {
-      // On renvoie une erreur explicite (le front affiche déjà un toast côté client)
       return NextResponse.json<Err>(
         { ok: false, error: "INVALID_PHONE" },
-        { status: 400 }
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    const MAX_DEVICES = Number(process.env.MAX_DEVICES || 3);
+    const MAX_DEVICES = getMaxDevices();
 
     // 1) Trouver l’utilisateur par numéro
     const user = await prisma.user.findUnique({
@@ -55,7 +65,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, phoneE164: true },
     });
 
-    // 2) Si pas d’utilisateur → non-membre
+    // 2) Si pas d’utilisateur → non-membre (mais requête considérée ok)
     if (!user) {
       const payload: Ok = {
         ok: true,
@@ -68,13 +78,15 @@ export async function POST(req: NextRequest) {
         },
         last: null,
       };
-      return NextResponse.json(payload);
+      return NextResponse.json(payload, {
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
     // 3) Accès payant actif ?
     const planActive = await userHasPaidAccess(phone);
 
-    // 4) État des appareils
+    // 4) État des appareils (autorisés non révoqués)
     const authedDevices = await prisma.device.findMany({
       where: { userId: user.id, authorized: true, revokedAt: null },
       select: { deviceId: true },
@@ -82,13 +94,19 @@ export async function POST(req: NextRequest) {
 
     const deviceCount = authedDevices.length;
     const hasAnyDevice = deviceCount > 0;
-    const deviceKnown = !!(deviceId && authedDevices.some((d) => d.deviceId === deviceId));
+    const deviceKnown =
+      !!deviceId && authedDevices.some((d) => d.deviceId === deviceId);
 
-    // 5) Dernière souscription (facultatif pour l’UI)
+    // 5) Dernière souscription (pour affichage debug/UX)
     const lastSub = await prisma.subscription.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: { plan: true, status: true, currentPeriodEnd: true, paypalId: true },
+      select: {
+        plan: true,
+        status: true,
+        currentPeriodEnd: true,
+        paypalId: true,
+      },
     });
 
     const payload: Ok = {
@@ -111,11 +129,13 @@ export async function POST(req: NextRequest) {
         : null,
     };
 
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (e: any) {
     return NextResponse.json<Err>(
       { ok: false, error: e?.message || "SERVER_ERROR" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
