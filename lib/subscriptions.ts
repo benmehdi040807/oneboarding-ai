@@ -12,16 +12,20 @@ export type SubStatus =
   | "CANCELLED"
   | "EXPIRED";
 
-/** Upsert lors de l’approve (post-paiement) */
+/**
+ * Upsert lors du retour d’approval (post-paiement) :
+ * - garantit l’existence de l’utilisateur (par phone)
+ * - attache/actualise la souscription PayPal (status + échéance)
+ */
 export async function linkSubscriptionToUser(opts: {
   phoneE164: string;
   plan: PlanType;
   paypalSubId: string;
-}) {
+}): Promise<{ userId: string; status: SubStatus; currentPeriodEnd: Date | null }> {
   const { phoneE164, plan, paypalSubId } = opts;
 
-  // 1) Récup PayPal pour status & échéance
-  const ppSub = await ppGetSubscription(paypalSubId);
+  // 1) Lecture PayPal → status + échéance
+  const ppSub = await ppGetSubscription(paypalSubId).catch(() => undefined as any);
   const status = ((ppSub?.status as string) || "ACTIVE") as SubStatus;
   const currentPeriodEnd = extractPeriodEndFromPP(ppSub, plan) ?? null;
 
@@ -33,7 +37,7 @@ export async function linkSubscriptionToUser(opts: {
     select: { id: true },
   });
 
-  // 3) Subscription upsert
+  // 3) Subscription upsert (idempotent par paypalId)
   await prisma.subscription.upsert({
     where: { paypalId: paypalSubId },
     update: {
@@ -56,42 +60,50 @@ export async function linkSubscriptionToUser(opts: {
   return { userId: user.id, status, currentPeriodEnd };
 }
 
-/** Applique un changement d’état reçu via webhook (idempotent) */
+/**
+ * Applique un changement d’état reçu via webhook PayPal (idempotent).
+ * On refetch la souscription chez PayPal pour se baser sur la vérité source.
+ */
 export async function applyWebhookChange(evt: {
   event_type: string;
   resource: any;
-}) {
-  const type = evt.event_type;
-  const res = evt.resource;
-  const subId = res?.id || res?.subscription_id;
-  if (!subId) return;
+}): Promise<void> {
+  const type = evt?.event_type;
+  const res = evt?.resource;
+  const subId: string | undefined = res?.id || res?.subscription_id;
+  if (!type || !subId) return;
 
-  // Refetch fiable
-  const pp = await ppGetSubscription(subId);
+  // Refetch fiable (source of truth)
+  const pp = await ppGetSubscription(subId).catch(() => undefined as any);
   const status = (pp?.status as SubStatus | undefined) ?? undefined;
 
-  // Déduire l’échéance courante
+  // Heuristique plan (CONTINU vs PASS1MOIS) si on n’a pas l’info locale
   const planGuess: PlanType =
     pp?.plan_id && typeof pp.plan_id === "string" && pp.plan_id.includes("PASS")
       ? "PASS1MOIS"
       : "CONTINU";
-  const periodEnd = extractPeriodEndFromPP(pp, planGuess);
 
-  let cancelAtPeriodEnd: boolean | undefined = undefined;
+  // Échéance (pour PASS1MOIS et/ou info PayPal côté plan)
+  const periodEnd = extractPeriodEndFromPP(pp, planGuess) ?? undefined;
+
+  let cancelAtPeriodEnd: boolean | undefined;
 
   switch (type) {
     case "BILLING.SUBSCRIPTION.ACTIVATED":
       cancelAtPeriodEnd = false;
       break;
     case "BILLING.SUBSCRIPTION.SUSPENDED":
-      cancelAtPeriodEnd = true; // accès coupé immédiat
+      // Accès coupé immédiat par prudence
+      cancelAtPeriodEnd = true;
       break;
     case "BILLING.SUBSCRIPTION.CANCELLED":
-      cancelAtPeriodEnd = true; // on honore jusqu’à échéance
+      // On honore jusqu’à échéance si connue
+      cancelAtPeriodEnd = true;
       break;
     case "BILLING.SUBSCRIPTION.EXPIRED":
       cancelAtPeriodEnd = true;
       break;
+    // Autres types possibles (paiement échoué etc.) : on laisse le status PayPal trancher
     default:
       break;
   }
@@ -100,14 +112,21 @@ export async function applyWebhookChange(evt: {
     where: { paypalId: subId },
     data: {
       status: status ?? undefined,
-      currentPeriodEnd: periodEnd ?? undefined,
+      currentPeriodEnd: periodEnd,
       cancelAtPeriodEnd,
     },
   });
+
+  // NB: Si plus tard on veut gérer l’auth device via un paiement 1 € (order/capture),
+  // on traitera ces events (ex: PAYMENT.CAPTURE.COMPLETED) ailleurs, pas ici.
 }
 
-/** Règle d’accès : TRUE si actif OU (annulé mais pas encore arrivé à l’échéance) */
-export async function userHasPaidAccess(phoneE164: string) {
+/**
+ * Droit d’accès : TRUE si
+ * - ACTIVE
+ * - ou CANCELLED mais pas encore arrivé à l’échéance (currentPeriodEnd future)
+ */
+export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   const sub = await prisma.subscription.findFirst({
     where: {
       user: { phoneE164 },
