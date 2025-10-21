@@ -9,9 +9,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-/* =========================
-   Utilisateurs
-   ========================= */
+// =========================
+//    Utilisateurs
+// =========================
 model User {
   id         String   @id @default(cuid())
   phoneE164  String   @unique
@@ -28,9 +28,9 @@ model User {
   @@index([createdAt])
 }
 
-/* =========================
-   Abonnements (PayPal)
-   ========================= */
+// =========================
+//    Abonnements (PayPal)
+// =========================
 model Subscription {
   id                String    @id @default(cuid())
   userId            String
@@ -51,9 +51,9 @@ model Subscription {
   @@index([createdAt])
 }
 
-/* =========================
-   Profil
-   ========================= */
+// =========================
+//    Profil
+// =========================
 model Profile {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -67,9 +67,9 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-/* =========================
-   Historique (journal libre)
-   ========================= */
+// =========================
+//    Historique (journal libre)
+// =========================
 model History {
   id          String   @id @default(cuid())
   userId      String
@@ -85,9 +85,9 @@ model History {
   @@index([createdAt])
 }
 
-/* =========================
-   Templates (moteur interne)
-   ========================= */
+// =========================
+//    Templates (moteur interne)
+// =========================
 model Template {
   id        String   @id @default(cuid())
   slug      String   @unique
@@ -102,14 +102,13 @@ model Template {
   @@index([isActive])
 }
 
-/* =========================
-   Appareils (multi-device)
-   =========================
-   - authorized: true/false (préféré à la suppression)
-   - revokedAt: timestamp si désactivé manuellement
-   - lastSeenAt: pour housekeeping
-   - (userId, deviceId) unique
-*/
+// =========================
+//    Appareils (multi-device)
+// =========================
+// - authorized: true/false (préféré à la suppression)
+// - revokedAt: timestamp si désactivé manuellement
+// - lastSeenAt: pour housekeeping
+// - (userId, deviceId) unique
 model Device {
   id         String   @id @default(cuid())
   userId     String
@@ -130,13 +129,12 @@ model Device {
   @@index([updatedAt])
 }
 
-/* =========================
-   Sessions opaques (DB)
-   =========================
-   - Pas de secret côté client requis
-   - expiresAt: invalidation automatique
-   - revokedAt: logout / rotation
-*/
+// =========================
+//    Sessions opaques (DB)
+// =========================
+// - Pas de secret côté client requis
+// - expiresAt: invalidation automatique
+// - revokedAt: logout / rotation
 model Session {
   id         String   @id @default(cuid())
   userId     String
@@ -153,13 +151,12 @@ model Session {
   @@index([revokedAt])
 }
 
-/* =========================
-   Intent de paiement "1€" (device)
-   =========================
-   - orderId PayPal unique
-   - status libre ("CREATED"|"APPROVED"|"CAPTURED"|...)
-   - payload: JSON brut PayPal si tu veux conserver les traces
-*/
+// =========================
+//    Intent de paiement "1€" (device)
+// =========================
+// - orderId PayPal unique
+// - status libre ("CREATED"|"APPROVED"|"CAPTURED"|...)
+// - payload: JSON brut PayPal si tu veux conserver les traces
 model DeviceOrderIntent {
   id          String   @id @default(cuid())
   userId      String
