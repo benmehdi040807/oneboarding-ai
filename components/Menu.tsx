@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { legalCopyFor, type Lang as LegalLang, type Section as LegalSection } from "@/lib/legal/copy";
+import ConnectModal from "./ConnectModal";
+import SubscribeModal from "./SubscribeModal";
 
 /** ===================== Types ===================== */
 type Plan = "subscription" | "one-month" | null;
@@ -354,7 +356,7 @@ export default function Menu() {
     toast("Espace désactivé.");
   }
 
-  /** ============ Helpers Historique ============ */
+  /** ============ Helpers Historique (footer stable) ============ */
   function footerLabel(l: Lang) {
     return l === "en" ? "My history" : l === "ar" ? "سِجِلّي" : "Mon historique";
   }
@@ -363,16 +365,20 @@ export default function Menu() {
       .slice()
       .reverse()
       .map((m) => {
-        const who = m.role === "user" ? (l === "en" ? "You" : l === "ar" ? "أنت" : "Vous")
-          : m.role === "assistant" ? (l === "en" ? "AI" : l === "ar" ? "الذكاء الاصطناعي" : "IA")
-          : (l === "en" ? "Error" : l === "ar" ? "خطأ" : "Erreur");
+        const who =
+          m.role === "user"
+            ? (l === "en" ? "You" : l === "ar" ? "أنت" : "Vous")
+            : m.role === "assistant"
+            ? (l === "en" ? "AI" : l === "ar" ? "الذكاء الاصطناعي" : "IA")
+            : (l === "en" ? "Error" : l === "ar" ? "خطأ" : "Erreur");
         return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
       })
       .join("\n\n— — —\n\n");
 
     const footer =
       `\n\n— — —\n` +
-      `[OneBoarding AI ®\n^${footerLabel(l)}^\n oneboardingai.com\n]`;
+      `[OneBoarding AI ® — ${footerLabel(l)}]\n` +
+      `https://oneboardingai.com`;
 
     return `${body}${footer}`;
   }
@@ -506,14 +512,14 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal (largeur x2) */}
+      {/* Bouton flottant principal (≈ largeur x2) */}
       <div
         className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 39px)" }}
       >
         <button
           onClick={openMenu}
-          className="pointer-events-auto menu-float px-4 py-2 rounded-2xl border border-white/20 bg-[var(--panel)] text-white shadow-lg hover:bg-[color:rgba(12,16,28,.92)] min-w-[200px]"
+          className="pointer-events-auto menu-float px-4 py-2 rounded-2xl border border-white/20 bg-[var(--panel)] text-white shadow-lg hover:bg-[color:rgba(12,16,28,.92)] min-w-[150px]"
         >
           {t.MENU}
         </button>
@@ -680,6 +686,10 @@ export default function Menu() {
           </div>
         </div>
       )}
+
+      {/* Monter les modales ici pour garantir que les events aient des listeners */}
+      <ConnectModal />
+      <SubscribeModal />
 
       {/* styles locaux */}
       <style jsx global>{`
@@ -849,4 +859,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-      }
+    }
