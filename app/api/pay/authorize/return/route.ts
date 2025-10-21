@@ -20,95 +20,82 @@ async function captureOrder(orderId: string) {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      // Idempotency (soft) pour éviter double-capture si back/refresh
-      "PayPal-Request-Id": `cap-${orderId}`,
     },
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg =
-      (data?.details && data.details[0]?.issue) ||
+      data?.details?.[0]?.issue ||
       data?.message ||
       `PP_CAPTURE_FAIL_${res.status}`;
-    throw Object.assign(new Error(msg), { data });
+    throw new Error(msg);
   }
   return data;
 }
 
-/**
- * Retour PayPal pour l'autorisation "1 €" (Orders v2)
- * PayPal renvoie typiquement ?token=<orderId>
- */
 export async function GET(req: NextRequest) {
   const B = baseUrl();
-
   try {
     const url = new URL(req.url);
-    const orderId = url.searchParams.get("token") || url.searchParams.get("orderId");
+    // PayPal renvoie généralement ?token=<ORDER_ID> pour Orders v2
+    const orderId =
+      url.searchParams.get("token") ||
+      url.searchParams.get("order_id") ||
+      url.searchParams.get("ba_token");
 
     if (!orderId) {
       return NextResponse.redirect(`${B}/?device_error=NO_ORDER_ID`, 302);
     }
 
-    // 1) Retrouver l'intent local (pour deviceId & userId)
-    const intent = await prisma.deviceOrderIntent.findFirst({
+    // 1) Capture l’ordre
+    const capture = await captureOrder(orderId);
+
+    // id de capture (si dispo)
+    let payref: string | undefined;
+    try {
+      payref =
+        capture?.purchase_units?.[0]?.payments?.captures?.[0]?.id ||
+        capture?.id ||
+        undefined;
+    } catch {}
+
+    // 2) Retrouve l’intent initial pour récupérer user/device
+    const intent = await prisma.deviceOrderIntent.findUnique({
       where: { orderId },
-      select: { id: true, userId: true, deviceId: true, status: true },
+      include: { user: true },
     });
 
-    if (!intent) {
-      return NextResponse.redirect(`${B}/?device_error=INTENT_NOT_FOUND`, 302);
-    }
+    // Marque comme CAPTURED si possible (sans bloquer en cas d’échec)
+    await prisma.deviceOrderIntent
+      .update({
+        where: { orderId },
+        data: { status: "CAPTURED" },
+      })
+      .catch(() => {});
 
-    // 2) Capturer l'ordre PayPal
-    const cap = await captureOrder(orderId);
+    const phoneE164 = intent?.user?.phoneE164 || "";
+    const deviceId = intent?.deviceId || "";
 
-    // 3) Vérifier statut
-    const purchaseUnits = Array.isArray(cap?.purchase_units) ? cap.purchase_units : [];
-    const payments = purchaseUnits[0]?.payments;
-    const captures = Array.isArray(payments?.captures) ? payments.captures : [];
-    const capture = captures[0];
-    const capStatus: string = (capture?.status as string) || (cap?.status as string) || "";
-    const ok = (capStatus || "").toUpperCase() === "COMPLETED";
+    // 3) Redirige → flags propres pour AuthorizeReturnBridge (et cookie court)
+    const redirectUrl = new URL(B);
+    redirectUrl.searchParams.set("device_authorized", "1");
+    if (phoneE164) redirectUrl.searchParams.set("phone", phoneE164);
+    if (deviceId) redirectUrl.searchParams.set("device", deviceId);
+    if (payref) redirectUrl.searchParams.set("payref", payref);
 
-    // 4) Informations utiles
-    const paymentRef: string | undefined = capture?.id || cap?.id;
-    const deviceId = intent.deviceId || undefined;
-
-    // Récup phone pour le bridge UI
-    const user = await prisma.user.findUnique({
-      where: { id: intent.userId },
-      select: { phoneE164: true },
+    const res = NextResponse.redirect(redirectUrl.toString(), 302);
+    // Cookie “ok” (fallback pour bridge), courte durée
+    res.cookies.set("ob.deviceAuth", "ok", {
+      path: "/",
+      httpOnly: false,    // lisible côté client (bridge)
+      sameSite: "lax",
+      secure: true,
+      maxAge: 60,         // 1 minute suffit
     });
-    const phoneE164 = user?.phoneE164 || "";
-
-    // 5) Mise à jour base (journalisation)
-    await prisma.deviceOrderIntent.update({
-      where: { id: intent.id },
-      data: {
-        status: ok ? "CAPTURED" : "FAILED",
-        paymentRef: paymentRef || null,
-        capturedAt: ok ? new Date() : null,
-        payload: cap ? JSON.stringify(cap) : undefined,
-      },
-    }).catch(() => { /* ne bloque pas le flux UX */ });
-
-    // 6) Redirect UX → page d’accueil avec flags propres
-    if (ok) {
-      const u = new URL(B);
-      u.searchParams.set("device_authorized", "1");
-      if (phoneE164) u.searchParams.set("phone", phoneE164);
-      if (deviceId) u.searchParams.set("device", deviceId);
-      if (paymentRef) u.searchParams.set("payref", paymentRef);
-      return NextResponse.redirect(u.toString(), 302);
-    } else {
-      return NextResponse.redirect(`${B}/?device_error=CAPTURE_NOT_COMPLETED`, 302);
-    }
+    return res;
   } catch (e: any) {
-    return NextResponse.redirect(
-      `${B}/?device_error=${encodeURIComponent(e?.message || "AUTHORIZE_RETURN_ERROR")}`,
-      302
-    );
+    const msg = encodeURIComponent(e?.message || "AUTHORIZE_RETURN_ERROR");
+    return NextResponse.redirect(`${B}/?device_error=${msg}`, 302);
   }
-}
+  }
