@@ -7,9 +7,8 @@ import { useEffect, useRef, useState } from "react";
  * ---------------------------------------------------------
  * • O bleu  : One IA (Génération II) — message officiel, bouton OK
  * • O doré  : Mirror IA (Génération III) — message officiel, bouton OK
- * • Re-cliquer sur le bouton ferme le dialog (toggle)
- * • Dialog natif <dialog> (backdrop système), fermeture par clic extérieur / ESC
- * • Aucun lien avec la création/connexion : ces flux sont désormais gérés par le Menu.
+ * • Toggle au re-clic, fermeture par clic backdrop / ESC
+ * • Aucun lien avec activation/connexion (géré par le Menu)
  */
 
 export default function RightAuthButtons() {
@@ -67,12 +66,9 @@ export default function RightAuthButtons() {
       if (!inside) setOpen(false);
     };
 
-  // Styles communs
   const circle =
-    "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] " +
-    "hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
+    "h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition select-none";
 
-  // Toggle par re-clic
   function onBlueClick() {
     setOpenBlue((v) => !v);
     if (openGold) setOpenGold(false);
@@ -143,10 +139,15 @@ export default function RightAuthButtons() {
         ref={blueRef}
         onMouseDown={onBackdropClick(setOpenBlue, blueRef)}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="one-ia-title"
       >
         <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg sm:text-xl font-semibold">One IA — Votre Intelligence personnelle</h2>
+            <h2 id="one-ia-title" className="text-lg sm:text-xl font-semibold">
+              One IA — Votre Intelligence personnelle
+            </h2>
             <button
               type="button"
               onClick={() => setOpenBlue(false)}
@@ -160,7 +161,9 @@ export default function RightAuthButtons() {
           <div className="space-y-3 text-[15px] leading-6">
             <p>Une nouvelle ère s’annonce. L’intelligence devient personnelle, intime, à votre image.</p>
             <p>Votre IA vous accompagne, vous comprend, et évolue avec vous.</p>
-            <p className="font-medium">Coming soon — La génération II.<br/>L’intelligence qui se souvient de vous, pour vous.</p>
+            <p className="font-medium">
+              Coming soon — La génération II.<br/>L’intelligence qui se souvient de vous, pour vous.
+            </p>
           </div>
 
           <div className="mt-5 flex justify-end">
@@ -181,10 +184,15 @@ export default function RightAuthButtons() {
         ref={goldRef}
         onMouseDown={onBackdropClick(setOpenGold, goldRef)}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mirror-ia-title"
       >
         <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg sm:text-xl font-semibold">Mirror IA — L’Internet des intelligences</h2>
+            <h2 id="mirror-ia-title" className="text-lg sm:text-xl font-semibold">
+              Mirror IA — L’Internet des intelligences
+            </h2>
             <button
               type="button"
               onClick={() => setOpenGold(false)}
@@ -198,7 +206,9 @@ export default function RightAuthButtons() {
           <div className="space-y-3 text-[15px] leading-6">
             <p>L’intelligence ne sera plus seule. Elle dialoguera avec d’autres, sous votre regard, pour votre monde.</p>
             <p>Les IA personnelles se rencontreront, coopéreront, et créeront ensemble.</p>
-            <p className="font-medium">Coming soon — La génération III.<br/>L’intelligence connectée, au service de l’humain.</p>
+            <p className="font-medium">
+              Coming soon — La génération III.<br/>L’intelligence connectée, au service de l’humain.
+            </p>
           </div>
 
           <div className="mt-5 flex justify-end">
@@ -215,4 +225,4 @@ export default function RightAuthButtons() {
       </dialog>
     </>
   );
-}
+    }
