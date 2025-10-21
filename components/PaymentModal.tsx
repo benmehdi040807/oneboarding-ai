@@ -5,6 +5,13 @@ import { useEffect, useRef, useState } from "react";
 
 type Plan = "subscription" | "one-month";
 
+type OpenEventDetail = {
+  phoneE164?: string;
+  plan?: Plan;                // si présent => activation plan
+  confirmOneEur?: boolean;    // si true & pas de plan => autorisation 1 €
+  revokeOldest?: boolean;     // optionnel, seulement pour l'autorisation 1 €
+};
+
 type Props = {
   open?: boolean;
   onClose?: () => void;
@@ -12,47 +19,81 @@ type Props = {
   phoneE164?: string;     // identifiant (mode contrôlé)
 };
 
-const PLAN_KEY  = "oneboarding.plan";
-const ACTIVE_KEY = "oneboarding.spaceActive";
-const UNTIL_KEY  = "oneboarding.activeUntil";
-const NAG_AT_KEY = "oneboarding.renewalNagAt";
-const PHONE_KEY  = "oneboarding.phoneE164";
+const PHONE_KEY = "oneboarding.phoneE164";
 
-// 30 jours
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-// Abonnement : horizon long (≈ 10 ans)
-const SUBSCRIPTION_HORIZON_MS = 3650 * 24 * 60 * 60 * 1000;
+// Utils deviceId (pour API)
+function uuid4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+const DEVICE_ID_KEY = "oneboarding.deviceId";
+function getOrCreateDeviceId(): string {
+  try {
+    const cur = localStorage.getItem(DEVICE_ID_KEY);
+    if (cur) return cur;
+    const id = uuid4();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+    return id;
+  } catch {
+    return "device-fallback";
+  }
+}
 
 export default function PaymentModal(props: Props) {
   const controlled = typeof props.open === "boolean";
-  const [open, setOpen] = useState<boolean>(Boolean(props.open));
-  const [pickedPlan, setPickedPlan] = useState<Plan>(props.plan || "subscription");
-  const [e164, setE164] = useState<string>(props.phoneE164 || "");
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+
+  // état open & contexte d’appel
+  const [open, setOpen] = useState<boolean>(Boolean(props.open));
+  const [e164, setE164] = useState<string>(props.phoneE164 || "");
+  const [pickedPlan, setPickedPlan] = useState<Plan>(props.plan || "subscription");
+
+  // mode d’opération
+  const [isPlanActivation, setIsPlanActivation] = useState<boolean>(Boolean(props.plan));
+  const [isOneEuroAuth, setIsOneEuroAuth] = useState<boolean>(false);
+  const [revokeOldest, setRevokeOldest] = useState<boolean>(false);
+
+  // UI states
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   /* ==================== Ouverture via évènement global ==================== */
   useEffect(() => {
     const handler = (e: Event) => {
       if (controlled) return; // en mode contrôlé, on ignore l’event
-      const ce = e as CustomEvent<{ phoneE164?: string; plan?: Plan }>;
+      const ce = e as CustomEvent<OpenEventDetail>;
+      const detail = ce.detail || {};
 
-      // téléphone passé par l’event
-      if (ce.detail?.phoneE164) {
-        setE164(ce.detail.phoneE164);
-        try { localStorage.setItem(PHONE_KEY, ce.detail.phoneE164); } catch {}
+      // phone
+      if (detail.phoneE164) {
+        setE164(detail.phoneE164);
+        try { localStorage.setItem(PHONE_KEY, detail.phoneE164); } catch {}
       } else {
-        // fallback : si pas fourni, on tente le LS
         try {
           const lsPhone = localStorage.getItem(PHONE_KEY) || "";
           if (lsPhone) setE164(lsPhone);
         } catch {}
       }
 
-      // plan passé par l’event
-      if (ce.detail?.plan) {
-        setPickedPlan(ce.detail.plan);
+      // routing du flux
+      if (detail.plan) {
+        setPickedPlan(detail.plan);
+        setIsPlanActivation(true);
+        setIsOneEuroAuth(false);
+      } else if (detail.confirmOneEur) {
+        setIsPlanActivation(false);
+        setIsOneEuroAuth(true);
+      } else {
+        // si rien n’est fourni, on reste en activation plan par défaut
+        setIsPlanActivation(true);
+        setIsOneEuroAuth(false);
       }
 
+      setRevokeOldest(Boolean(detail.revokeOldest));
+
+      setErr(null);
       setOpen(true);
       setTimeout(() => dialogRef.current?.showModal(), 0);
     };
@@ -64,13 +105,21 @@ export default function PaymentModal(props: Props) {
   /* ==================== Suivre props en mode contrôlé ===================== */
   useEffect(() => {
     if (!controlled) return;
-    // plan contrôlé : si la prop change, on met à jour la sélection
-    if (props.plan) setPickedPlan(props.plan);
+
+    // phone
     if (typeof props.phoneE164 === "string") {
       setE164(props.phoneE164);
       try { if (props.phoneE164) localStorage.setItem(PHONE_KEY, props.phoneE164); } catch {}
     }
 
+    // plan -> activation
+    if (props.plan) {
+      setPickedPlan(props.plan);
+      setIsPlanActivation(true);
+      setIsOneEuroAuth(false);
+    }
+
+    // open/close
     if (props.open && !dialogRef.current?.open) {
       setOpen(true);
       dialogRef.current?.showModal();
@@ -106,55 +155,131 @@ export default function PaymentModal(props: Props) {
     if (!controlled && open && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [controlled, open]);
 
-  /* ============================ “Paiement” natif ========================== */
-  function confirmPayment() {
-    const now = Date.now();
-    const plan = pickedPlan;
-
-    let activeUntil = now + THIRTY_DAYS_MS;
-    let nagAt: number | null = activeUntil - 3 * 24 * 60 * 60 * 1000;
-
-    if (plan === "subscription") {
-      activeUntil = now + SUBSCRIPTION_HORIZON_MS;
-      nagAt = null;
+  /* =============================== API calls ============================== */
+  async function apiStartPlan(kind: Plan, phoneE164: string) {
+    const deviceId = getOrCreateDeviceId();
+    const res = await fetch("/api/pay/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, phone: phoneE164, deviceId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out?.ok) {
+      const msg = out?.error || `HTTP_${res.status}`;
+      throw new Error(msg);
     }
-
-    try {
-      localStorage.setItem(PLAN_KEY, plan);
-      localStorage.setItem(ACTIVE_KEY, "1");
-      localStorage.setItem(UNTIL_KEY, String(activeUntil));
-      if (nagAt) localStorage.setItem(NAG_AT_KEY, String(nagAt));
-      else localStorage.removeItem(NAG_AT_KEY);
-      if (e164) localStorage.setItem(PHONE_KEY, e164);
-
-      // 🔔 Événements normalisés pour l’écosystème (Menu, bannière, etc.)
-      window.dispatchEvent(new Event("ob:space-activated"));
-      window.dispatchEvent(new Event("ob:plan-changed"));
-      window.dispatchEvent(new Event("ob:connected")); // alias
-      window.dispatchEvent(new Event("ob:auth-changed"));
-    } catch {
-      // noop
-    }
-
-    alert(plan === "subscription" ? "✅ Espace activé (abonnement)." : "✅ Espace activé pour 1 mois.");
-    closeInternal();
+    return out as { ok: true; approvalUrl?: string; customerId?: string; paymentRef?: string };
   }
 
-  /* ================================ UI ==================================== */
-  const title = "Activer mon espace";
-  const subtitle = "Choisissez librement votre formule. L’accès est le même, la liberté aussi.";
-  const primaryBg =
-    pickedPlan === "subscription"
-      ? "linear-gradient(135deg,#0EA5E9,#0284C7)"
-      : "linear-gradient(135deg,#10B981,#059669)";
+  async function apiAuthorizeDeviceOneEuro(phoneE164: string, revoke: boolean) {
+    const deviceId = getOrCreateDeviceId();
+    const res = await fetch("/api/pay/authorize-device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phoneE164, deviceId, revokeOldest: revoke }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out?.ok) {
+      const msg = out?.error || `HTTP_${res.status}`;
+      throw new Error(msg);
+    }
+    return out as { ok: true; approvalUrl?: string; paymentRef?: string };
+  }
+
+  /* ============================= Actions flux ============================= */
+  async function onConfirmPlan() {
+    setErr(null);
+    setLoading(true);
+    try {
+      const p = (e164 || "").trim();
+      if (!p.startsWith("+") || p.length < 6) {
+        setErr("Numéro invalide (format E.164).");
+        setLoading(false);
+        return;
+      }
+
+      // lancer la création de l’ordre PayPal
+      const out = await apiStartPlan(pickedPlan, p);
+
+      // si approvalUrl → on redirige (retour/webhook émettront ob:subscription-active)
+      if (out.approvalUrl) {
+        window.location.href = out.approvalUrl;
+        return;
+      }
+
+      // fallback “dev/demo” : on émet l’event de succès localement
+      window.dispatchEvent(new CustomEvent("ob:subscription-active", {
+        detail: {
+          status: "active",
+          plan: pickedPlan,
+          deviceId: getOrCreateDeviceId(),
+          customerId: out?.customerId,
+          paymentRef: out?.paymentRef,
+          source: "PaymentModal",
+        },
+      }));
+      closeInternal();
+    } catch (e: any) {
+      setErr(e?.message || "Erreur inconnue.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onAuthorizeOneEuro() {
+    setErr(null);
+    setLoading(true);
+    try {
+      const p = (e164 || "").trim();
+      if (!p.startsWith("+") || p.length < 6) {
+        setErr("Numéro invalide (format E.164).");
+        setLoading(false);
+        return;
+      }
+
+      const out = await apiAuthorizeDeviceOneEuro(p, revokeOldest);
+
+      if (out.approvalUrl) {
+        window.location.href = out.approvalUrl; // webhook/return → ob:device-authorized
+        return;
+      }
+
+      // fallback “dev/demo”
+      window.dispatchEvent(new CustomEvent("ob:device-authorized", {
+        detail: {
+          status: "active",
+          phoneE164: p,
+          deviceId: getOrCreateDeviceId(),
+          planActive: true, // indicatif
+          paymentRef: out?.paymentRef,
+          source: "PaymentModal",
+        } as const,
+      }));
+      closeInternal();
+    } catch (e: any) {
+      if (e?.message === "NO_USER") {
+        setErr("Compte introuvable. Utilisez « Activer mon espace » pour choisir un plan.");
+      } else {
+        setErr(e?.message || "Erreur inconnue.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ================================= UI ================================== */
+  const title = isPlanActivation ? "Activer mon espace" : "Autoriser cet appareil (1 €)";
+  const subtitle = isPlanActivation
+    ? "Choisissez librement votre formule."
+    : "Pour sécuriser votre espace, nous confirmons votre identité (1 €) et ajoutons cet appareil.";
 
   return (
     <>
       <style>{`
-        dialog::backdrop {
-          background: rgba(0,0,0,.45);
-          -webkit-backdrop-filter: saturate(120%) blur(2px);
-          backdrop-filter: saturate(120%) blur(2px);
+        dialog::backdrop{
+          background:rgba(0,0,0,.45);
+          -webkit-backdrop-filter:saturate(120%) blur(2px);
+          backdrop-filter:saturate(120%) blur(2px);
         }
       `}</style>
 
@@ -179,62 +304,93 @@ export default function PaymentModal(props: Props) {
           <p className="text-sm text-black/70 mb-3">{subtitle}</p>
 
           {e164 ? (
-            <p className="text-xs text:black/60 mb-3">
+            <p className="text-xs text-black/60 mb-3">
               Identifiant : <span className="font-mono">{e164}</span>
             </p>
           ) : null}
 
-          <div className="space-y-3 mb-4">
-            <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-3 hover:bg-black/[0.03] cursor-pointer">
-              <input
-                type="radio"
-                name="plan"
-                checked={pickedPlan === "subscription"}
-                onChange={() => setPickedPlan("subscription")}
-              />
-              <div>
-                <div className="font-semibold">Abonnement — 5 € / mois</div>
-                <div className="text-xs text-black/60">
-                  Accès continu, renouvellement automatique, sans interruption.
+          {isPlanActivation && (
+            <>
+              <div className="space-y-3 mb-4">
+                <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-3 hover:bg-black/[0.03] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="plan"
+                    checked={pickedPlan === "subscription"}
+                    onChange={() => setPickedPlan("subscription")}
+                  />
+                  <div>
+                    <div className="font-semibold">Abonnement — 5 € / mois</div>
+                    <div className="text-xs text-black/60">Accès continu, sans interruption.</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-3 hover:bg-black/[0.03] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="plan"
+                    checked={pickedPlan === "one-month"}
+                    onChange={() => setPickedPlan("one-month")}
+                  />
+                  <div>
+                    <div className="font-semibold">Accès libre — 5 €</div>
+                    <div className="text-xs text-black/60">Un mois complet, sans engagement.</div>
+                  </div>
+                </label>
+              </div>
+
+              {err && <div className="text-sm text-red-600 mb-2">{err}</div>}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={closeInternal}
+                  className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
+                >
+                  Plus tard
+                </button>
+                <button
+                  type="button"
+                  onClick={onConfirmPlan}
+                  disabled={loading}
+                  className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow bg-black disabled:opacity-60"
+                >
+                  {loading ? "…" : "Confirmer"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {isOneEuroAuth && (
+            <>
+              {/* Note: aucune case 1€ ici (déjà traitée côté ConnectModal) */}
+              {revokeOldest && (
+                <div className="mb-3 p-3 rounded-xl border border-yellow-400/30 bg-yellow-300/15 text-black/85 text-sm">
+                  Un ancien appareil sera révoqué automatiquement.
                 </div>
+              )}
+
+              {err && <div className="text-sm text-red-600 mb-2">{err}</div>}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={closeInternal}
+                  className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={onAuthorizeOneEuro}
+                  disabled={loading}
+                  className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow bg-black disabled:opacity-60"
+                >
+                  {loading ? "…" : "Autoriser (1 €)"}
+                </button>
               </div>
-            </label>
-
-            <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-3 hover:bg-black/[0.03] cursor-pointer">
-              <input
-                type="radio"
-                name="plan"
-                checked={pickedPlan === "one-month"}
-                onChange={() => setPickedPlan("one-month")}
-              />
-              <div>
-                <div className="font-semibold">Accès libre — 5 €</div>
-                <div className="text-xs text-black/60">Un mois complet, sans engagement.</div>
-              </div>
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={closeInternal}
-              className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
-            >
-              Plus tard
-            </button>
-            <button
-              type="button"
-              onClick={confirmPayment}
-              className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow"
-              style={{ background: primaryBg }}
-            >
-              Confirmer
-            </button>
-          </div>
-
-          <p className="text-[11px] text-black/50 mt-3">
-            Mode démo (sans paiement). Les clés d’activation sont posées localement.
-          </p>
+            </>
+          )}
         </div>
       </dialog>
     </>
