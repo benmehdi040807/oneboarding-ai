@@ -20,6 +20,7 @@ type Props = {
 };
 
 const PHONE_KEY = "oneboarding.phoneE164";
+const PLAN_CANDIDATE_KEY = "oneboarding.planCandidate";
 
 // Utils deviceId (pour API 1€)
 function uuid4() {
@@ -67,7 +68,8 @@ export default function PaymentModal(props: Props) {
         if (lsPhone) setE164(lsPhone);
       } catch {}
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ==================== Ouverture via évènement global ==================== */
   useEffect(() => {
@@ -211,6 +213,12 @@ export default function PaymentModal(props: Props) {
         return;
       }
 
+      // Mémoriser le contexte pour le bootstrap (retour PayPal)
+      try {
+        localStorage.setItem(PHONE_KEY, p);
+        localStorage.setItem(PLAN_CANDIDATE_KEY, pickedPlan);
+      } catch {}
+
       // lancer la création de la souscription PayPal
       const out = await apiStartPlan(pickedPlan, p);
 
@@ -249,6 +257,9 @@ export default function PaymentModal(props: Props) {
         setLoading(false);
         return;
       }
+
+      // On garde aussi le phone localement pour l’event de retour
+      try { localStorage.setItem(PHONE_KEY, p); } catch {}
 
       const out = await apiAuthorizeDeviceOneEuro(p, revokeOldest);
 
@@ -410,4 +421,4 @@ export default function PaymentModal(props: Props) {
       </dialog>
     </>
   );
-      }
+}
