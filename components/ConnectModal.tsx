@@ -81,7 +81,7 @@ const T: Record<Lang, any> = {
     NOT_MEMBER:
       "Vous n’êtes pas encore membre. Utilisez « Activer mon espace » pour choisir votre formule.",
     ERROR: "Une erreur est survenue. Réessayez.",
-    INVALID_PHONE: "Veuillez entrer un numéro complet et valide (ex : +2126…).",
+    INVALID_PHONE: "Vérifiez votre numéro et réessayez.",
     LOADING: "…",
     BANNER_REDIRECTING: "Redirection vers l’activation…",
   },
@@ -105,7 +105,7 @@ const T: Record<Lang, any> = {
     NOT_MEMBER:
       "You are not a member yet. Use “Activate my space” to choose a plan.",
     ERROR: "Something went wrong. Please try again.",
-    INVALID_PHONE: "Please enter a complete, valid number (e.g. +1415…).",
+    INVALID_PHONE: "Please check your number and try again.",
     LOADING: "…",
     BANNER_REDIRECTING: "Redirecting to activation…",
   },
@@ -128,7 +128,7 @@ const T: Record<Lang, any> = {
     WELCOME_OK: "مرحبًا — تم التعرّف على الجهاز.",
     NOT_MEMBER: "لست عضوًا بعد. استخدم «تفعيل مساحتي» لاختيار الخطة.",
     ERROR: "حدث خطأ. حاول مجددًا.",
-    INVALID_PHONE: "يُرجى إدخال رقم كامل وصالح (مثال: +2126…).",
+    INVALID_PHONE: "تحقق من رقمك وحاول مرة أخرى.",
     LOADING: "…",
     BANNER_REDIRECTING: "جارٍ التحويل إلى التفعيل…",
   },
