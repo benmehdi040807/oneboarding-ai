@@ -217,7 +217,7 @@ export default function Menu() {
   const [showLegal, setShowLegal] = useState(false);
 
   // autres
-  const [showStatus, setShowStatus] = useState(false);
+  theconst [showStatus, setShowStatus] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const confirmRef = useRef<HTMLDivElement | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
@@ -356,10 +356,7 @@ export default function Menu() {
     toast("Espace désactivé.");
   }
 
-  /** ============ Helpers Historique (footer stable) ============ */
-  function footerLabel(l: Lang) {
-    return l === "en" ? "My history" : l === "ar" ? "سِجِلّي" : "Mon historique";
-  }
+  /** ============ Helpers Historique (footer neutre & stable) ============ */
   function formatHistoryForText(msgs: Item[], l: Lang) {
     const body = msgs
       .slice()
@@ -377,7 +374,7 @@ export default function Menu() {
 
     const footer =
       `\n\n— — —\n` +
-      `[OneBoarding AI ® — ${footerLabel(l)}]\n` +
+      `OneBoarding AI® —\n` +
       `https://oneboardingai.com`;
 
     return `${body}${footer}`;
@@ -390,9 +387,8 @@ export default function Menu() {
       toast(t.HIST.EMPTY);
       return;
     }
-
     const textToShare = formatHistoryForText(msgs, lang);
-    const title = "OneBoarding AI — Historique";
+    const title = "OneBoarding AI";
     try {
       if ((navigator as any).share) {
         await (navigator as any).share({ title, text: textToShare });
@@ -512,14 +508,14 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal (≈ largeur x2) */}
+      {/* Bouton flottant principal (largeur légèrement réduite) */}
       <div
         className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 39px)" }}
       >
         <button
           onClick={openMenu}
-          className="pointer-events-auto menu-float px-4 py-2 rounded-2xl border border-white/20 bg-[var(--panel)] text-white shadow-lg hover:bg-[color:rgba(12,16,28,.92)] min-w-[150px]"
+          className="pointer-events-auto menu-float px-4 py-2 rounded-2xl border border-white/20 bg-[var(--panel)] text-white shadow-lg hover:bg-[color:rgba(12,16,28,.92)] min-w-[120px]"
         >
           {t.MENU}
         </button>
