@@ -32,7 +32,8 @@ const I18N: Record<Lang, any> = {
     NEXT: "Suivant",
     BACK: "Retour",
     CLOSE: "Fermer",
-    INVALID_PHONE: "Veuillez entrer un numéro de téléphone complet et valide (ex : +2126…).",
+    // Message d'erreur court et universel (aligné avec ConnectModal)
+    INVALID_PHONE: "Vérifiez votre numéro et réessayez.",
     CHOICES_NOTE:
       "Vous choisirez ensuite votre formule :\n— Abonnement 5 €/mois • accès continu\n— Accès libre 5 € • 1 mois sans engagement",
     PLAN_SUB_TITLE: "Abonnement — 5 €/mois",
@@ -48,7 +49,8 @@ const I18N: Record<Lang, any> = {
     NEXT: "Next",
     BACK: "Back",
     CLOSE: "Close",
-    INVALID_PHONE: "Please enter a complete, valid phone number (e.g. +1415…).",
+    // Same universal error message
+    INVALID_PHONE: "Check your number and try again.",
     CHOICES_NOTE:
       "You will then choose your plan:\n— Subscription €5/month • continuous access\n— One-month pass €5 • no commitment",
     PLAN_SUB_TITLE: "Subscription — €5/month",
@@ -64,7 +66,8 @@ const I18N: Record<Lang, any> = {
     NEXT: "التالي",
     BACK: "رجوع",
     CLOSE: "إغلاق",
-    INVALID_PHONE: "يُرجى إدخال رقم هاتف كامل وصالح (مثال: +2126…).",
+    // رسالة خطأ موحّدة وقصيرة
+    INVALID_PHONE: "تحقّق من رقمك وحاول مرة أخرى.",
     CHOICES_NOTE:
       "ستختار خطتك لاحقًا:\n— اشتراك 5€/شهريًا • وصول مستمر\n— وصول لشهر 5€ • بدون التزام",
     PLAN_SUB_TITLE: "اشتراك — 5€/شهريًا",
@@ -99,6 +102,7 @@ function lsGet(key: string, fallback = ""): string {
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
+  // Mode contrôlé ou autonome (via évènement global)
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
 
@@ -112,7 +116,6 @@ export default function SubscribeModal(props: ControlledProps) {
       setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
     } catch {}
   }, []);
-
   useEffect(() => {
     const onLang = (e: Event) => {
       const l = (e as CustomEvent).detail?.lang as Lang | undefined;
@@ -191,6 +194,7 @@ export default function SubscribeModal(props: ControlledProps) {
   function goPlan() {
     setError(null);
     const p = e164.trim();
+    // validation stricte : numéro complet (au moins 10 caractères après "+")
     if (!p || !p.startsWith("+") || p.length < 10) {
       setError(t.INVALID_PHONE);
       return;
@@ -288,7 +292,7 @@ export default function SubscribeModal(props: ControlledProps) {
               </div>
 
               {error && (
-                <div className="text-sm text-red-600" aria-live="polite">
+                <div className="text-sm text-red-600" role="status" aria-live="polite">
                   {error}
                 </div>
               )}
@@ -340,7 +344,7 @@ export default function SubscribeModal(props: ControlledProps) {
               </div>
 
               {error && (
-                <div className="text-sm text-red-600" aria-live="polite">
+                <div className="text-sm text-red-600" role="status" aria-live="polite">
                   {error}
                 </div>
               )}
@@ -350,4 +354,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-         }
+                                            }
