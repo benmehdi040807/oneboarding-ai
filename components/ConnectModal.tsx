@@ -81,7 +81,7 @@ const T: Record<Lang, any> = {
     NOT_MEMBER:
       "Vous n’êtes pas encore membre. Utilisez « Activer mon espace » pour choisir votre formule.",
     ERROR: "Une erreur est survenue. Réessayez.",
-    INVALID_PHONE: "Numéro invalide (format E.164, ex : +2126…).",
+    INVALID_PHONE: "Veuillez entrer un numéro complet et valide (ex : +2126…).",
     LOADING: "…",
     BANNER_REDIRECTING: "Redirection vers l’activation…",
   },
@@ -106,7 +106,7 @@ const T: Record<Lang, any> = {
     NOT_MEMBER:
       "You are not a member yet. Use “Activate my space” to choose a plan.",
     ERROR: "Something went wrong. Please try again.",
-    INVALID_PHONE: "Invalid number (E.164 format, e.g. +1415...).",
+    INVALID_PHONE: "Please enter a complete, valid number (e.g. +1415…).",
     LOADING: "…",
     BANNER_REDIRECTING: "Redirecting to activation…",
   },
@@ -131,7 +131,7 @@ const T: Record<Lang, any> = {
     NOT_MEMBER:
       "لست عضوًا بعد. استخدم «تفعيل مساحتي» لاختيار الخطة.",
     ERROR: "حدث خطأ. حاول مجددًا.",
-    INVALID_PHONE: "رقم غير صالح (صيغة E.164، مثال: +2126...).",
+    INVALID_PHONE: "يُرجى إدخال رقم كامل وصالح (مثال: +2126…).",
     LOADING: "…",
     BANNER_REDIRECTING: "جارٍ التحويل إلى التفعيل…",
   },
@@ -140,6 +140,7 @@ const T: Record<Lang, any> = {
 /* ------------------------------- Composant ------------------------------- */
 export default function ConnectModal() {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const redirectTimerRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -154,8 +155,9 @@ export default function ConnectModal() {
   const [revokeOldest, setRevokeOldest] = useState(false);
   const [maxDevices, setMaxDevices] = useState(3);
 
-  // Bandeau "non membre"
+  // Bandeau "non membre" + erreur inline
   const [showNonMember, setShowNonMember] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // préremplissage + langue
   useEffect(() => {
@@ -167,7 +169,7 @@ export default function ConnectModal() {
     } catch {}
   }, []);
 
-  // écoute des changements de langue (depuis Menu)
+  // écoute des changements de langue (depuis Menu) + refocus input
   useEffect(() => {
     const onLang = (e: Event) => {
       const L =
@@ -175,6 +177,7 @@ export default function ConnectModal() {
         (localStorage.getItem("oneboarding.lang") as Lang) ||
         "fr";
       setLang(L);
+      setTimeout(() => inputRef.current?.focus(), 100);
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
     return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
@@ -258,6 +261,7 @@ export default function ConnectModal() {
     setNeedOneEuro(false);
     setRevokeOldest(false);
     setShowNonMember(false);
+    setError(null);
     clearTimer();
   }
 
@@ -327,10 +331,13 @@ export default function ConnectModal() {
   async function onContinue() {
     try {
       setChecking(true);
+      setError(null);
 
       const p = (phone || "").trim();
-      if (!p.startsWith("+") || p.length < 6) {
-        toast(t.INVALID_PHONE);
+      // Validation stricte : nombre complet (seuil minimal 10 caractères)
+      if (!p || !p.startsWith("+") || p.length < 10) {
+        setError(t.INVALID_PHONE);
+        inputRef.current?.focus();
         setChecking(false);
         return;
       }
@@ -354,7 +361,7 @@ export default function ConnectModal() {
         const max = chk.devices?.maxDevices ?? 3;
         const cnt = chk.devices?.deviceCount ?? 0;
         setMaxDevices(max);
-        setRevokeOldest(cnt >= max); // auto-cocher si limite atteinte
+        setRevokeOldest(cnt >= max);
         setNeedOneEuro(true);
         return;
       }
@@ -381,7 +388,6 @@ export default function ConnectModal() {
       // retour de paiement → event ob:device-authorized (géré plus haut)
     } catch (e: any) {
       if (e?.message === "NO_USER") {
-        // afficher proprement dans la modale au lieu d’un toast flou
         setShowNonMember(true);
         clearTimer();
         redirectTimerRef.current = window.setTimeout(() => {
@@ -423,19 +429,31 @@ export default function ConnectModal() {
           <label className="text-sm block mb-1">{t.PHONE_LABEL}</label>
           <div dir="ltr">
             <input
+              ref={inputRef}
               className="w-full px-3 py-2 rounded-xl border border-black/15 bg-black/[0.04] outline-none"
               placeholder={t.PHONE_PH}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setError(null);
+              }}
               inputMode="tel"
               autoComplete="tel"
             />
           </div>
 
+          {/* Erreur de validation inline */}
+          {error && (
+            <div className="mt-2 text-sm text-red-600" aria-live="polite">
+              {error}
+            </div>
+          )}
+
           {/* Bandeau non-membre (dans la modale) */}
           {showNonMember && (
             <div
               role="alert"
+              aria-live="polite"
               className="mt-3 rounded-xl border border-amber-300/40 bg-amber-100 text-amber-900 px-3 py-2 text-sm"
             >
               {t.NOT_MEMBER} <span className="opacity-75">{t.BANNER_REDIRECTING}</span>
@@ -515,4 +533,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-}
+      }
