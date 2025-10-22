@@ -83,6 +83,7 @@ const T: Record<Lang, any> = {
     ERROR: "Une erreur est survenue. Réessayez.",
     INVALID_PHONE: "Numéro invalide (format E.164, ex : +2126…).",
     LOADING: "…",
+    BANNER_REDIRECTING: "Redirection vers l’activation…",
   },
   en: {
     TITLE: "Secure sign-in",
@@ -107,6 +108,7 @@ const T: Record<Lang, any> = {
     ERROR: "Something went wrong. Please try again.",
     INVALID_PHONE: "Invalid number (E.164 format, e.g. +1415...).",
     LOADING: "…",
+    BANNER_REDIRECTING: "Redirecting to activation…",
   },
   ar: {
     TITLE: "تسجيل آمن",
@@ -131,12 +133,14 @@ const T: Record<Lang, any> = {
     ERROR: "حدث خطأ. حاول مجددًا.",
     INVALID_PHONE: "رقم غير صالح (صيغة E.164، مثال: +2126...).",
     LOADING: "…",
+    BANNER_REDIRECTING: "جارٍ التحويل إلى التفعيل…",
   },
 };
 
 /* ------------------------------- Composant ------------------------------- */
 export default function ConnectModal() {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
 
   const [lang, setLang] = useState<Lang>("fr");
@@ -145,10 +149,13 @@ export default function ConnectModal() {
   const [phone, setPhone] = useState("");
   const [checking, setChecking] = useState(false);
 
-  // Écran “nouvel appareil” (1 €) uniquement pour membre existant + nouvel appareil
+  // Nouvel appareil (écran vérification 1 €)
   const [needOneEuro, setNeedOneEuro] = useState(false);
   const [revokeOldest, setRevokeOldest] = useState(false);
   const [maxDevices, setMaxDevices] = useState(3);
+
+  // Bandeau "non membre"
+  const [showNonMember, setShowNonMember] = useState(false);
 
   // préremplissage + langue
   useEffect(() => {
@@ -230,6 +237,13 @@ export default function ConnectModal() {
     return () => d.removeEventListener("cancel", onCancel);
   }, []);
 
+  function clearTimer() {
+    if (redirectTimerRef.current) {
+      window.clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+  }
+
   const onBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
     const d = dialogRef.current;
     if (!d) return;
@@ -243,6 +257,8 @@ export default function ConnectModal() {
     setChecking(false);
     setNeedOneEuro(false);
     setRevokeOldest(false);
+    setShowNonMember(false);
+    clearTimer();
   }
 
   /* --------------------------------- API calls -------------------------------- */
@@ -300,7 +316,9 @@ export default function ConnectModal() {
       localStorage.setItem("oneboarding.phoneE164", phone);
     } catch {}
     window.dispatchEvent(new Event("ob:connected-changed"));
-    window.dispatchEvent(new CustomEvent("ob:set-connected", { detail: { phoneE164: phone, source: "ConnectModal" } }));
+    window.dispatchEvent(
+      new CustomEvent("ob:set-connected", { detail: { phoneE164: phone, source: "ConnectModal" } })
+    );
     toast(t.WELCOME_OK);
     handleClose();
   }
@@ -341,10 +359,14 @@ export default function ConnectModal() {
         return;
       }
 
-      // c) NO_USER / non-membre → Activer mon espace
-      toast(t.NOT_MEMBER);
-      window.dispatchEvent(new Event("ob:open-activate"));
-      handleClose();
+      // c) NO_USER / non-membre → afficher bandeau puis basculer
+      setShowNonMember(true);
+      clearTimer();
+      redirectTimerRef.current = window.setTimeout(() => {
+        setShowNonMember(false);
+        window.dispatchEvent(new Event("ob:open-activate"));
+        handleClose();
+      }, 2600);
     } catch {
       toast(t.ERROR);
     } finally {
@@ -359,9 +381,14 @@ export default function ConnectModal() {
       // retour de paiement → event ob:device-authorized (géré plus haut)
     } catch (e: any) {
       if (e?.message === "NO_USER") {
-        toast(t.NOT_MEMBER);
-        window.dispatchEvent(new Event("ob:open-activate"));
-        handleClose();
+        // afficher proprement dans la modale au lieu d’un toast flou
+        setShowNonMember(true);
+        clearTimer();
+        redirectTimerRef.current = window.setTimeout(() => {
+          setShowNonMember(false);
+          window.dispatchEvent(new Event("ob:open-activate"));
+          handleClose();
+        }, 2600);
       } else {
         toast(t.ERROR);
       }
@@ -392,14 +419,28 @@ export default function ConnectModal() {
             </button>
           </div>
 
-          {/* Saisie téléphone */}
+          {/* Saisie téléphone (toujours LTR) */}
           <label className="text-sm block mb-1">{t.PHONE_LABEL}</label>
-          <input
-            className="w-full px-3 py-2 rounded-xl border border-black/15 bg-black/[0.04] outline-none"
-            placeholder={t.PHONE_PH}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+          <div dir="ltr">
+            <input
+              className="w-full px-3 py-2 rounded-xl border border-black/15 bg-black/[0.04] outline-none"
+              placeholder={t.PHONE_PH}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              inputMode="tel"
+              autoComplete="tel"
+            />
+          </div>
+
+          {/* Bandeau non-membre (dans la modale) */}
+          {showNonMember && (
+            <div
+              role="alert"
+              className="mt-3 rounded-xl border border-amber-300/40 bg-amber-100 text-amber-900 px-3 py-2 text-sm"
+            >
+              {t.NOT_MEMBER} <span className="opacity-75">{t.BANNER_REDIRECTING}</span>
+            </div>
+          )}
 
           {/* Écran principal (connexion neutre) */}
           {!needOneEuro && (
@@ -474,4 +515,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-                             }
+}
