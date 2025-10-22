@@ -98,7 +98,6 @@ function lsGet(key: string, fallback = ""): string {
 /* -------------------------------------------------------------------------- */
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
-  const phoneInputRef = useRef<HTMLInputElement | null>(null);
 
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
@@ -114,7 +113,6 @@ export default function SubscribeModal(props: ControlledProps) {
     } catch {}
   }, []);
 
-  // Réagit au changement de langue + refocus sur input
   useEffect(() => {
     const onLang = (e: Event) => {
       const l = (e as CustomEvent).detail?.lang as Lang | undefined;
@@ -124,9 +122,6 @@ export default function SubscribeModal(props: ControlledProps) {
           setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
         } catch {}
       }
-      setTimeout(() => {
-        phoneInputRef.current?.focus();
-      }, 100);
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
     return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
@@ -196,10 +191,8 @@ export default function SubscribeModal(props: ControlledProps) {
   function goPlan() {
     setError(null);
     const p = e164.trim();
-    // validation stricte : numéro complet et au moins 10 chiffres après le préfixe
     if (!p || !p.startsWith("+") || p.length < 10) {
       setError(t.INVALID_PHONE);
-      phoneInputRef.current?.focus();
       return;
     }
     lsSet(LS_PHONE, p);
@@ -213,7 +206,6 @@ export default function SubscribeModal(props: ControlledProps) {
       const p = (e164 || "").trim();
       if (!p.startsWith("+") || p.length < 10) {
         setError(t.INVALID_PHONE);
-        phoneInputRef.current?.focus();
         setLoading(false);
         return;
       }
@@ -269,7 +261,6 @@ export default function SubscribeModal(props: ControlledProps) {
               {/* Champ de téléphone forcé en LTR */}
               <div dir="ltr">
                 <PhoneField
-                  ref={phoneInputRef}
                   value={e164}
                   onChange={(v) => {
                     setE164(v);
@@ -297,10 +288,7 @@ export default function SubscribeModal(props: ControlledProps) {
               </div>
 
               {error && (
-                <div
-                  className="text-sm text-red-600"
-                  aria-live="polite"
-                >
+                <div className="text-sm text-red-600" aria-live="polite">
                   {error}
                 </div>
               )}
@@ -352,10 +340,7 @@ export default function SubscribeModal(props: ControlledProps) {
               </div>
 
               {error && (
-                <div
-                  className="text-sm text-red-600"
-                  aria-live="polite"
-                >
+                <div className="text-sm text-red-600" aria-live="polite">
                   {error}
                 </div>
               )}
@@ -365,4 +350,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-                                        }
+         }
