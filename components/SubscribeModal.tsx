@@ -1,7 +1,7 @@
 // components/SubscribeModal.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PhoneField from "./PhoneField";
 
 /* -------------------------------------------------------------------------- */
@@ -10,6 +10,7 @@ import PhoneField from "./PhoneField";
 type ControlledProps = { open?: boolean; onClose?: () => void };
 type Step = "phone" | "plan";
 type Plan = "subscription" | "one-month";
+type Lang = "fr" | "en" | "ar";
 
 type SubscriptionActiveDetail = {
   status: "active" | "pending" | "failed";
@@ -20,16 +21,79 @@ type SubscriptionActiveDetail = {
 };
 
 /* -------------------------------------------------------------------------- */
+/*                               i18n (simple)                                */
+/* -------------------------------------------------------------------------- */
+const I18N: Record<Lang, any> = {
+  fr: {
+    TITLE_PHONE: "Créer / activer mon espace",
+    TITLE_PLAN: "Choisir ma formule",
+    ID_NOTE:
+      "Identité = numéro de téléphone. Aucun nom/prénom requis.",
+    CANCEL: "Annuler",
+    NEXT: "Suivant",
+    BACK: "Retour",
+    CLOSE: "Fermer",
+    INVALID_PHONE: "Numéro de téléphone invalide (format E.164, ex : +2126…).",
+    CHOICES_NOTE:
+      "Vous choisirez ensuite votre formule :\n— Abonnement 5 €/mois • accès continu\n— Accès libre 5 € • 1 mois sans engagement",
+    PLAN_SUB_TITLE: "Abonnement — 5 €/mois",
+    PLAN_SUB_DESC: "Accès continu, sans interruption.",
+    PLAN_ONE_TITLE: "Accès libre — 5 €",
+    PLAN_ONE_DESC: "Un mois complet, sans engagement.",
+  },
+  en: {
+    TITLE_PHONE: "Create / activate my space",
+    TITLE_PLAN: "Choose my plan",
+    ID_NOTE:
+      "Identity = phone number. No first/last name required.",
+    CANCEL: "Cancel",
+    NEXT: "Next",
+    BACK: "Back",
+    CLOSE: "Close",
+    INVALID_PHONE: "Invalid phone number (E.164 format, e.g. +1415…).",
+    CHOICES_NOTE:
+      "You will then choose your plan:\n— Subscription €5/month • continuous access\n— One-month pass €5 • no commitment",
+    PLAN_SUB_TITLE: "Subscription — €5/month",
+    PLAN_SUB_DESC: "Continuous access, no interruption.",
+    PLAN_ONE_TITLE: "One-month pass — €5",
+    PLAN_ONE_DESC: "Full month, no commitment.",
+  },
+  ar: {
+    TITLE_PHONE: "إنشاء / تفعيل مساحتي",
+    TITLE_PLAN: "اختيار الخطة",
+    ID_NOTE:
+      "الهوية = رقم الهاتف. لا حاجة لاسم أو لقب.",
+    CANCEL: "إلغاء",
+    NEXT: "التالي",
+    BACK: "رجوع",
+    CLOSE: "إغلاق",
+    INVALID_PHONE: "رقم هاتف غير صالح (صيغة E.164، مثال: +2126…).",
+    CHOICES_NOTE:
+      "ستختار خطتك لاحقًا:\n— اشتراك 5€/شهريًا • وصول مستمر\n— وصول لشهر 5€ • بدون التزام",
+    PLAN_SUB_TITLE: "اشتراك — 5€/شهريًا",
+    PLAN_SUB_DESC: "وصول مستمر دون انقطاع.",
+    PLAN_ONE_TITLE: "وصول لشهر — 5€",
+    PLAN_ONE_DESC: "شهر كامل، بدون التزام.",
+  },
+};
+
+/* -------------------------------------------------------------------------- */
 /*                          LocalStorage helpers (safe)                       */
 /* -------------------------------------------------------------------------- */
 const LS_PHONE = "oneboarding.phoneE164";
 const LS_PENDING_PLAN = "oneboarding.pendingPlanKind";
 
 function lsSet(key: string, val: string) {
-  try { localStorage.setItem(key, val); } catch {}
+  try {
+    localStorage.setItem(key, val);
+  } catch {}
 }
 function lsGet(key: string, fallback = ""): string {
-  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -41,6 +105,30 @@ export default function SubscribeModal(props: ControlledProps) {
   // Mode contrôlé OU autonome (via évènement global)
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
+
+  /* --------------------------------- Langue --------------------------------- */
+  const [lang, setLang] = useState<Lang>("fr");
+  const t = useMemo(() => I18N[lang], [lang]);
+  const dir = lang === "ar" ? "rtl" : "ltr";
+
+  useEffect(() => {
+    try {
+      setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
+    } catch {}
+  }, []);
+  useEffect(() => {
+    const onLang = (e: Event) => {
+      const l = (e as CustomEvent).detail?.lang as Lang | undefined;
+      if (l) setLang(l);
+      else {
+        try {
+          setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
+        } catch {}
+      }
+    };
+    window.addEventListener("ob:lang-changed", onLang as EventListener);
+    return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
+  }, []);
 
   /* --------------------------------- États --------------------------------- */
   const [step, setStep] = useState<Step>("phone");
@@ -57,13 +145,10 @@ export default function SubscribeModal(props: ControlledProps) {
 
   /* ------ Écoute activation réussie → connexion + fermeture automatique ----- */
   useEffect(() => {
-    // Emis par le bridge de retour PayPal / backend:
-    // new CustomEvent("ob:subscription-active", { detail: { status:'active', plan, ... } })
     const onActive = (e: Event) => {
       const detail = (e as CustomEvent<SubscriptionActiveDetail>).detail;
       if (!detail) return;
       if (detail.status === "active") {
-        // L’app globale s’aligne déjà dessus (Menu/Connect etc.)
         closeAll();
       }
     };
@@ -82,7 +167,10 @@ export default function SubscribeModal(props: ControlledProps) {
   useEffect(() => {
     const d = dialogRef.current;
     if (!d) return;
-    const onCancel = (e: Event) => { e.preventDefault(); closeAll(); };
+    const onCancel = (e: Event) => {
+      e.preventDefault();
+      closeAll();
+    };
     d.addEventListener("cancel", onCancel);
     return () => d.removeEventListener("cancel", onCancel);
   }, []);
@@ -110,7 +198,7 @@ export default function SubscribeModal(props: ControlledProps) {
     setError(null);
     const p = e164.trim();
     if (!p || !p.startsWith("+") || p.length < 6) {
-      setError("Numéro de téléphone invalide (format E.164, ex : +2126…).");
+      setError(t.INVALID_PHONE);
       return;
     }
     lsSet(LS_PHONE, p);
@@ -124,7 +212,7 @@ export default function SubscribeModal(props: ControlledProps) {
 
       const p = (e164 || "").trim();
       if (!p.startsWith("+") || p.length < 6) {
-        setError("Numéro de téléphone invalide (format E.164, ex : +2126…).");
+        setError(t.INVALID_PHONE);
         setLoading(false);
         return;
       }
@@ -163,10 +251,10 @@ export default function SubscribeModal(props: ControlledProps) {
         onMouseDown={onBackdropClick}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
       >
-        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
+        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl" dir={dir}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">
-              {step === "phone" ? "Créer / activer mon espace" : "Choisir ma formule"}
+              {step === "phone" ? t.TITLE_PHONE : t.TITLE_PLAN}
             </h2>
             <button
               type="button"
@@ -182,12 +270,15 @@ export default function SubscribeModal(props: ControlledProps) {
           {step === "phone" && (
             <div className="space-y-4">
               <div className="text-xs text-black/70">
-                Identité = <strong>numéro de téléphone</strong>. Aucun nom/prénom requis.
+                {t.ID_NOTE}
               </div>
 
               <PhoneField
                 value={e164}
-                onChange={(v) => { setE164(v); setError(null); }}
+                onChange={(v) => {
+                  setE164(v);
+                  setError(null);
+                }}
               />
 
               <div className="pt-2 flex gap-3">
@@ -196,7 +287,7 @@ export default function SubscribeModal(props: ControlledProps) {
                   onClick={closeAll}
                   className="flex-1 rounded-2xl border border-black/15 px-4 py-3"
                 >
-                  Annuler
+                  {t.CANCEL}
                 </button>
                 <button
                   type="button"
@@ -204,16 +295,14 @@ export default function SubscribeModal(props: ControlledProps) {
                   className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow"
                   style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
                 >
-                  Suivant
+                  {t.NEXT}
                 </button>
               </div>
 
               {error && <div className="text-sm text-red-600">{error}</div>}
 
-              <p className="text-[11px] text-black/55 pt-1">
-                Vous choisirez ensuite votre formule :
-                <br />— Abonnement 5 €/mois • accès continu
-                <br />— Accès libre 5 € • 1 mois sans engagement
+              <p className="text-[11px] whitespace-pre-wrap text-black/55 pt-1">
+                {t.CHOICES_NOTE}
               </p>
             </div>
           )}
@@ -227,8 +316,8 @@ export default function SubscribeModal(props: ControlledProps) {
                 disabled={loading}
                 className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
-                <div className="font-semibold">Abonnement — 5 €/mois</div>
-                <div className="text-sm text-black/60">Accès continu, sans interruption.</div>
+                <div className="font-semibold">{t.PLAN_SUB_TITLE}</div>
+                <div className="text-sm text-black/60">{t.PLAN_SUB_DESC}</div>
               </button>
 
               <button
@@ -237,8 +326,8 @@ export default function SubscribeModal(props: ControlledProps) {
                 disabled={loading}
                 className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
-                <div className="font-semibold">Accès libre — 5 €</div>
-                <div className="text-sm text-black/60">Un mois complet, sans engagement.</div>
+                <div className="font-semibold">{t.PLAN_ONE_TITLE}</div>
+                <div className="text-sm text-black/60">{t.PLAN_ONE_DESC}</div>
               </button>
 
               <div className="pt-2 flex gap-3">
@@ -247,14 +336,14 @@ export default function SubscribeModal(props: ControlledProps) {
                   onClick={() => setStep("phone")}
                   className="rounded-2xl border border-black/15 px-4 py-3"
                 >
-                  Retour
+                  {t.BACK}
                 </button>
                 <button
                   type="button"
                   onClick={closeAll}
                   className="rounded-2xl border border-black/15 px-4 py-3"
                 >
-                  Fermer
+                  {t.CLOSE}
                 </button>
               </div>
 
