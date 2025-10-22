@@ -27,8 +27,7 @@ const I18N: Record<Lang, any> = {
   fr: {
     TITLE_PHONE: "Créer / activer mon espace",
     TITLE_PLAN: "Choisir ma formule",
-    ID_NOTE:
-      "Identité = numéro de téléphone. Aucun nom/prénom requis.",
+    ID_NOTE: "Identité = numéro de téléphone. Aucun nom/prénom requis.",
     CANCEL: "Annuler",
     NEXT: "Suivant",
     BACK: "Retour",
@@ -44,8 +43,7 @@ const I18N: Record<Lang, any> = {
   en: {
     TITLE_PHONE: "Create / activate my space",
     TITLE_PLAN: "Choose my plan",
-    ID_NOTE:
-      "Identity = phone number. No first/last name required.",
+    ID_NOTE: "Identity = phone number. No first/last name required.",
     CANCEL: "Cancel",
     NEXT: "Next",
     BACK: "Back",
@@ -61,8 +59,7 @@ const I18N: Record<Lang, any> = {
   ar: {
     TITLE_PHONE: "إنشاء / تفعيل مساحتي",
     TITLE_PLAN: "اختيار الخطة",
-    ID_NOTE:
-      "الهوية = رقم الهاتف. لا حاجة لاسم أو لقب.",
+    ID_NOTE: "الهوية = رقم الهاتف. لا حاجة لاسم أو لقب.",
     CANCEL: "إلغاء",
     NEXT: "التالي",
     BACK: "رجوع",
@@ -102,7 +99,7 @@ function lsGet(key: string, fallback = ""): string {
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
-  // Mode contrôlé OU autonome (via évènement global)
+  // Mode contrôlé ou autonome (via évènement global)
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
 
@@ -186,7 +183,6 @@ export default function SubscribeModal(props: ControlledProps) {
   function closeAll() {
     if (props.onClose) props.onClose();
     else setInternalOpen(false);
-    // reset doux
     setStep("phone");
     setE164(lsGet(LS_PHONE));
     setError(null);
@@ -209,19 +205,14 @@ export default function SubscribeModal(props: ControlledProps) {
     try {
       setLoading(true);
       setError(null);
-
       const p = (e164 || "").trim();
       if (!p.startsWith("+") || p.length < 6) {
         setError(t.INVALID_PHONE);
         setLoading(false);
         return;
       }
-
-      // Contexte pour le bridge de retour PayPal
       lsSet(LS_PHONE, p);
       lsSet(LS_PENDING_PLAN, plan);
-
-      // Appel backend: crée la souscription PayPal et nous renvoie l’approvalUrl
       const res = await fetch("/api/pay/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,8 +222,6 @@ export default function SubscribeModal(props: ControlledProps) {
       if (!res.ok || !out?.ok || !out?.approvalUrl) {
         throw new Error(out?.error || `HTTP_${res.status}`);
       }
-
-      // Redirection vers PayPal
       window.location.href = out.approvalUrl as string;
     } catch (e: any) {
       setError(e?.message || "Impossible de démarrer le paiement.");
@@ -269,17 +258,18 @@ export default function SubscribeModal(props: ControlledProps) {
           {/* Étape 1 — Numéro */}
           {step === "phone" && (
             <div className="space-y-4">
-              <div className="text-xs text-black/70">
-                {t.ID_NOTE}
-              </div>
+              <div className="text-xs text-black/70">{t.ID_NOTE}</div>
 
-              <PhoneField
-                value={e164}
-                onChange={(v) => {
-                  setE164(v);
-                  setError(null);
-                }}
-              />
+              {/* Champ de téléphone forcé en LTR */}
+              <div dir="ltr">
+                <PhoneField
+                  value={e164}
+                  onChange={(v) => {
+                    setE164(v);
+                    setError(null);
+                  }}
+                />
+              </div>
 
               <div className="pt-2 flex gap-3">
                 <button
@@ -293,7 +283,9 @@ export default function SubscribeModal(props: ControlledProps) {
                   type="button"
                   onClick={goPlan}
                   className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow"
-                  style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
+                  style={{
+                    background: "linear-gradient(135deg,#111827,#1f2937)",
+                  }}
                 >
                   {t.NEXT}
                 </button>
@@ -307,7 +299,7 @@ export default function SubscribeModal(props: ControlledProps) {
             </div>
           )}
 
-          {/* Étape 2 — Plan (+ démarrage paiement PayPal) */}
+          {/* Étape 2 — Plan */}
           {step === "plan" && (
             <div className="space-y-3">
               <button
@@ -354,4 +346,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-}
+      }
