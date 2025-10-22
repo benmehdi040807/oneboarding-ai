@@ -65,54 +65,72 @@ const T: Record<Lang, any> = {
     PHONE_LABEL: "Numéro de téléphone (membre)",
     PHONE_PH: "+33 6 12 34 56 78",
     INFO:
-      "Nous vérifions votre espace et votre appareil. Si c’est un nouvel appareil, nous vous proposerons une autorisation à 1 €.",
+      "Nous vérifions votre espace et votre appareil. Si c’est un nouvel appareil, nous vous proposerons une nouvelle autorisation.",
     CANCEL: "Annuler",
     CONTINUE: "Continuer",
     REVOKE_HINT:
       "Limite d’appareils atteinte ({max}/{max}). En continuant, le plus ancien appareil sera révoqué.",
     REVOKE_OPT: "Révoquer l’appareil le plus ancien",
-    PAY_BTN: "Autoriser cet appareil (1 €)",
+    AUTH_TITLE: "Autoriser cet appareil",
+    AUTH_TEXT:
+      "Pour votre sécurité, nous confirmons votre identité avant d’ajouter cet appareil à votre espace. Cette vérification s’effectue via votre moyen de paiement (ex. PayPal) et permet d’authentifier les informations associées à votre espace. Ça ne crée aucun nouvel engagement et ça coûte 1 € seulement.",
+    AUTH_FINE:
+      "Contrôle d’identité sécurisé pour autoriser l’accès sur un nouvel appareil.",
+    AUTH_BTN: "Autoriser cet appareil",
     WELCOME_OK: "Bienvenue — appareil reconnu.",
     NOT_MEMBER:
       "Vous n’êtes pas encore membre. Utilisez « Activer mon espace » pour choisir votre formule.",
     ERROR: "Une erreur est survenue. Réessayez.",
     INVALID_PHONE: "Numéro invalide (format E.164, ex : +2126…).",
+    LOADING: "…",
   },
   en: {
     TITLE: "Secure sign-in",
     PHONE_LABEL: "Phone number (member)",
     PHONE_PH: "+1 415 555 2671",
     INFO:
-      "We’ll check your space and device. If this is a new device, we’ll propose a €1 authorization.",
+      "We’ll check your space and device. If this is a new device, we’ll offer a new authorization.",
     CANCEL: "Cancel",
     CONTINUE: "Continue",
     REVOKE_HINT:
       "Device limit reached ({max}/{max}). Continuing will revoke the oldest device.",
     REVOKE_OPT: "Revoke the oldest device",
-    PAY_BTN: "Authorize this device (€1)",
+    AUTH_TITLE: "Authorize this device",
+    AUTH_TEXT:
+      "For your security, we confirm your identity before adding this device to your space. This verification is done via your payment method (e.g. PayPal) and cross-checks the information associated with your space. It creates no new commitment and costs only €1.",
+    AUTH_FINE:
+      "Light identity check to authorize access on a new device.",
+    AUTH_BTN: "Authorize this device",
     WELCOME_OK: "Welcome — device recognized.",
     NOT_MEMBER:
       "You are not a member yet. Use “Activate my space” to choose a plan.",
     ERROR: "Something went wrong. Please try again.",
     INVALID_PHONE: "Invalid number (E.164 format, e.g. +1415...).",
+    LOADING: "…",
   },
   ar: {
     TITLE: "تسجيل آمن",
     PHONE_LABEL: "رقم الهاتف (عضو)",
     PHONE_PH: "+212 6 12 34 56 78",
     INFO:
-      "سنتحقق من حسابك وجهازك. إذا كان هذا جهازًا جديدًا، سنقترح تفويضًا بقيمة 1€.",
+      "سنتحقق من حسابك وجهازك. إذا كان هذا جهازًا جديدًا، سنقترح تفويضًا جديدًا.",
     CANCEL: "إلغاء",
     CONTINUE: "متابعة",
     REVOKE_HINT:
       "تم بلوغ الحد الأقصى للأجهزة ({max}/{max}). بالمتابعة سيتم إلغاء أقدم جهاز.",
     REVOKE_OPT: "إلغاء أقدم جهاز",
-    PAY_BTN: "تفويض هذا الجهاز (1€)",
+    AUTH_TITLE: "تفويض هذا الجهاز",
+    AUTH_TEXT:
+      "لأمانك، نؤكّد هويتك قبل إضافة هذا الجهاز إلى مساحتك. تتم هذه المراجعة عبر وسيلة الدفع لديك (مثال: باي بال) وتُطابق البيانات المرتبطة بمساحتك. لا تنشئ أي التزام جديد، وتكلفتها 1€ فقط.",
+    AUTH_FINE:
+      "تحقق هوية خفيف لتأكيد الوصول على جهاز جديد.",
+    AUTH_BTN: "تفويض هذا الجهاز",
     WELCOME_OK: "مرحبًا — تم التعرّف على الجهاز.",
     NOT_MEMBER:
       "لست عضوًا بعد. استخدم «تفعيل مساحتي» لاختيار الخطة.",
     ERROR: "حدث خطأ. حاول مجددًا.",
     INVALID_PHONE: "رقم غير صالح (صيغة E.164، مثال: +2126...).",
+    LOADING: "…",
   },
 };
 
@@ -127,12 +145,12 @@ export default function ConnectModal() {
   const [phone, setPhone] = useState("");
   const [checking, setChecking] = useState(false);
 
-  // Écran “1 €” uniquement pour membre existant + nouvel appareil
+  // Écran “nouvel appareil” (1 €) uniquement pour membre existant + nouvel appareil
   const [needOneEuro, setNeedOneEuro] = useState(false);
   const [revokeOldest, setRevokeOldest] = useState(false);
   const [maxDevices, setMaxDevices] = useState(3);
 
-  // préremplissage du téléphone
+  // préremplissage + langue
   useEffect(() => {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
@@ -140,6 +158,19 @@ export default function ConnectModal() {
       const saved = localStorage.getItem("oneboarding.phoneE164") || "";
       if (saved) setPhone(saved);
     } catch {}
+  }, []);
+
+  // écoute des changements de langue (depuis Menu)
+  useEffect(() => {
+    const onLang = (e: Event) => {
+      const L =
+        ((e as CustomEvent).detail?.lang as Lang) ||
+        (localStorage.getItem("oneboarding.lang") as Lang) ||
+        "fr";
+      setLang(L);
+    };
+    window.addEventListener("ob:lang-changed", onLang as EventListener);
+    return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
   }, []);
 
   /* ----------------------- Ouverture via événement global ----------------------- */
@@ -300,7 +331,7 @@ export default function ConnectModal() {
         return;
       }
 
-      // b) Membre + nouvel appareil → proposer 1 €
+      // b) Membre + nouvel appareil → proposer vérification (1 €)
       if (chk.ok && planActive && !deviceKnown) {
         const max = chk.devices?.maxDevices ?? 3;
         const cnt = chk.devices?.deviceCount ?? 0;
@@ -310,7 +341,7 @@ export default function ConnectModal() {
         return;
       }
 
-      // c) NO_USER / non-membre → PaymentModal
+      // c) NO_USER / non-membre → Activer mon espace
       toast(t.NOT_MEMBER);
       window.dispatchEvent(new Event("ob:open-activate"));
       handleClose();
@@ -348,7 +379,7 @@ export default function ConnectModal() {
         onMouseDown={onBackdropClick}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
       >
-        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
+        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl" dir={lang === "ar" ? "rtl" : "ltr"}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">{t.TITLE}</h2>
             <button
@@ -370,7 +401,7 @@ export default function ConnectModal() {
             onChange={(e) => setPhone(e.target.value)}
           />
 
-          {/* Écran principal */}
+          {/* Écran principal (connexion neutre) */}
           {!needOneEuro && (
             <>
               <p className="text-xs text-black/70 mt-3">{t.INFO}</p>
@@ -388,17 +419,21 @@ export default function ConnectModal() {
                   disabled={checking}
                   className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 disabled:opacity-60"
                 >
-                  {checking ? "…" : t.CONTINUE}
+                  {checking ? t.LOADING : t.CONTINUE}
                 </button>
               </div>
             </>
           )}
 
-          {/* Écran “autoriser 1 €” — seulement membre existant + nouvel appareil */}
+          {/* Écran “autoriser (1 €)” — seulement membre existant + nouvel appareil */}
           {needOneEuro && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-3">
+              <h3 className="text-base font-semibold">{t.AUTH_TITLE}</h3>
+              <p className="text-sm text-black/80">{t.AUTH_TEXT}</p>
+              <p className="text-[11px] text-black/60">{t.AUTH_FINE}</p>
+
               {revokeOldest && (
-                <div className="mb-3 p-3 rounded-xl border border-yellow-400/30 bg-yellow-300/15 text-black/85">
+                <div className="mt-2 p-3 rounded-xl border border-yellow-400/30 bg-yellow-300/15 text-black/85">
                   {t.REVOKE_HINT.replaceAll("{max}", String(maxDevices))}
                 </div>
               )}
@@ -416,7 +451,7 @@ export default function ConnectModal() {
                 </label>
               </div>
 
-              <div className="mt-4 flex items-center justify-end gap-2">
+              <div className="mt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={handleClose}
@@ -430,7 +465,7 @@ export default function ConnectModal() {
                   disabled={checking}
                   className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 disabled:opacity-60"
                 >
-                  {checking ? "…" : t.PAY_BTN}
+                  {checking ? t.LOADING : t.AUTH_BTN}
                 </button>
               </div>
             </div>
@@ -439,4 +474,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-      }
+                             }
