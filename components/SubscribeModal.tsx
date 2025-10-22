@@ -32,7 +32,7 @@ const I18N: Record<Lang, any> = {
     NEXT: "Suivant",
     BACK: "Retour",
     CLOSE: "Fermer",
-    INVALID_PHONE: "Numéro de téléphone invalide (format E.164, ex : +2126…).",
+    INVALID_PHONE: "Veuillez entrer un numéro de téléphone complet et valide (ex : +2126…).",
     CHOICES_NOTE:
       "Vous choisirez ensuite votre formule :\n— Abonnement 5 €/mois • accès continu\n— Accès libre 5 € • 1 mois sans engagement",
     PLAN_SUB_TITLE: "Abonnement — 5 €/mois",
@@ -48,7 +48,7 @@ const I18N: Record<Lang, any> = {
     NEXT: "Next",
     BACK: "Back",
     CLOSE: "Close",
-    INVALID_PHONE: "Invalid phone number (E.164 format, e.g. +1415…).",
+    INVALID_PHONE: "Please enter a complete, valid phone number (e.g. +1415…).",
     CHOICES_NOTE:
       "You will then choose your plan:\n— Subscription €5/month • continuous access\n— One-month pass €5 • no commitment",
     PLAN_SUB_TITLE: "Subscription — €5/month",
@@ -64,7 +64,7 @@ const I18N: Record<Lang, any> = {
     NEXT: "التالي",
     BACK: "رجوع",
     CLOSE: "إغلاق",
-    INVALID_PHONE: "رقم هاتف غير صالح (صيغة E.164، مثال: +2126…).",
+    INVALID_PHONE: "يُرجى إدخال رقم هاتف كامل وصالح (مثال: +2126…).",
     CHOICES_NOTE:
       "ستختار خطتك لاحقًا:\n— اشتراك 5€/شهريًا • وصول مستمر\n— وصول لشهر 5€ • بدون التزام",
     PLAN_SUB_TITLE: "اشتراك — 5€/شهريًا",
@@ -98,8 +98,8 @@ function lsGet(key: string, fallback = ""): string {
 /* -------------------------------------------------------------------------- */
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Mode contrôlé ou autonome (via évènement global)
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
 
@@ -113,6 +113,8 @@ export default function SubscribeModal(props: ControlledProps) {
       setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
     } catch {}
   }, []);
+
+  // Réagit au changement de langue + refocus sur input
   useEffect(() => {
     const onLang = (e: Event) => {
       const l = (e as CustomEvent).detail?.lang as Lang | undefined;
@@ -122,6 +124,9 @@ export default function SubscribeModal(props: ControlledProps) {
           setLang((localStorage.getItem("oneboarding.lang") as Lang) || "fr");
         } catch {}
       }
+      setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 100);
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
     return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
@@ -140,14 +145,12 @@ export default function SubscribeModal(props: ControlledProps) {
     return () => window.removeEventListener("ob:open-activate", onAct);
   }, []);
 
-  /* ------ Écoute activation réussie → connexion + fermeture automatique ----- */
+  /* ------ Écoute activation réussie → fermeture automatique ----- */
   useEffect(() => {
     const onActive = (e: Event) => {
       const detail = (e as CustomEvent<SubscriptionActiveDetail>).detail;
       if (!detail) return;
-      if (detail.status === "active") {
-        closeAll();
-      }
+      if (detail.status === "active") closeAll();
     };
     window.addEventListener("ob:subscription-active", onActive as EventListener);
     return () => window.removeEventListener("ob:subscription-active", onActive as EventListener);
@@ -193,8 +196,10 @@ export default function SubscribeModal(props: ControlledProps) {
   function goPlan() {
     setError(null);
     const p = e164.trim();
-    if (!p || !p.startsWith("+") || p.length < 6) {
+    // validation stricte : numéro complet et au moins 10 chiffres après le préfixe
+    if (!p || !p.startsWith("+") || p.length < 10) {
       setError(t.INVALID_PHONE);
+      phoneInputRef.current?.focus();
       return;
     }
     lsSet(LS_PHONE, p);
@@ -206,8 +211,9 @@ export default function SubscribeModal(props: ControlledProps) {
       setLoading(true);
       setError(null);
       const p = (e164 || "").trim();
-      if (!p.startsWith("+") || p.length < 6) {
+      if (!p.startsWith("+") || p.length < 10) {
         setError(t.INVALID_PHONE);
+        phoneInputRef.current?.focus();
         setLoading(false);
         return;
       }
@@ -263,6 +269,7 @@ export default function SubscribeModal(props: ControlledProps) {
               {/* Champ de téléphone forcé en LTR */}
               <div dir="ltr">
                 <PhoneField
+                  ref={phoneInputRef}
                   value={e164}
                   onChange={(v) => {
                     setE164(v);
@@ -283,15 +290,20 @@ export default function SubscribeModal(props: ControlledProps) {
                   type="button"
                   onClick={goPlan}
                   className="flex-1 rounded-2xl px-4 py-3 text-white font-semibold shadow"
-                  style={{
-                    background: "linear-gradient(135deg,#111827,#1f2937)",
-                  }}
+                  style={{ background: "linear-gradient(135deg,#111827,#1f2937)" }}
                 >
                   {t.NEXT}
                 </button>
               </div>
 
-              {error && <div className="text-sm text-red-600">{error}</div>}
+              {error && (
+                <div
+                  className="text-sm text-red-600"
+                  aria-live="polite"
+                >
+                  {error}
+                </div>
+              )}
 
               <p className="text-[11px] whitespace-pre-wrap text-black/55 pt-1">
                 {t.CHOICES_NOTE}
@@ -339,11 +351,18 @@ export default function SubscribeModal(props: ControlledProps) {
                 </button>
               </div>
 
-              {error && <div className="text-sm text-red-600">{error}</div>}
+              {error && (
+                <div
+                  className="text-sm text-red-600"
+                  aria-live="polite"
+                >
+                  {error}
+                </div>
+              )}
             </div>
           )}
         </div>
       </dialog>
     </>
   );
-      }
+                                        }
