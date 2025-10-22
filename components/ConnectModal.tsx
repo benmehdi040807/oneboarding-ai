@@ -99,8 +99,7 @@ const T: Record<Lang, any> = {
     AUTH_TITLE: "Authorize this device",
     AUTH_TEXT:
       "For your security, we confirm your identity before adding this device to your space. This verification is done via your payment method (e.g. PayPal) and cross-checks the information associated with your space. It creates no new commitment and costs only €1.",
-    AUTH_FINE:
-      "Light identity check to authorize access on a new device.",
+    AUTH_FINE: "Light identity check to authorize access on a new device.",
     AUTH_BTN: "Authorize this device",
     WELCOME_OK: "Welcome — device recognized.",
     NOT_MEMBER:
@@ -124,12 +123,10 @@ const T: Record<Lang, any> = {
     AUTH_TITLE: "تفويض هذا الجهاز",
     AUTH_TEXT:
       "لأمانك، نؤكّد هويتك قبل إضافة هذا الجهاز إلى مساحتك. تتم هذه المراجعة عبر وسيلة الدفع لديك (مثال: باي بال) وتُطابق البيانات المرتبطة بمساحتك. لا تنشئ أي التزام جديد، وتكلفتها 1€ فقط.",
-    AUTH_FINE:
-      "تحقق هوية خفيف لتأكيد الوصول على جهاز جديد.",
+    AUTH_FINE: "تحقق هوية خفيف لتأكيد الوصول على جهاز جديد.",
     AUTH_BTN: "تفويض هذا الجهاز",
     WELCOME_OK: "مرحبًا — تم التعرّف على الجهاز.",
-    NOT_MEMBER:
-      "لست عضوًا بعد. استخدم «تفعيل مساحتي» لاختيار الخطة.",
+    NOT_MEMBER: "لست عضوًا بعد. استخدم «تفعيل مساحتي» لاختيار الخطة.",
     ERROR: "حدث خطأ. حاول مجددًا.",
     INVALID_PHONE: "يُرجى إدخال رقم كامل وصالح (مثال: +2126…).",
     LOADING: "…",
@@ -227,6 +224,11 @@ export default function ConnectModal() {
     if (!d) return;
     if (open && !d.open) d.showModal();
     else if (!open && d.open) d.close();
+  }, [open]);
+
+  // Autofocus à l’ouverture de la modale
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 60);
   }, [open]);
 
   useEffect(() => {
@@ -444,7 +446,7 @@ export default function ConnectModal() {
 
           {/* Erreur de validation inline */}
           {error && (
-            <div className="mt-2 text-sm text-red-600" aria-live="polite">
+            <div className="mt-2 text-sm text-red-600" role="status" aria-live="polite">
               {error}
             </div>
           )}
@@ -533,4 +535,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-      }
+         }
