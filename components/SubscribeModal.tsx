@@ -32,7 +32,6 @@ const I18N: Record<Lang, any> = {
     NEXT: "Suivant",
     BACK: "Retour",
     CLOSE: "Fermer",
-    // Message d'erreur court et universel (aligné avec ConnectModal)
     INVALID_PHONE: "Vérifiez votre numéro et réessayez.",
     CHOICES_NOTE:
       "Vous choisirez ensuite votre formule :\n— Abonnement 5 €/mois • accès continu\n— Accès libre 5 € • 1 mois sans engagement",
@@ -49,7 +48,6 @@ const I18N: Record<Lang, any> = {
     NEXT: "Next",
     BACK: "Back",
     CLOSE: "Close",
-    // Same universal error message
     INVALID_PHONE: "Check your number and try again.",
     CHOICES_NOTE:
       "You will then choose your plan:\n— Subscription €5/month • continuous access\n— One-month pass €5 • no commitment",
@@ -66,7 +64,6 @@ const I18N: Record<Lang, any> = {
     NEXT: "التالي",
     BACK: "رجوع",
     CLOSE: "إغلاق",
-    // رسالة خطأ موحّدة وقصيرة
     INVALID_PHONE: "تحقّق من رقمك وحاول مرة أخرى.",
     CHOICES_NOTE:
       "ستختار خطتك لاحقًا:\n— اشتراك 5€/شهريًا • وصول مستمر\n— وصول لشهر 5€ • بدون التزام",
@@ -101,8 +98,6 @@ function lsGet(key: string, fallback = ""): string {
 /* -------------------------------------------------------------------------- */
 export default function SubscribeModal(props: ControlledProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
-
-  // Mode contrôlé ou autonome (via évènement global)
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = props.open ?? internalOpen;
 
@@ -191,14 +186,17 @@ export default function SubscribeModal(props: ControlledProps) {
   }
 
   /* ------------------------------ Navigation UI ----------------------------- */
+  function validatePhone(p: string) {
+    return p && p.startsWith("+") && p.length >= 10;
+  }
+
   function goPlan() {
-    setError(null);
     const p = e164.trim();
-    // validation stricte : numéro complet (au moins 10 caractères après "+")
-    if (!p || !p.startsWith("+") || p.length < 10) {
+    if (!validatePhone(p)) {
       setError(t.INVALID_PHONE);
       return;
     }
+    setError(null);
     lsSet(LS_PHONE, p);
     setStep("plan");
   }
@@ -206,13 +204,13 @@ export default function SubscribeModal(props: ControlledProps) {
   async function startPlan(plan: Plan) {
     try {
       setLoading(true);
-      setError(null);
       const p = (e164 || "").trim();
-      if (!p.startsWith("+") || p.length < 10) {
+      if (!validatePhone(p)) {
         setError(t.INVALID_PHONE);
         setLoading(false);
         return;
       }
+      setError(null);
       lsSet(LS_PHONE, p);
       lsSet(LS_PENDING_PLAN, plan);
       const res = await fetch("/api/pay/start", {
@@ -268,10 +266,18 @@ export default function SubscribeModal(props: ControlledProps) {
                   value={e164}
                   onChange={(v) => {
                     setE164(v);
-                    setError(null);
+                    if (validatePhone(v.trim())) {
+                      setError(null);
+                    }
                   }}
                 />
               </div>
+
+              {error && (
+                <div className="text-sm text-red-600" role="status" aria-live="polite">
+                  {error}
+                </div>
+              )}
 
               <div className="pt-2 flex gap-3">
                 <button
@@ -290,12 +296,6 @@ export default function SubscribeModal(props: ControlledProps) {
                   {t.NEXT}
                 </button>
               </div>
-
-              {error && (
-                <div className="text-sm text-red-600" role="status" aria-live="polite">
-                  {error}
-                </div>
-              )}
 
               <p className="text-[11px] whitespace-pre-wrap text-black/55 pt-1">
                 {t.CHOICES_NOTE}
@@ -354,4 +354,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-                                            }
+}
