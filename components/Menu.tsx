@@ -217,7 +217,7 @@ export default function Menu() {
   const [showLegal, setShowLegal] = useState(false);
 
   // autres
-  theconst [showStatus, setShowStatus] = useState(false);
+  const [showStatus, setShowStatus] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const confirmRef = useRef<HTMLDivElement | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
