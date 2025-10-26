@@ -12,7 +12,7 @@ type Props = {
 export default function OcrUploader({ onText, onPreview }: Props) {
   // === Réglages ===
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-  const AUTO_LANG = "fra+eng+ara"; // auto fr+en+ar (performant et léger)
+  const AUTO_LANG = "fra+eng+ara"; // auto fr+en+ar
   const MAX_ATTEMPTS = 3;
 
   // === State UI ===
@@ -22,9 +22,9 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   const [statusText, setStatusText] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
-  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [infoMsg, setInfoMsg] = useState<string>("");
   const [attempt, setAttempt] = useState<number>(0);
-  const [justFinished, setJustFinished] = useState<boolean>(false); // pour l’animation pulse
+  const [justFinished, setJustFinished] = useState<boolean>(false);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -44,11 +44,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
   async function recognizeWithRetry(file: File) {
     setRunning(true);
-    setErrorMsg("");
+    setInfoMsg("");
     setStatusText("Préparation…");
     setProgress((p) => (p <= 1 ? 1 : p));
 
     let lastErr: any = null;
+    let extractedText = "";
 
     for (let i = 1; i <= MAX_ATTEMPTS; i++) {
       try {
@@ -57,8 +58,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
         const Tesseract = (await import("tesseract.js")).default as any;
 
-        setStatusText("Ouverture du document…");
-        setStatusText("Lecture du texte…");
+        setStatusText("Lecture du document…");
         const result: any = await Tesseract.recognize(file, AUTO_LANG, {
           logger: (m: any) => {
             if (m?.status === "recognizing text" && typeof m?.progress === "number") {
@@ -69,40 +69,36 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         } as any);
 
         const raw = String(result?.data?.text || "");
-        const text: string = raw
-          .replace(/[ \t]+\n/g, "\n")
-          .replace(/\n{3,}/g, "\n\n")
-          .trim();
+        extractedText = raw.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 
-        // Transmission au parent (inchangé côté API)
-        onText(text);
-
-        setProgress(100);
-        setStatusText("Lecture terminée");
-        setJustFinished(true);
-        // on enlève le pulse après 1.2s pour ne pas distraire
-        setTimeout(() => setJustFinished(false), 1200);
-        setRunning(false);
-        return;
+        if (extractedText.length > 10) break; // on sort si du texte utile a été lu
       } catch (e: any) {
         lastErr = e;
-        // micro backoff avant retente
-        await new Promise((r) => setTimeout(r, i * 200 + 300));
+        await new Promise((r) => setTimeout(r, i * 200 + 300)); // petit délai avant retente
       }
     }
 
-    // Échec (après retentes)
     setRunning(false);
-    const friendly =
-      "Lecture impossible cette fois. Réessayez avec une photo plus nette (lumineuse, bordures visibles).";
-    setErrorMsg(friendly);
-    setStatusText("Lecture interrompue");
-    // On transmet un message bref et non technique au parent
-    onText("");
+    setProgress(100);
+    setStatusText("Lecture terminée");
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 1200);
+
+    // Cas 1 : lecture utile
+    if (extractedText.length > 10) {
+      setInfoMsg("Lecture complète — analyse en cours.");
+      onText(extractedText);
+      return;
+    }
+
+    // Cas 2 : lecture partielle ou vide => retour expert, jamais d’erreur
+    const gentle =
+      "La lecture semble partielle, mais des repères peuvent être exploités. L’analyse reste possible sur les zones les plus nettes.";
+    setInfoMsg(gentle);
+    onText(""); // texte vide côté parent, mais feedback positif
   }
 
   function clearFile() {
-    // réinitialise tout
     if (fileRef.current) fileRef.current.value = "";
     setImageUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -112,10 +108,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setFileSize("");
     setProgress(0);
     setStatusText("");
-    setErrorMsg("");
+    setInfoMsg("");
     setAttempt(0);
     setJustFinished(false);
-    onText(""); // on vide le texte OCR côté parent
+    onText("");
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -123,16 +119,15 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     if (!f) return;
 
     if (f.size > MAX_SIZE) {
-      setErrorMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite : 10 Mo.`);
+      setInfoMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite : 10 Mo.`);
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
 
-    // feedback immédiat
     setFileName(f.name);
     setFileSize(humanSize(f.size));
     setProgress(1);
-    setErrorMsg("");
+    setInfoMsg("");
     setStatusText("Préparation…");
     setAttempt(0);
     setJustFinished(false);
@@ -183,7 +178,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           className="hidden"
         />
 
-        {/* Badge “Fichier chargé” avec check qui pulse juste après Terminé */}
         <label
           htmlFor="ocr-file"
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
@@ -214,8 +208,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       </div>
 
-      {/* Alerte douce (jamais technique) */}
-      {errorMsg && <div className="mt-2 text-xs text-red-300">{errorMsg}</div>}
+      {/* Message d’information doux (jamais rouge, jamais “erreur”) */}
+      {infoMsg && <div className="mt-2 text-xs text-emerald-300/90">{infoMsg}</div>}
 
       {/* Aperçu visuel */}
       {imageUrl && (
@@ -237,4 +231,4 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       {Progress}
     </div>
   );
-    }
+}
