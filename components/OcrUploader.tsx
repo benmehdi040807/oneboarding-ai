@@ -57,11 +57,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
         const Tesseract = (await import("tesseract.js")).default as any;
 
-        setStatusText("Téléchargement du modèle…");
-        // NB: avec l’API .recognize, le téléchargement/chargement modèle est géré en interne.
-        // On s’appuie sur le logger pour exposer la progression.
-
-        setStatusText("Reconnaissance…");
+        setStatusText("Ouverture du document…");
+        setStatusText("Lecture du texte…");
         const result: any = await Tesseract.recognize(file, AUTO_LANG, {
           logger: (m: any) => {
             if (m?.status === "recognizing text" && typeof m?.progress === "number") {
@@ -71,14 +68,17 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           },
         } as any);
 
-        const text: string = String(result?.data?.text || "")
+        const raw = String(result?.data?.text || "");
+        const text: string = raw
           .replace(/[ \t]+\n/g, "\n")
           .replace(/\n{3,}/g, "\n\n")
           .trim();
 
+        // Transmission au parent (inchangé côté API)
         onText(text);
+
         setProgress(100);
-        setStatusText("Terminé");
+        setStatusText("Lecture terminée");
         setJustFinished(true);
         // on enlève le pulse après 1.2s pour ne pas distraire
         setTimeout(() => setJustFinished(false), 1200);
@@ -86,16 +86,19 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         return;
       } catch (e: any) {
         lastErr = e;
-        // petit backoff (200ms, 500ms) avant de retenter
+        // micro backoff avant retente
         await new Promise((r) => setTimeout(r, i * 200 + 300));
       }
     }
 
+    // Échec (après retentes)
     setRunning(false);
-    const msg = `Échec OCR après ${MAX_ATTEMPTS} tentatives (${lastErr?.message || "erreur"}).`;
-    setErrorMsg(msg);
-    setStatusText("Erreur");
-    onText(`⚠️ ${msg}`);
+    const friendly =
+      "Lecture impossible cette fois. Réessayez avec une photo plus nette (lumineuse, bordures visibles).";
+    setErrorMsg(friendly);
+    setStatusText("Lecture interrompue");
+    // On transmet un message bref et non technique au parent
+    onText("");
   }
 
   function clearFile() {
@@ -120,7 +123,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     if (!f) return;
 
     if (f.size > MAX_SIZE) {
-      setErrorMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite: 10 Mo.`);
+      setErrorMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite : 10 Mo.`);
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
@@ -153,12 +156,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="mt-1 flex items-center justify-between text-[11px] text-white/60">
+          <div className="mt-1 flex items-center justify-between text-[11px] text-white/70">
             <span>
               {statusText}
-              {attempt > 1 && statusText !== "Terminé" ? ` (${attempt}/${MAX_ATTEMPTS})` : ""}
+              {attempt > 1 && statusText !== "Lecture terminée" ? ` (${attempt}/${MAX_ATTEMPTS})` : ""}
             </span>
-            {progress === 100 ? <span className="text-emerald-300">Terminé</span> : null}
+            {progress === 100 ? <span className="text-emerald-300">Prêt</span> : null}
           </div>
         </div>
       ) : null,
@@ -211,7 +214,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       </div>
 
-      {/* Alerte douce */}
+      {/* Alerte douce (jamais technique) */}
       {errorMsg && <div className="mt-2 text-xs text-red-300">{errorMsg}</div>}
 
       {/* Aperçu visuel */}
@@ -234,4 +237,4 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       {Progress}
     </div>
   );
-      }
+    }
