@@ -4,7 +4,7 @@
 // Objectif : supprimer le ressenti d’erreur technique et instaurer un ton d’expertise,
 // avec un fil narratif constant : diagnostic → analyse → restitution → ouverture.
 //
-// - Multilingue : fr (complet), en/ar (de base, extensible)
+// - Multilingue : fr (complet), en/ar (désormais complet, 7 variantes/étape)
 // - Variantes étiquetées par niveau de confiance : "high" | "medium" | "low"
 // - API principale : formatResponse({ lang, confidence, summary, tips, seed })
 //
@@ -51,7 +51,7 @@ function pick<T>(arr: T[], rng?: () => number): T {
 // --------------------------------------------------------------------------
 // POOL DE PHRASES
 // FR : 7 variantes par étape (haut/medium/bas).
-// EN/AR : base incluse (3 variantes) — extensible facilement.
+// EN/AR : désormais 7 variantes par étape (haut/medium/bas).
 // --------------------------------------------------------------------------
 
 const pool: Pool = {
@@ -172,142 +172,238 @@ const pool: Pool = {
     }
   },
 
-  // EN (base — 3 variantes par étape, extensible)
+  // EN (complet — 7 variantes par étape)
   en: {
     high: {
       diagnostic: [
-        "The reading is clear and complete enough to proceed with confidence.",
-        "We have a solid, legible base to move forward.",
-        "The document looks crisp: key points are unambiguous."
+        "The reading is clear and sufficiently complete to proceed with confidence.",
+        "We have a solid, legible base to continue the analysis.",
+        "The capture is crisp: key elements stand out without ambiguity.",
+        "The document is clean and coherent; we can focus on the substance.",
+        "Quality is strong enough to enable precise interpretation now.",
+        "The material is well captured: nothing prevents us from going all the way.",
+        "Clarity is high, allowing a confident, accurate review."
       ],
       analysis: [
-        "I extract key signals (dates, amounts, references) and their relations.",
-        "I prioritize information to separate highlights from context.",
-        "I consolidate data into a practical, structured overview."
+        "I extract key signals (dates, amounts, references) and map their relations.",
+        "I prioritize what matters and distinguish highlights from context.",
+        "I organize content into digestible segments to preserve the logic.",
+        "I consolidate data to form a structured, usable view.",
+        "I cross-check important mentions and ensure contextual consistency.",
+        "I distill the core information while preserving intent.",
+        "I transform the content into an operational, ready-to-use summary."
       ],
       restitution: [
         "Here’s the essence: {summary}",
         "In short, what matters: {summary}",
-        "Actionable summary: {summary}"
+        "Actionable summary: {summary}",
+        "Key points identified: {summary}",
+        "Clear, precise result: {summary}",
+        "Practical overview: {summary}",
+        "Mastered content: {summary}"
       ],
       opening: [
         "Want to go further? {tips}",
-        "I can deliver a shareable brief. {tips}",
-        "Tell me your preferred format. {tips}"
+        "Shall I outline an immediate action plan? {tips}",
+        "I can expand each point as needed. {tips}",
+        "Prefer a shareable brief? {tips}",
+        "I can structure it by themes if you wish. {tips}",
+        "Ready to switch to execution mode. {tips}",
+        "Tell me your preferred format (email, memo, list). {tips}"
       ]
     },
     medium: {
       diagnostic: [
-        "Overall reading is clear; a few areas could be sharper.",
-        "The essentials are legible, despite mild uneven lighting.",
-        "Good enough to produce a reliable summary."
+        "Overall, the reading is clear; a few areas could be sharper.",
+        "The essentials are legible, though some sections are lower contrast.",
+        "The main idea is visible; tighter framing would enhance the result.",
+        "Quality is sufficient for a reliable synthesis, despite minor flaws.",
+        "Usable as is; more even lighting would be a plus.",
+        "The result is sound: we can move forward with confidence.",
+        "A solid base: the primary information stands out well."
       ],
       analysis: [
-        "I group content into themes for clarity.",
-        "I surface priorities and clarify the core intent.",
-        "I connect key elements to build a coherent picture."
+        "I surface the structure and the salient mentions.",
+        "I group information by theme to improve readability.",
+        "I highlight priorities and clarify the context.",
+        "I connect the essentials to present a coherent overview.",
+        "I read for intent and preserve the document’s core message.",
+        "I convert the content into simple, concrete steps.",
+        "I simplify without losing what matters."
       ],
       restitution: [
-        "Main takeaways: {summary}",
-        "Clear overview: {summary}",
-        "Concise summary: {summary}"
+        "Priority takeaways: {summary}",
+        "The essentials, briefly: {summary}",
+        "Clear synthesis: {summary}",
+        "High-level overview: {summary}",
+        "Faithful summary: {summary}",
+        "Main points: {summary}",
+        "Reorganized content: {summary}"
       ],
       opening: [
         "To refine further, {tips}",
-        "I can expand any section you want. {tips}",
-        "We can iterate as needed. {tips}"
+        "I can clarify any point on request. {tips}",
+        "Need a different format? {tips}",
+        "We can enrich this with additional pages. {tips}",
+        "Tell me where you want to go deeper. {tips}",
+        "I can prepare a short deliverable if useful. {tips}",
+        "We proceed whenever you’re ready. {tips}"
       ]
     },
     low: {
       diagnostic: [
-        "Reading is partial; some areas lack sharpness.",
-        "Usable, though parts are hard to distinguish.",
-        "Imperfect capture, yet the core can be extracted."
+        "Reading is partial: a few areas lack clarity.",
+        "Usable, though some zones are hard to distinguish.",
+        "The capture is imperfect; we can still extract the core.",
+        "Quality imposes some limits, yet the substance is visible.",
+        "Visually incomplete, but useful markers stand out.",
+        "Several segments are faint; I’ll focus on what’s clear.",
+        "Legibility varies; I rely on the most readable parts."
       ],
       analysis: [
-        "I focus on confirmed, legible elements.",
-        "I avoid over-interpreting uncertain fragments.",
-        "I derive the intent from the clearest signals."
+        "I prioritize confirmed signals and avoid risky interpretations.",
+        "I consolidate what’s clear and flag what remains uncertain.",
+        "I structure usable elements without over-interpreting.",
+        "I focus on confirmed mentions and visible values.",
+        "I extract the core message and set aside ambiguous parts.",
+        "I infer the general intent from the safest clues.",
+        "I synthesize cautiously to preserve reliability."
       ],
       restitution: [
-        "What stands out reliably: {summary}",
-        "Confirmed extraction: {summary}",
-        "Prudent synthesis: {summary}"
+        "What we can state confidently: {summary}",
+        "Prudent reading — confirmed elements: {summary}",
+        "Validated extraction: {summary}",
+        "What can be affirmed: {summary}",
+        "Synthesis from clear regions: {summary}",
+        "Unambiguous points: {summary}",
+        "Useful, reliable view: {summary}"
       ],
       opening: [
-        "For a flawless result, {tips}",
-        "A brighter, well-framed photo helps. {tips}",
-        "Happy to re-read a clearer version. {tips}"
+        "For a clean result, {tips}",
+        "I can review a better-framed version if available. {tips}",
+        "If possible, send a brighter photo. {tips}",
+        "A second shot can complement what’s missing. {tips}",
+        "Shall I prepare a short recovery checklist? {tips}",
+        "We can refine as soon as you have a clearer version. {tips}",
+        "Ready to iterate with you. {tips}"
       ]
     }
   },
 
-  // AR (base — 3 variantes par étape, extensible)
+  // AR (complet — 7 variantes par étape)
   ar: {
     high: {
       diagnostic: [
         "القراءة واضحة وكافية للمتابعة بثقة.",
-        "لدينا أساس مقروء ومتّسق للتحليل.",
-        "المستند واضح؛ النقاط الرئيسية ظاهرة بلا التباس."
+        "لدينا قاعدة مقروءة ومتماسكة تتيح تحليلًا دقيقًا.",
+        "الالتقاط واضح: العناصر الأساسية ظاهرة بلا لبس.",
+        "المستند نظيف ومتّسق؛ يمكننا التركيز على الجوهر.",
+        "الجودة مرتفعة بما يسمح بفهم دقيق من الآن.",
+        "المحتوى مستعاد بشكل جيد؛ لا شيء يمنع إتمام التحليل.",
+        "درجة الوضوح عالية وتمنحنا مراجعة واثقة."
       ],
       analysis: [
-        "أستخرج المؤشرات المهمة (تواريخ، مبالغ، مراجع) وعلاقاتها.",
-        "أرتّب المعلومات لأميّز بين الأساسيات والسياق.",
-        "أحوّل المحتوى إلى ملخص عملي ومنظّم."
+        "أستخرج المؤشرات المهمة (تواريخ، مبالغ، مراجع) وأربط بينها.",
+        "أرتّب الأولويات وأفصل بين الأساسيات والسياق.",
+        "أنظّم المحتوى في مقاطع سهلة الفهم للحفاظ على التسلسل.",
+        "أدمج البيانات لتكوين رؤية منظمة وقابلة للاستخدام.",
+        "أطابق الذِكر المهم وأتحقق من اتساق السياق.",
+        "أكثّف المعلومات الجوهرية مع الحفاظ على مقصد المستند.",
+        "أحوّل المحتوى إلى خلاصة عملية جاهزة للتطبيق."
       ],
       restitution: [
         "الخلاصة: {summary}",
         "باختصار، الأهم: {summary}",
-        "ملخص قابل للتنفيذ: {summary}"
+        "ملخص قابل للتطبيق: {summary}",
+        "النقاط الرئيسية: {summary}",
+        "نتيجة واضحة ودقيقة: {summary}",
+        "نظرة عملية سريعة: {summary}",
+        "عرض متقن للمحتوى: {summary}"
       ],
       opening: [
-        "هل تود المتابعة بتفصيل أكبر؟ {tips}",
-        "أستطيع إعداد ملخص جاهز للمشاركة. {tips}",
-        "اختر الصيغة المناسبة لك. {tips}"
+        "هل ترغب بالمتابعة بخطوة أعمق؟ {tips}",
+        "أقترح خطة تنفيذ فورية إن رغبت. {tips}",
+        "أستطيع تفصيل كل نقطة حسب الحاجة. {tips}",
+        "تفضّل ملخصًا قابلاً للمشاركة؟ {tips}",
+        "أعيد الهيكلة حسب المحاور إن شئت. {tips}",
+        "جاهز للانتقال إلى التنفيذ. {tips}",
+        "اختر الصيغة المفضلة لديك (بريد، مذكرة، قائمة). {tips}"
       ]
     },
     medium: {
       diagnostic: [
-        "القراءة إجمالًا واضحة؛ بعض المناطق يمكن تحسين حدتها.",
-        "الأساسيات مقروءة رغم تباين بسيط في الإضاءة.",
-        "الجودة تسمح بملخص موثوق."
+        "القراءة إجمالًا واضحة؛ بعض المواضع يمكن تحسين حدتها.",
+        "الأساسيات مقروءة رغم تفاوت بسيط في الإضاءة.",
+        "الفكرة العامة حاضرة؛ تأطير أدق سيحسّن النتيجة.",
+        "الجودة تسمح بملخص موثوق مع بعض الهفوات الطفيفة.",
+        "قابلة للاستخدام كما هي؛ توحيد الإضاءة سيكون إضافة.",
+        "النتيجة جيدة ونستطيع المتابعة بثقة.",
+        "قاعدة مرضية: تظهر المعلومات الرئيسية بوضوح."
       ],
       analysis: [
-        "أجمع المحتوى في محاور لتسهيل الفهم.",
-        "أبرز الأولويات وأوضح الهدف الأساسي.",
-        "أربط العناصر المهمة لصياغة رؤية متّسقة."
+        "أُبرز البنية العامة والمواضع اللافتة.",
+        "أجمع المعلومات في محاور لتسهيل القراءة.",
+        "أحدد الأولويات وأوضح السياق الأساسي.",
+        "أصل العناصر المهمة لتكوين رؤية متسقة.",
+        "أحافظ على مقصد النص وأستخلص جوهره.",
+        "أحوّل المحتوى إلى خطوات واضحة ومباشرة.",
+        "أبسط دون إهدار لما هو مهم."
       ],
       restitution: [
-        "أهم ما يجب ملاحظته: {summary}",
-        "نظرة عامة واضحة: {summary}",
-        "ملخص موجز: {summary}"
+        "الأولويات باختصار: {summary}",
+        "الأساسيات بإيجاز: {summary}",
+        "ملخص واضح: {summary}",
+        "نظرة عامة عليا: {summary}",
+        "خلاصة أمينة: {summary}",
+        "أهم النقاط: {summary}",
+        "إعادة تنظيم موجزة: {summary}"
       ],
       opening: [
         "لتحسين أدق، {tips}",
-        "يمكنني توسيع أي جزء تحتاجه. {tips}",
-        "نستطيع التدرّج كما تشاء. {tips}"
+        "يمكنني توضيح أي نقطة تطلبها. {tips}",
+        "بحاجة لصيغة مختلفة؟ {tips}",
+        "نستطيع الإثراء بمزيد من الصفحات. {tips}",
+        "أخبرني أين تريد التعمّق. {tips}",
+        "أعدّ لك موجزًا قصيرًا إن رغبت. {tips}",
+        "نُكمل حين تكون جاهزًا. {tips}"
       ]
     },
     low: {
       diagnostic: [
-        "القراءة جزئية؛ بعض المواضع غير واضحة.",
-        "قابلة للاستخدام مع صعوبة في تمييز بعض الأجزاء.",
-        "الالتقاط غير مثالي، لكن يمكن استخراج الجوهر."
+        "القراءة جزئية: بعض المواضع تفتقر للوضوح.",
+        "قابلة للاستخدام، مع صعوبة في تمييز بعض المناطق.",
+        "الالتقاط غير مثالي؛ ما زال بالإمكان استخراج الجوهر.",
+        "الجودة تفرض حدودًا، لكن المعنى العام ظاهر.",
+        "المشهد ناقص بصريًا، وإن بدت مؤشرات مفيدة.",
+        "تبدو مقاطع عدّة باهتة؛ أركّز على الأوضح.",
+        "درجة المقروئية متفاوتة؛ أعتمد على الأجزاء الأنسب."
       ],
       analysis: [
-        "أركّز على العناصر الواضحة والمؤكدة.",
-        "أتجنب التفسير الزائد للأجزاء الملتبسة.",
-        "أستدل بالعلامات الأوضح لاستخلاص المقصود."
+        "أعطي الأولوية للعلامات المؤكدة وأتجنب التأويل الزائد.",
+        "أثبت الواضح وأشير إلى ما بقي ملتبسًا.",
+        "أنظم العناصر القابلة للاستخدام دون إفراط في الاستنتاج.",
+        "أركّز على الذِكر المؤكد والقيم الظاهرة.",
+        "أستخرج اللب وأستبعد ما تشوبه الريبة.",
+        "أستدل على المقصد العام من أوثق القرائن.",
+        "ألخّص بحذر حفاظًا على الموثوقية."
       ],
       restitution: [
-        "ما يبرز بثقة: {summary}",
-        "استخلاص مؤكّد: {summary}",
-        "تلخيص بحذر: {summary}"
+        "ما يمكن الجزم به بثقة: {summary}",
+        "قراءة متأنية — عناصر مؤكدة: {summary}",
+        "استخلاص موثّق: {summary}",
+        "ما يمكن إثباته: {summary}",
+        "تلخيص من المناطق الأوضح: {summary}",
+        "نقاط غير ملتبسة: {summary}",
+        "رؤية مفيدة وموثوقة: {summary}"
       ],
       opening: [
-        "لنتيجة أفضل، {tips}",
-        "صورة أوضح وبإطار كامل تساعد. {tips}",
-        "يسعدني إعادة القراءة مع نسخة أوضح. {tips}"
+        "لنتيجة أنقى، {tips}",
+        "يمكنني إعادة القراءة مع نسخة مُحكمة الإطار. {tips}",
+        "إن أمكن، أرسل صورة أكثر سطوعًا. {tips}",
+        "لقطة ثانية قد تُكمل ما ينقص. {tips}",
+        "هل أعدّ لك قائمة متابعة قصيرة؟ {tips}",
+        "يمكننا تحسينها فور توفّر نسخة أوضح. {tips}",
+        "جاهز للتدرّج معك. {tips}"
       ]
     }
   }
@@ -362,4 +458,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-      }
+  }
