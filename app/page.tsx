@@ -378,6 +378,25 @@ function assessConfidence(text: string): "high" | "medium" | "low" {
   return "low";
 }
 
+// Filtre de ton : supprime les tournures d’excuse et les adoucit en formulation neutre
+function purifyTone(raw: string, L: "fr" | "en" | "ar"): string {
+  let s = raw;
+
+  // FR
+  s = s.replace(/\bje\s+suis\s+d[ée]sol[ée]e?\b\s*,?\s*/gi, "");
+  s = s.replace(/\b(d[ée]sol[ée]e?|je\s+m['’]excuse)\b\s*,?\s*/gi, "");
+  // EN
+  s = s.replace(/\b(i'?m\s+sorry|sorry|apologies)\b\s*,?\s*/gi, "");
+  // AR (أعتذر / آسف)
+  s = s.replace(/\b(أعتذر|آسف)\b\s*،?\s*/g, "");
+
+  // Espaces propres
+  s = s.replace(/\s{2,}/g, " ").trim();
+  // Si une phrase commence par virgule résiduelle, nettoyer
+  s = s.replace(/^[,;:\s]+/, "");
+  return s;
+}
+
 // Raccourci langue pour txtPhrases
 function getLang(): "fr" | "en" | "ar" {
   try {
@@ -521,6 +540,7 @@ export default function Page() {
     if (!plan) {
       const { reached } = noteInteractionAndMaybeLock();
       if (reached) {
+        // On bloque l’envoi et on laisse la bannière inviter à activer l’espace
         return;
       }
     }
@@ -555,45 +575,54 @@ export default function Page() {
         setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
         // 🔧 Intégration des réponses premium (ton expert, variabilité élégante)
-        const modelText: string = String(data.text || "").trim();
+        const modelTextRaw: string = String(data.text || "").trim();
         const L = getLang();
+
+        // Purification de ton (bannit "je suis désolé", "sorry", etc.)
+        const modelText = purifyTone(modelTextRaw, L);
+
+        // Heuristique d’enrobage :
+        // - Réponse directe (courte, sans liste) → on laisse tel quel.
+        // - Sinon, enveloppe premium stable (diagnostic → analyse → restitution → ouverture).
+        const isListy = /(\n|•|-|\d+\.)/.test(modelText);
+        const isVeryShort = modelText.length < 140 && !isListy;
         const conf = assessConfidence(modelText);
 
-        const isLong = modelText.length > 600;
-        const tips =
-          L === "fr"
-            ? "Menu → Mon historique : vous pourrez enregistrer ou partager votre réponse à tout moment."
-            : L === "en"
-            ? "Menu → My history: you can save or share this response anytime."
-            : "القائمة → السجل: يمكنك حفظ أو مشاركة هذه الإجابة في أي وقت.";
+        let finalText = "";
 
-        const header = formatResponse({
-          lang: L,
-          confidence: conf,
-          summary: isLong
-            ? (L === "fr"
-                ? "restitution détaillée ci-dessous."
-                : L === "en"
-                ? "full write-up below."
-                : "عرض مفصل أدناه.")
-            : "",
-          guidance: tips,          // ← API actuelle
-          includeCta: isLong,      // CTA seulement pour les longues
-          seed: Date.now() % 100000,
-          joiner: " ",
-        });
+        if (isVeryShort) {
+          // Réponse directe, sans surcouche
+          finalText = modelText;
+        } else {
+          const isLong = modelText.length > 600;
 
-        const finalText = isLong
-          ? `${header}\n\n${modelText}`
-          : formatResponse({
-              lang: L,
-              confidence: conf,
-              summary: modelText,
-              guidance: tips,       // ← API actuelle
-              includeCta: false,    // pas de CTA sur les courtes
-              seed: (Date.now() + 7) % 100000,
-              joiner: " ",
-            });
+          // Aucun guidance/CTA injecté (respect charte : ouverture non-UI)
+          const header = formatResponse({
+            lang: L,
+            confidence: conf,
+            summary: isLong
+              ? (L === "fr"
+                  ? "restitution détaillée ci-dessous."
+                  : L === "en"
+                  ? "full write-up below."
+                  : "عرض مفصل أدناه.")
+              : "",
+            includeCta: false,
+            seed: Date.now() % 100000,
+            joiner: " ",
+          });
+
+          finalText = isLong
+            ? `${header}\n\n${modelText}`
+            : formatResponse({
+                lang: L,
+                confidence: conf,
+                summary: modelText,
+                includeCta: false,
+                seed: (Date.now() + 7) % 100000,
+                joiner: " ",
+              });
+        }
 
         setHistory((h) => [
           { role: "assistant", text: finalText, time: new Date().toISOString() },
@@ -860,4 +889,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-            }
+      }
