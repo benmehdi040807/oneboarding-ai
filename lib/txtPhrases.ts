@@ -157,7 +157,7 @@ const pool: Pool = {
         "Je donne un ordre de lecture logique et progressif.",
         "Je convertis les éléments en étapes concrètes.",
         "Je clarifie la terminologie et les relations clés.",
-        "Je construis une progression fluide vers la conclusion."
+        "Je conclus sur une réponse nette et utile."
       ],
       restitution: [
         "À retenir en priorité : {summary}",
@@ -521,4 +521,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-      }
+}
