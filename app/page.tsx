@@ -60,7 +60,7 @@ function ConfirmDialog({
           <button onClick={onCancel} className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white">
             {cancelLabel}
           </button>
-          <button onClick={onConfirm} data-autofocus="true" className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]">
+          <button onClick={onConfirm} data-autofocus={true} className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]">
             {confirmLabel}
           </button>
         </div>
@@ -372,7 +372,7 @@ async function safeCopy(text: string) {
 function assessConfidence(text: string): "high" | "medium" | "low" {
   const len = text.length;
   const lines = (text.match(/\n/g) || []).length;
-  const bullets = (text.match(/(^|\n)\s*[-•\d+\.]/g) || []).length;
+  const bullets = (text.match(/(^|\n)\s*(?:[-•]|\d+\.)/g) || []).length; // ← amélioration
   if (len > 1200 || bullets >= 3 || lines >= 8) return "high";
   if (len > 300 || bullets >= 1 || lines >= 3) return "medium";
   return "low";
@@ -521,7 +521,6 @@ export default function Page() {
     if (!plan) {
       const { reached } = noteInteractionAndMaybeLock();
       if (reached) {
-        // On bloque l’envoi et on laisse la bannière inviter à activer l’espace
         return;
       }
     }
@@ -560,8 +559,6 @@ export default function Page() {
         const L = getLang();
         const conf = assessConfidence(modelText);
 
-        // Pour les réponses courtes, on insère directement la réponse dans {summary}.
-        // Pour les longues, on annonce une restitution complète puis on joint le contenu.
         const isLong = modelText.length > 600;
         const tips =
           L === "fr"
@@ -570,29 +567,33 @@ export default function Page() {
             ? "Menu → My history: you can save or share this response anytime."
             : "القائمة → السجل: يمكنك حفظ أو مشاركة هذه الإجابة في أي وقت.";
 
-       const header = formatResponse({
-  lang: L,
-  confidence: conf,
-  summary: isLong
-    ? (L === "fr"
-        ? "restitution détaillée ci-dessous."
-        : L === "en"
-        ? "full write-up below."
-        : "عرض مفصل أدناه.")
-    : "",
-  tips,
-  seed: Date.now() % 100000,
-  joiner: " ",
-});
-
-        const finalText = isLong ? `${header}\n\n${modelText}` : formatResponse({
+        const header = formatResponse({
           lang: L,
           confidence: conf,
-          summary: modelText,
-          tips,
-          seed: (Date.now() + 7) % 100000,
+          summary: isLong
+            ? (L === "fr"
+                ? "restitution détaillée ci-dessous."
+                : L === "en"
+                ? "full write-up below."
+                : "عرض مفصل أدناه.")
+            : "",
+          guidance: tips,          // ← API actuelle
+          includeCta: isLong,      // CTA seulement pour les longues
+          seed: Date.now() % 100000,
           joiner: " ",
         });
+
+        const finalText = isLong
+          ? `${header}\n\n${modelText}`
+          : formatResponse({
+              lang: L,
+              confidence: conf,
+              summary: modelText,
+              guidance: tips,       // ← API actuelle
+              includeCta: false,    // pas de CTA sur les courtes
+              seed: (Date.now() + 7) % 100000,
+              joiner: " ",
+            });
 
         setHistory((h) => [
           { role: "assistant", text: finalText, time: new Date().toISOString() },
@@ -859,4 +860,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-          }
+            }
