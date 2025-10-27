@@ -5,9 +5,9 @@
 // constant avec le fil narratif : diagnostic → analyse → restitution → ouverture.
 // - Multilingue : fr / en / ar
 // - 7 variantes par niveau (high / medium / low) et par étape
-// - CTA (copier / sauvegarder / partager) intégrés de manière optionnelle
+// - Ouverture libre : CTA optionnels (désactivés par défaut)
 //
-// API principale : formatResponse({ lang, confidence, summary, guidance, includeCta, ctaOptions, seed, joiner })
+// API principale : formatResponse({ lang, confidence, summary, guidance, tips, includeCta, ctaOptions, seed, joiner })
 //
 // Exemple :
 //   import { formatResponse } from "@/lib/txtPhrases";
@@ -16,14 +16,16 @@
 //     confidence: "medium",
 //     summary: "Les points clés X / Y, puis recommandations Z.",
 //     guidance: "Si vous voulez, je peux développer le point Y.",
-//     includeCta: true,
-//     ctaOptions: ["copy", "save", "share"]
+//     // tips est un alias souple ; si guidance est vide, tips est utilisé.
+//     tips: "Menu → Mon historique : enregistrer ou partager.",
+//     includeCta: false, // par défaut : false (ouverture non « pushy »)
 //   });
 //
 // Notes :
 // - Le mot « erreur » est proscrit. On privilégie : “lecture prudente”, “analyse partielle”, etc.
 // - {summary} est injecté dans la phase “restitution”.
 // - {guidance} et {cta} peuvent être mentionnés dans “ouverture” selon includeCta et guidance.
+// - {tips} est aussi pris en charge si présent dans les formulations.
 
 export type Lang = "fr" | "en" | "ar";
 export type Confidence = "high" | "medium" | "low";
@@ -33,7 +35,7 @@ type Bucket = {
   diagnostic: string[];
   analysis: string[];
   restitution: string[]; // accepte {summary}
-  opening: string[];     // accepte {guidance} et {cta}
+  opening: string[];     // accepte {guidance} / {tips} et {cta}
 };
 
 type Pool = Record<Lang, Record<Confidence, Bucket>>;
@@ -55,8 +57,8 @@ function pick<T>(arr: T[], rng?: () => number): T {
   return arr[Math.floor(rng() * arr.length)];
 }
 
-function uniqJoin(parts: string[], sep: string): string {
-  return parts.filter(Boolean).join(sep).replace(/\s+/g, " ").trim();
+function squashSpaces(s: string) {
+  return s.replace(/\s{2,}/g, " ").trim();
 }
 
 /* ------------------------------ CTA builder ------------------------------- */
@@ -76,7 +78,6 @@ function buildCta(lang: Lang, kinds: CtaKind[]): string {
       bits.length === 1 ? bits[0] :
       bits.length === 2 ? `${bits[0]} ou ${bits[1]}` :
       `${bits[0]}, ${bits[1]} ou ${bits[2]}`;
-    // Rappel discret du menu pour save/share, sans surcharger
     const hint = hasSave || hasShare ? " depuis Menu → Mon historique" : "";
     return `Vous pouvez ${list}${hint}.`;
   }
@@ -104,7 +105,7 @@ function buildCta(lang: Lang, kinds: CtaKind[]): string {
       bits.length === 1 ? bits[0] :
       bits.length === 2 ? `${bits[0]} أو ${bits[1]}` :
       `${bits[0]}، ${bits[1]} أو ${bits[2]}`;
-    const hint = hasSave || hasShare ? " من القائمة → سجلي" : "";
+    const hint = hasSave || hasShare ? " من القائمة → السجل" : "";
     return `بإمكانك ${list}${hint}.`;
   }
 }
@@ -472,6 +473,7 @@ export function formatResponse(args: {
   confidence: Confidence;
   summary?: string;          // injecté dans {summary}
   guidance?: string;         // injecté dans {guidance}
+  tips?: string;             // alias souple ; si guidance vide, tips est utilisé
   includeCta?: boolean;      // si true, injecte un CTA dans {cta}
   ctaOptions?: CtaKind[];    // par défaut: ["copy","save","share"]
   seed?: number;             // variabilité déterministe
@@ -481,7 +483,8 @@ export function formatResponse(args: {
     lang,
     confidence,
     summary = "",
-    guidance = "",
+    guidance,
+    tips,
     includeCta = false,
     ctaOptions = ["copy", "save", "share"],
     seed,
@@ -493,6 +496,9 @@ export function formatResponse(args: {
   const bucket = langPool[confidence];
   if (!bucket) throw new Error(`Unsupported confidence: ${confidence}`);
 
+  // Compat : si guidance absent/vidé mais tips fourni → utiliser tips comme guidance.
+  const guidanceSafe = (guidance && guidance.trim()) ? guidance.trim() : ((tips && tips.trim()) ? tips.trim() : "");
+
   const rng = typeof seed === "number" ? mulberry32(seed) : undefined;
 
   const diag = pick(bucket.diagnostic, rng);
@@ -501,11 +507,14 @@ export function formatResponse(args: {
 
   const ctaText = includeCta ? buildCta(lang, ctaOptions) : "";
   const openRaw = pick(bucket.opening, rng);
-  const open = openRaw
-    .replace("{guidance}", guidance || "")
-    .replace("{cta}", ctaText || "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+
+  // Remplacements souples : {guidance} et/ou {tips} selon disponibilité.
+  let open = openRaw
+    .replace("{guidance}", guidanceSafe)
+    .replace("{tips}", guidanceSafe) // support si des variantes utilisent {tips}
+    .replace("{cta}", ctaText);
+
+  open = squashSpaces(open);
 
   // 4 phrases, ton expert, sans jargon ni auto-flagellation.
   return [diag, ana, res, open].filter(Boolean).join(joiner);
@@ -524,4 +533,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-        }
+  }
