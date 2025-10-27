@@ -76,11 +76,15 @@ function purifyTone(raw: string, lang: Lang): string {
   // FR
   s = s.replace(/\bje\s+suis\s+d[ée]sol[ée]e?\b\s*,?\s*/gi, "");
   s = s.replace(/\b(?:d[ée]sol[ée]e?|je\s+m['’]excuse|pardon(?:nez-moi)?|toutes?\s+mes\s+excuses)\b\s*,?\s*/gi, "");
-  s = s.replace(/\b(?:je\s+vais\s+essayer(?:\s+de)?|je\s+peux\s+essayer(?:\s+de)?)\b/gi, "procédure directe");
+  // Essayer → je peux (préserve la grammaire qui suit)
+  s = s.replace(/\b(?:je\s+vais\s+essayer\s+de|je\s+peux\s+essayer\s+de)\b/gi, "je peux");
+  s = s.replace(/\b(?:je\s+vais\s+essayer|je\s+peux\s+essayer)\b/gi, "je peux");
 
   // EN
   s = s.replace(/\b(i'?m\s+sorry|sorry|apologies|i\s+apologis[ez]|my\s+apologies)\b\s*,?\s*/gi, "");
-  s = s.replace(/\b(?:i(?:'m)?\s+going\s+to\s+try|i\s+can\s+try)\b/gi, "direct procedure");
+  // try → I can (préserve la grammaire qui suit)
+  s = s.replace(/\b(i'?m\s+going\s+to\s+try\s+to|i\s+can\s+try\s+to)\b/gi, "I can");
+  s = s.replace(/\b(i'?m\s+going\s+to\s+try|i\s+can\s+try)\b/gi, "I can");
 
   // AR
   s = s.replace(/\b(أعتذر|آسف(?:ة)?)\b\s*،?\s*/g, "");
@@ -168,10 +172,29 @@ function neutralizeLexicon(s: string, lang: Lang): string {
     return sanitizeEnglishHybrids(en);
   }
 
-  // ar (inchangé — on ne touche pas aux patrons d’aide naturels)
+  // ar
   return s
     .replace(/\bأحداث\b/g, "بيانات / ظروف / عناصر")
     .replace(/\bأخبار\b/g, "بيانات حديثة");
+}
+
+/* --------------------------- Final grammar pass --------------------------- */
+/* Élimine toute trace résiduelle de "procédure directe / direct procedure" mal greffée. */
+
+function finalizeGrammar(s: string, lang: Lang): string {
+  let out = s;
+
+  if (lang === "fr") {
+    out = out
+      .replace(/\bproc[ée]dure\s+directe\b(?:\s+de)?\s+vous\s+([a-zàâçéèêëîïôûùüÿ\-]+)\b/gi, "je peux vous $1")
+      .replace(/\bproc[ée]dure\s+directe\b\s*:\s*/gi, "");
+  } else if (lang === "en") {
+    out = out
+      .replace(/\bdirect\s+procedure\b\s+(?:to\s+)?(suggest|recommend|help|assist)\b/gi, "I can $1")
+      .replace(/\bdirect\s+procedure\b\s*:\s*/gi, "");
+  }
+
+  return squashSpaces(out);
 }
 
 /* ------------------------------ CTA builder ------------------------------- */
@@ -764,10 +787,11 @@ export function formatResponse(args: {
 
   const rng = typeof seed === "number" ? mulberry32(seed) : undefined;
 
-  // Texte brut → ton + lexique + retours (avec sécurisation FR/EN anti-hybrides)
+  // Texte brut → ton + lexique + retours (avec sécurisation FR/EN)
   let text = purifyTone(summary, lang);
   text = neutralizeLexicon(text, lang);
   text = normalizeBreaks(text);
+  text = finalizeGrammar(text, lang);
 
   // Profil adaptatif
   const profile = detectProfile(text, lang);
@@ -823,4 +847,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-    }
+}
