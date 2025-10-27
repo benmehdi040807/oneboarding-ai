@@ -1,20 +1,36 @@
 // lib/txtPhrases.ts
 //
-// Pool de formulations premium pour les réponses IA liées à des entrées texte
-// (saisie directe ou audio transcrit). Objectif : ton d’expertise constant,
-// avec le fil narratif stable : diagnostic → analyse → restitution → ouverture.
-// - Multilingue : fr / en / ar
-// - 7 variantes par niveau (high / medium / low) et par étape
-// - Ouverture sobre : CTA optionnel (désactivé par défaut), jamais en premier
+// Moteur de formulation OneBoarding AI (universel, single-file).
+// Objectif : ton premium, structure stable, et adaptatif :
+// - Réponse directe si très courte.
+// - Sinon : diagnostic → analyse → restitution → ouverture.
+// - Cas d’incapacité détectée : reformulation proactive (propose des alternatives concrètes).
 //
-// API : formatResponse({ lang, confidence, summary, guidance, tips, includeCta, ctaOptions, seed, joiner })
+// Multilingue : fr / en / ar
+// Variantes : 7 par niveau (high / medium / low) et par étape (diag/analysis/restitution/opening)
+// + Pools "reframe" (intro / steps / tip) pour transformer toute faiblesse en plan d’action.
+//
+// API (compatible) :
+//   formatResponse({
+//     lang,                   // "fr" | "en" | "ar"
+//     confidence,             // "high" | "medium" | "low"  (obligatoire, pas d’inférence ici)
+//     summary,                // ← TEXTE BRUT du modèle (pas seulement un résumé)
+//     guidance,               // optionnel, injecté en ouverture si présent (jamais d’UI)
+//     tips,                   // alias souple de guidance si guidance vide
+//     includeCta,             // optionnel (désactivé par défaut) — formulation générique (aucune UI)
+//     ctaOptions,             // ["copy","save","share"] par défaut
+//     seed,                   // variabilité déterministe
+//     joiner                  // séparateur, par défaut "\n\n" (espacement aéré)
+//   })
+//
+// Comportement adaptatif interne basé sur `summary` :
+//   - Détecte "incapacity" → reframe (FR/EN/AR)
+//   - Sinon : short / medium / long selon longueur + structure
 //
 // Notes de style (charte OneBoarding AI) :
-// - Jamais d’excuses (“je suis désolé”, etc.). On assume calmement le cadre.
-// - Aucune référence à l’UI dans le texte (pas de “Menu → …”).
-// - {summary} est injecté dans “restitution”.
-// - {guidance} peut être utilisé dans “ouverture” (et {tips} est un alias souple).
-// - {cta} n’apparaît que si includeCta === true.
+// - Jamais d’excuses (“je suis désolé”, “sorry”, “أعتذر”...).
+// - Aucune référence à l’UI (pas de “Menu → …”).
+// - Le CTA reste neutre et générique, et n’apparaît que si includeCta === true.
 
 export type Lang = "fr" | "en" | "ar";
 export type Confidence = "high" | "medium" | "low";
@@ -28,6 +44,10 @@ type Bucket = {
 };
 
 type Pool = Record<Lang, Record<Confidence, Bucket>>;
+
+/* -------------------------------- Profiles -------------------------------- */
+
+type Profile = "short" | "medium" | "long" | "reframe";
 
 /* --------------------------- RNG / Helpers -------------------------------- */
 
@@ -50,8 +70,30 @@ function squashSpaces(s: string) {
   return s.replace(/\s{2,}/g, " ").trim();
 }
 
+/* ------------------------------ Tone filter ------------------------------- */
+/* Purge toute excuse et formulations faibles (FR/EN/AR). */
+
+function purifyTone(raw: string, lang: Lang): string {
+  let s = raw;
+
+  // FR
+  s = s.replace(/\bje\s+suis\s+d[ée]sol[ée]e?\b\s*,?\s*/gi, "");
+  s = s.replace(/\b(?:d[ée]sol[ée]e?|je\s+m['’]excuse|pardon(?:nez-moi)?|toutes?\s+mes\s+excuses)\b\s*,?\s*/gi, "");
+
+  // EN
+  s = s.replace(/\b(i'?m\s+sorry|sorry|apologies|i\s+apologise|i\s+apologize)\b\s*,?\s*/gi, "");
+
+  // AR
+  s = s.replace(/\b(أعتذر|آسف(?:ة)?)\b\s*،?\s*/g, "");
+
+  // Nettoyage ponctuation résiduelle + espaces
+  s = s.replace(/^[,;:\s]+/, "");
+  s = s.replace(/\s{2,}/g, " ").trim();
+  return s;
+}
+
 /* ------------------------------ CTA builder ------------------------------- */
-/* Ne fait référence à aucune UI ; formulation sobre et générique. */
+/* Ne fait aucune référence à l’UI ; formulation sobre et générique. */
 
 function buildCta(lang: Lang, kinds: CtaKind[]): string {
   if (!kinds.length) return "";
@@ -96,6 +138,120 @@ function buildCta(lang: Lang, kinds: CtaKind[]): string {
     return `بإمكانك ${list}.`;
   }
 }
+
+/* --------------------------- Incapacity detectors ------------------------- */
+
+const incapacityPatterns: Record<Lang, RegExp[]> = {
+  fr: [
+    /\bje\s+ne\s+(?:peux|pourrai?s)\s+(?:pas|point)\b/i,
+    /\bje\s+n[’']ai\s+pas\s+d[’']accès\b/i,
+    /\bje\s+ne\s+dispose\s+pas\s+des?\s+informations\b/i,
+    /\ben\s+t[âa]nt\s+qu[’']?IA\b/i,
+  ],
+  en: [
+    /\bI\s+(?:can(?:not|'t)|do\s+not|don't)\s+access\b/i,
+    /\bI\s+(?:cannot|can't)\s+do\b/i,
+    /\bas\s+an\s+AI\b/i,
+    /\bI\s+do\s+not\s+have\s+(?:access|data)\b/i,
+  ],
+  ar: [
+    /\b(?:لا|لست)\s+أستطيع\b/,
+    /\bلا\s+أملك\s+وصولاً\b/,
+    /\bكوني?\s+نظاماً?\s+ذكياً?\b/,
+  ],
+};
+
+/* ------------------------------ Reframe pools ----------------------------- */
+
+const reframePool = {
+  fr: {
+    intro: [
+      "On avance autrement :",
+      "Pas de blocage, on pivote :",
+      "Je propose une voie directe :",
+      "Gagnons du temps ainsi :",
+      "Voici l’option la plus efficace :",
+      "Démarche claire et rapide :",
+      "Approche actionnable dès maintenant :",
+    ],
+    steps: [
+      "Je t’explique la méthode et tu appliques en un passage.",
+      "On procède en trois temps : repérer, obtenir, vérifier.",
+      "Je te donne le chemin le plus court pour récupérer l’info utile.",
+      "On convertit la demande en étapes concrètes et mesurables.",
+      "On requalifie l’objectif et on sécurise le résultat essentiel.",
+      "Je fournis le protocole minimal pour débloquer ton besoin.",
+      "On transforme la contrainte en plan d’action net.",
+    ],
+    tip: [
+      "Tu peux coller ici les éléments obtenus : je les structure.",
+      "Dès que tu as la donnée, je la mets en forme proprement.",
+      "Partage le contenu brut : j’en fais une synthèse en clair.",
+      "Transmets le texte tel quel : je fournis la restitution opérationnelle.",
+      "Glisse les extraits : j’en déduis les points clés utiles.",
+      "Envoie la matière disponible : je prépare la version exploitable.",
+      "Dès réception, je rends la réponse prête à l’emploi.",
+    ],
+  },
+  en: {
+    intro: [
+      "Let’s pivot cleanly:",
+      "No roadblock — new route:",
+      "Here’s the direct path:",
+      "Fastest workable option:",
+      "Actionable workaround:",
+      "Practical path forward:",
+      "Straight to the point:",
+    ],
+    steps: [
+      "I’ll outline the method; you apply in one pass.",
+      "Three moves: find, obtain, verify.",
+      "Shortest route to get the needed signal.",
+      "We turn the request into concrete, measurable steps.",
+      "We reframe the goal and secure the essential output.",
+      "I’ll hand you the minimal protocol to unblock.",
+      "We convert the constraint into a clear action plan.",
+    ],
+    tip: [
+      "Paste what you obtain here; I’ll structure it.",
+      "Once you have the data, I’ll format it cleanly.",
+      "Share raw content; I’ll deliver a clear synthesis.",
+      "Drop the text as is; I’ll produce usable output.",
+      "Send excerpts; I’ll extract the key points.",
+      "Share any material; I’ll turn it into a deliverable.",
+      "As soon as it’s in, I’ll make it ready to use.",
+    ],
+  },
+  ar: {
+    intro: [
+      "نبدّل المسار بوضوح:",
+      "لا عائق — طريق بديل:",
+      "هذا المسار المباشر:",
+      "خيار عملي سريع:",
+      "حل قابل للتطبيق فورًا:",
+      "طريق واقعي للمضيّ قدمًا:",
+      "بخطوات محدّدة الآن:",
+    ],
+    steps: [
+      "أعرض المنهج وتُطبّق بخطوة واحدة.",
+      "ثلاث حركات: العثور، التحصيل، التحقق.",
+      "أقصر طريق للحصول على الإشارة المطلوبة.",
+      "نحوّل الطلب إلى خطوات عملية قابلة للقياس.",
+      "نعيد صياغة الهدف ونؤمّن المخرج الأساسي.",
+      "أزوّدك بالبروتوكول الأدنى لتجاوز العائق.",
+      "نحوّل القيد إلى خطة تنفيذ واضحة.",
+    ],
+    tip: [
+      "ألصق ما تحصل عليه هنا وسأعيد هيكلته.",
+      "حين تتوافر البيانات، أقدّم صيغة مرتّبة.",
+      "ارسل المحتوى الخام وسأقدّم خلاصة واضحة.",
+      "ضع النص كما هو وسأخرِج نتيجة قابلة للاستخدام.",
+      "أرسل المقاطع وسأستخلص النقاط الرئيسية.",
+      "أي مادة لديك، أحوّلها إلى مخرج جاهز.",
+      "ما إن تصل المعلومة، أرتّب الناتج للاستخدام.",
+    ],
+  },
+};
 
 /* ------------------------------ POOL (7x) --------------------------------- */
 /* 7 variantes par étape et par niveau — FR/EN/AR. Ton premium, posé, expert. */
@@ -453,18 +609,54 @@ const pool: Pool = {
   }
 };
 
+/* -------------------------- Adaptive classification ----------------------- */
+
+function isListy(s: string): boolean {
+  return /(^|\n)\s*(?:[-•*]|\d+\.)\s+/.test(s);
+}
+
+function paragraphCount(s: string): number {
+  return (s.trim().match(/\n{1,}/g) || []).length + 1;
+}
+
+function detectIncapacity(s: string, lang: Lang): boolean {
+  const text = s.trim();
+  if (!text) return false;
+  const pats = incapacityPatterns[lang] || [];
+  return pats.some((rx) => rx.test(text));
+}
+
+function detectProfile(textRaw: string, lang: Lang): Profile {
+  const raw = purifyTone(textRaw || "", lang);
+  if (!raw) return "short";
+
+  if (detectIncapacity(raw, lang)) return "reframe";
+
+  const len = raw.length;
+  const paras = paragraphCount(raw);
+  const list = isListy(raw);
+
+  // Heuristique simple, robuste :
+  // - court : < 140 chars et 1 seul paragraphe, pas de liste
+  // - long  : ≥ 900 chars OU ≥ 5 paragraphes OU liste + ≥ 600 chars
+  // - sinon : medium
+  if (len < 140 && paras === 1 && !list) return "short";
+  if (len >= 900 || paras >= 5 || (list && len >= 600)) return "long";
+  return "medium";
+}
+
 /* ---------------------------------- API ----------------------------------- */
 
 export function formatResponse(args: {
   lang: Lang;
   confidence: Confidence;
-  summary?: string;          // injecté dans {summary}
-  guidance?: string;         // injecté dans {guidance}
-  tips?: string;             // alias souple ; si guidance vide, tips est utilisé
-  includeCta?: boolean;      // si true, injecte un CTA dans {cta} (neutre)
-  ctaOptions?: CtaKind[];    // par défaut: ["copy","save","share"]
-  seed?: number;             // variabilité déterministe
-  joiner?: string;           // séparateur entre phrases (par défaut : " ")
+  summary?: string;          // ← TEXTE BRUT du modèle. Injecté dans {summary} pour "restitution".
+  guidance?: string;         // Injecté dans {guidance}/{tips} si présent (jamais d’UI).
+  tips?: string;             // Alias souple de "guidance" si vide.
+  includeCta?: boolean;      // Si true, injecte un CTA neutre dans {cta}.
+  ctaOptions?: CtaKind[];    // Par défaut: ["copy","save","share"]
+  seed?: number;             // Variabilité déterministe.
+  joiner?: string;           // Séparateur entre phrases/sections. Par défaut: "\n\n"
 }): string {
   const {
     lang,
@@ -475,7 +667,7 @@ export function formatResponse(args: {
     includeCta = false,
     ctaOptions = ["copy", "save", "share"],
     seed,
-    joiner = " "
+    joiner = "\n\n", // espacement aéré par défaut
   } = args;
 
   const langPool = pool[lang];
@@ -483,29 +675,55 @@ export function formatResponse(args: {
   const bucket = langPool[confidence];
   if (!bucket) throw new Error(`Unsupported confidence: ${confidence}`);
 
-  // Compat : guidance prioritaire ; sinon, tips comme secours.
+  // Guidance prioritaire ; sinon, tips ; sinon vide
   const guidanceSafe =
     (guidance && guidance.trim()) ? guidance.trim() :
     (tips && tips.trim()) ? tips.trim() : "";
 
   const rng = typeof seed === "number" ? mulberry32(seed) : undefined;
 
+  // Texte brut purifié (ton premium)
+  const text = purifyTone(summary, lang);
+
+  // Profil adaptatif
+  const profile = detectProfile(text, lang);
+
+  // Cas "reframe" (incapacité détectée → plan d’action)
+  if (profile === "reframe") {
+    const intro = pick(reframePool[lang].intro, rng);
+    const steps = pick(reframePool[lang].steps, rng);
+    const tip   = pick(reframePool[lang].tip, rng);
+
+    const ctaText = includeCta ? buildCta(lang, ctaOptions) : "";
+    const open = [guidanceSafe, ctaText].filter(Boolean).join(" ").trim();
+
+    return [intro, steps, text, [tip, open].filter(Boolean).join(" ")].filter(Boolean).join(joiner);
+  }
+
+  // Réponse directe si "short"
+  if (profile === "short") {
+    return text;
+  }
+
+  // Medium / Long : structure stable
   const diag = pick(bucket.diagnostic, rng);
   const ana  = pick(bucket.analysis, rng);
-  const res  = pick(bucket.restitution, rng).replace("{summary}", summary);
+  const res  = pick(bucket.restitution, rng).replace("{summary}", text);
 
   const ctaText = includeCta ? buildCta(lang, ctaOptions) : "";
   const openRaw = pick(bucket.opening, rng);
-
-  let open = openRaw
+  let opening = openRaw
     .replace("{guidance}", guidanceSafe)
     .replace("{tips}", guidanceSafe)
     .replace("{cta}", ctaText);
+  opening = squashSpaces(opening);
 
-  open = squashSpaces(open);
+  const parts =
+    profile === "long"
+      ? [diag, ana, res, opening]
+      : [diag, res, opening]; // medium : pas d’analyse détaillée (réponse + ouverture)
 
-  // 4 phrases, ton expert, sans jargon ni UI.
-  return [diag, ana, res, open].filter(Boolean).join(joiner);
+  return parts.filter(Boolean).join(joiner);
 }
 
 /* ------------------------- Helpers d’extension ---------------------------- */
@@ -521,4 +739,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-}
+      }
