@@ -98,22 +98,48 @@ function purifyTone(raw: string, lang: Lang): string {
 function sanitizeFrenchHybrids(s: string): string {
   let out = s;
 
-  // 1) Cas prioritaire : "je peux vous suggérer ..." → "je vous suggère ..."
+  // 1) "je peux vous suggérer ..." → "je vous suggère ..."
   out = out.replace(/\bje\s+peux\s+vous\s+sugg[eé]rer\b/gi, "je vous suggère");
 
-  // 2) Hybrides "fournis/donne ... vous suggérer" → "je vous propose ..."
+  // 2) "fournis/donne ... vous suggérer" → "je vous propose de"
   out = out.replace(
     /\b(?:je\s+)?(?:fournis?|donne(?:s)?)\s+(?:vous\s+)?sugg[eé]rer\b/gi,
     "je vous propose de"
   );
 
-  // 3) Variante plus générale : "propose vous suggérer" → "je vous propose"
+  // 3) "propose vous suggérer" → "propose"
   out = out.replace(/\bpropose\s+vous\s+sugg[eé]rer\b/gi, "propose");
 
-  // 4) Double verbe contigu ("fournis vous suggère") → privilégier "je vous propose"
+  // 4) "fournis vous suggère" → "je vous propose"
   out = out.replace(/\b(?:je\s+)?fournis?\s+vous\s+sugg[eé]re(z?)\b/gi, "je vous propose");
 
-  // 5) Harmonisation douce : "je vous suggère des options" → OK (pas de modif)
+  return out;
+}
+
+/* ---------------------- EN hybrid/overlap sanitizers ---------------------- */
+/* Évite les hybrides du type "I deliver suggest" / "I provide you recommend". */
+
+function sanitizeEnglishHybrids(s: string): string {
+  let out = s;
+
+  // 1) "I can suggest/recommend/propose ..." → "I suggest/recommend/propose ..."
+  out = out.replace(
+    /\bI\s+can\s+(suggest|recommend|propose)\b/gi,
+    (_m, v: string) => `I ${v.toLowerCase()}`
+  );
+
+  // 2) "I (deliver|provide|give) (you )?suggest/recommend/propose" → "I suggest/recommend/propose"
+  out = out.replace(
+    /\bI\s+(?:deliver|provide|give)\s+(?:you\s+)?(suggest|recommend|propose)\b/gi,
+    (_m, v: string) => `I ${v.toLowerCase()}`
+  );
+
+  // 3) "deliver you a suggestion/recommendation" → "suggest/recommend"
+  out = out.replace(
+    /\bI\s+(?:deliver|provide|give)\s+(?:you\s+)?a\s+(suggestion|recommendation)\b/gi,
+    (_m, v: string) => (v.toLowerCase().startsWith("recom") ? "I recommend" : "I suggest")
+  );
+
   return out;
 }
 
@@ -129,19 +155,22 @@ function neutralizeLexicon(s: string, lang: Lang): string {
       .replace(/\bactualit[ée]s?\b/gi, "données récentes")
       .replace(/\b[ée]v[ée]nements?\b/gi, "données / conditions / éléments")
       .replace(/\bessayer\s+de\b/gi, "procéder à")
-      // garde "je peux vous suggérer ..." intact (sera normalisé plus haut)
       .replace(/\bje\s+peux\b(?!\s+vous\s+sugg[eé]rer)/gi, "je fournis");
 
     return sanitizeFrenchHybrids(fr);
   }
 
   if (lang === "en") {
-    return s
+    // Garde-fou : "I can" → "I deliver" SAUF si suivi de suggest/recommend/propose
+    const en = s
       .replace(/\bevents?\b/gi, "data / conditions / items")
       .replace(/\bnews\b/gi, "recent data")
       .replace(/\btry to\b/gi, "proceed to")
-      .replace(/\bI can\b/gi, "I deliver");
+      .replace(/\bI\s+can\b(?!\s+(?:suggest|recommend|propose)\b)/gi, "I deliver");
+
+    return sanitizeEnglishHybrids(en);
   }
+
   // ar
   return s
     .replace(/\bأحداث\b/g, "بيانات / ظروف / عناصر")
@@ -682,7 +711,7 @@ function detectIncapacity(s: string, lang: Lang): boolean {
 
 function detectProfile(textRaw: string, lang: Lang): Profile {
   const rawA = purifyTone(textRaw || "", lang);
-  const rawB = neutralizeLexicon(rawA, lang);            // (inclut le garde-fou FR)
+  const rawB = neutralizeLexicon(rawA, lang);            // (inclut les garde-fous FR/EN)
   const raw  = normalizeBreaks(rawB);
   if (!raw) return "short";
 
@@ -738,9 +767,9 @@ export function formatResponse(args: {
 
   const rng = typeof seed === "number" ? mulberry32(seed) : undefined;
 
-  // Texte brut → ton + lexique + retours (avec sécurisation FR anti-hybrides)
+  // Texte brut → ton + lexique + retours (avec sécurisation FR/EN anti-hybrides)
   let text = purifyTone(summary, lang);
-  text = neutralizeLexicon(text, lang);  // applique aussi sanitizeFrenchHybrids si FR
+  text = neutralizeLexicon(text, lang);
   text = normalizeBreaks(text);
 
   // Profil adaptatif
@@ -797,4 +826,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-  }
+}
