@@ -1,27 +1,17 @@
 // lib/txtPhrases.ts
 //
-// OneBoarding AI — Formulation Engine v2 (fail-safe)
-// Objectif : rendu premium, fiable, sans « hybrides » verbaux.
+// OneBoarding AI — Formulation Engine v2.1 (fail-safe, extended)
+// Objectif : rendu premium, fiable, sans “hybrides” verbaux.
 // Philosophie :
 //   • Pas d’excuses ni d’UI talk.
 //   • Gabarits courts, sûrs, réutilisables.
 //   • Aucune concaténation hasardeuse de verbes.
-//   • Filtres doux : espaces/retours, ponctuation, exclusion des excuses.
-//   • Mode “reframe” propre si incapacité détectée.
-//   • Multilingue FR / EN / AR.
+//   • Filtres doux : espaces, ponctuation, exclusion des excuses.
+//   • Mode “reframe” enrichi avec variété linguistique (FR/EN/AR).
+//   • Aération préservée pour confort de lecture mobile.
 //
-// API :
-//   formatResponse({
-//     lang: "fr" | "en" | "ar",
-//     confidence: "high" | "medium" | "low",
-//     summary?: string,     // texte brut du modèle (le fond reste ‘authentique’)
-//     guidance?: string,    // accroche optionnelle en ouverture
-//     tips?: string,        // alias de guidance
-//     includeCta?: boolean, // CTA neutre et générique
-//     ctaOptions?: ("copy"|"save"|"share")[],
-//     seed?: number,        // variabilité déterministe
-//     joiner?: string       // séparateur (par défaut "\n\n")
-//   })
+// Auteur : Maître Benmehdi Mohamed Rida
+// Version : Octobre 2025
 
 export type Lang = "fr" | "en" | "ar";
 export type Confidence = "high" | "medium" | "low";
@@ -29,9 +19,9 @@ export type CtaKind = "copy" | "save" | "share";
 
 type Bucket = {
   diagnostic: string[];
-  analysis: string[];      // phrases sûres, courtes
-  restitution: string[];   // accepte {summary}
-  opening: string[];       // accepte {guidance} et {cta}
+  analysis: string[];
+  restitution: string[];
+  opening: string[];
 };
 
 type Pool = Record<Lang, Record<Confidence, Bucket>>;
@@ -62,7 +52,7 @@ function normalizeBreaks(s: string) {
 }
 
 /* ------------------------------- Tone filter ------------------------------ */
-// Retire excuses; ne touche pas aux verbes “peux/suggère” etc.
+// Retire les excuses (strict, tous cas)
 function purifyTone(raw: string, lang: Lang): string {
   let s = raw;
 
@@ -71,7 +61,7 @@ function purifyTone(raw: string, lang: Lang): string {
   s = s.replace(/\b(?:d[ée]sol[ée]e?|je\s+m['’]excuse|pardon(?:nez-moi)?|toutes?\s+mes\s+excuses)\b\s*,?\s*/gi, "");
 
   // EN
-  s = s.replace(/\b(i'?m\s+sorry|sorry|apologies|i\s+apologis[ea]?\b|my\s+apologies)\b\s*,?\s*/gi, "");
+  s = s.replace(/\b(i'?m\s+sorry|sorry|apologies|i\s+apologis[ea]?|my\s+apologies)\b\s*,?\s*/gi, "");
 
   // AR
   s = s.replace(/\b(أعتذر|آسف(?:ة)?)\b\s*،?\s*/g, "");
@@ -82,29 +72,21 @@ function purifyTone(raw: string, lang: Lang): string {
 }
 
 /* --------------------------- Safety post-filter --------------------------- */
-// Évite hybrides résiduels (“je fournis vous…”, “I deliver suggest…”, etc.)
-// + corrige quelques collages d’auxiliaires.
+// Évite hybrides (“je fournis vous…”, “I deliver suggest…”, etc.) + ponctuation
 function postSafetyFilter(raw: string, lang: Lang): string {
   let s = raw;
 
   if (lang === "fr") {
-    // hybrides fréquents
     s = s.replace(/\bje\s+fournis\s+vous\s+/gi, "je vous ");
     s = s.replace(/\bje\s+fournis\s+de\b/gi, "je propose de");
     s = s.replace(/\bprocédure\s+directe\b/gi, "voie directe");
-    // « je peux vous suggérer » OK — ne pas toucher si déjà correct
-    // collages type "l'analyser" mal précédés d'un verbe inadapté
     s = s.replace(/\bje\s+fournis\s+l['’]analyser\b/gi, "je peux l’analyser");
-    // doubles espaces/ponctuation
     s = s.replace(/\s+([?!;:,.])/g, "$1");
   } else if (lang === "en") {
-    s = s.replace(/\bI\s+deliver\s+(?:to\s+)?you\s+(suggest|recommend)/gi, "I $1");
-    s = s.replace(/\bdeliver\s+you\s+a\s+(suggestion|recommendation)\b/gi, (m, v) =>
-      v.toLowerCase().startsWith("recom") ? "recommendation → I recommend" : "suggestion → I suggest"
-    );
+    s = s.replace(/\bI\s+deliver\s+(?:to\s+)?you\s+(suggest|recommend|propose)\b/gi, "I $1");
     s = s.replace(/\s+([?!;:,.])/g, "$1");
   } else {
-    // AR : corrections légères de ponctuation et espaces
+    // AR
     s = s.replace(/\s+([؟،.])/g, "$1");
   }
 
@@ -134,22 +116,34 @@ const incapacityPatterns: Record<Lang, RegExp[]> = {
 };
 
 /* ------------------------------ Reframe pools ----------------------------- */
-// Blocs très courts, sans verbes concaténés.
+// Variantes courtes, sûres, multilingue
 const reframePool = {
   fr: {
     intro: [
       "On change d’angle, simplement :",
       "Pas d’impasse : nouvelle voie claire :",
       "Chemin direct :",
+      "On pivote proprement :",
+      "Option pratico-pratique :",
+      "Cap vers l’essentiel :",
+      "Route immédiate :",
     ],
     steps: [
       "Transmettez la matière entre triple quotes.",
       "Je lis, j’extrais l’essentiel, je rends un bref utile.",
       "Si besoin, je propose un mini-plan d’action.",
+      "Collez le contenu entre « \"\"\" ».",
+      "J’extrais l’utile et je rends un bref net.",
+      "Si pertinent, je propose trois actions concrètes.",
+      "Vous obtenez un résumé exploitable, tout de suite.",
     ],
     tip: [
       "Exemple : \"\"\"texte brut / chiffres / points\"\"\".",
       "Vous gagnez en clarté, je fournis la synthèse nette.",
+      "Format conseillé : \"\"\" faits / chiffres / liens \"\"\".",
+      "Gain de temps : j’assemble et je clarifie.",
+      "Je fournis un livrable court, prêt à partager.",
+      "On garde l’essentiel, rien de superflu.",
     ],
   },
   en: {
@@ -157,15 +151,27 @@ const reframePool = {
       "Let’s pivot cleanly:",
       "No roadblock — new route:",
       "Direct path:",
+      "Clean pivot, clear lane:",
+      "Practical route forward:",
+      "Straight route, zero friction:",
+      "Immediate path to value:",
     ],
     steps: [
       "Send raw material between triple quotes.",
       "I extract the gist and return a crisp brief.",
       "If useful, I add a short action plan.",
+      "Paste content inside \"\"\" ... \"\"\".",
+      "I extract signal and return a tight brief.",
+      "If needed, I add three concrete moves.",
+      "You get a usable summary right away.",
     ],
     tip: [
       "Example: \"\"\"raw text / figures / bullets\"\"\".",
       "Clear input in, clear brief out.",
+      "Suggested format: \"\"\" facts / numbers / links \"\"\".",
+      "Time saver: I compile and clarify.",
+      "I return a short, share-ready deliverable.",
+      "Only the essentials — no clutter.",
     ],
   },
   ar: {
@@ -173,20 +179,32 @@ const reframePool = {
       "نبدّل المسار ببساطة:",
       "لا انسداد — طريق واضح:",
       "مسار مباشر:",
+      "نغيّر الزاوية بسلاسة:",
+      "حلّ عملي مباشر:",
+      "طريق قصير وواضح:",
+      "انتقال سريع نحو المفيد:",
     ],
     steps: [
       "أرسل المادة الخام بين ثلاث علامات اقتباس.",
       "ألخّص الجوهر وأقدّم موجزًا واضحًا.",
       "عند الحاجة، أضيف خطة قصيرة.",
+      "ضع المحتوى بين \"\"\" ... \"\"\".",
+      "أستخرج الإشارة وأعيد موجزًا محكمًا.",
+      "عند اللزوم، أضيف ثلاث خطوات عملية.",
+      "تحصل على خلاصة قابلة للاستخدام فورًا.",
     ],
     tip: [
       "مثال: \"\"\"نص خام / أرقام / نقاط\"\"\".",
       "مدخل واضح ← مخرج واضح.",
+      "تنسيق مقترح: \"\"\" حقائق / أرقام / روابط \"\"\".",
+      "وفّر الوقت: أرتّب وأوضّح.",
+      "أقدّم مخرجًا قصيرًا جاهزًا للمشاركة.",
+      "نحافظ على الأساسيات فقط بدون حشو.",
     ],
   },
 };
 
-/* ---------------------------- Pool (gabarits sûrs) ------------------------ */
+/* ---------------------------- Pool (phrases sûres) ------------------------ */
 // Phrases brèves, stables. Aucune structure “je fournis + verbe”.
 const pool: Pool = {
   fr: {
@@ -371,7 +389,7 @@ const pool: Pool = {
         "دلّني على الجزء المراد تعميقه. {cta}",
         "{guidance} أحافظ على نفس الصياغة النظيفة. {cta}",
       ],
-    },
+      },
     low: {
       diagnostic: [
         "بعض المواضع غير حادّة.",
@@ -502,7 +520,7 @@ export function formatResponse(args: {
   const bucket = langPool[confidence];
   if (!bucket) throw new Error(`Unsupported confidence: ${confidence}`);
 
-  // Guidance prioritaire ; sinon tips ; sinon vide
+  // Guidance > tips > vide
   const guidanceSafe =
     (guidance && guidance.trim()) ? guidance.trim() :
     (tips && tips.trim()) ? tips.trim() : "";
