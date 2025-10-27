@@ -14,6 +14,9 @@ import EN from "@/i18n/en";
 import AR from "@/i18n/ar";
 import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
 
+// 🧠 Réponses premium (texte/audio/ocr) — diagnostic → analyse → restitution → ouverture
+import { formatResponse } from "@/lib/txtPhrases";
+
 // Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
 
@@ -365,6 +368,26 @@ async function safeCopy(text: string) {
   }
 }
 
+// Heuristique simple pour estimer la confiance d’une réponse texte
+function assessConfidence(text: string): "high" | "medium" | "low" {
+  const len = text.length;
+  const lines = (text.match(/\n/g) || []).length;
+  const bullets = (text.match(/(^|\n)\s*[-•\d+\.]/g) || []).length;
+  if (len > 1200 || bullets >= 3 || lines >= 8) return "high";
+  if (len > 300 || bullets >= 1 || lines >= 3) return "medium";
+  return "low";
+}
+
+// Raccourci langue pour txtPhrases
+function getLang(): "fr" | "en" | "ar" {
+  try {
+    const L = (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
+    return L;
+  } catch {
+    return "fr";
+  }
+}
+
 /* =================== Page =================== */
 export default function Page() {
   const [input, setInput] = useState("");
@@ -532,8 +555,41 @@ export default function Page() {
         if (raw.includes("GROQ_API_KEY")) msg = "Service temporairement indisponible. (Configuration serveur requise)";
         setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
+        // 🔧 Intégration des réponses premium (ton expert, variabilité élégante)
+        const modelText: string = String(data.text || "").trim();
+        const L = getLang();
+        const conf = assessConfidence(modelText);
+
+        // Pour les réponses courtes, on insère directement la réponse dans {summary}.
+        // Pour les longues, on annonce une restitution complète puis on joint le contenu.
+        const isLong = modelText.length > 600;
+        const tips =
+          L === "fr"
+            ? "Menu → Mon historique : vous pourrez enregistrer ou partager votre réponse à tout moment."
+            : L === "en"
+            ? "Menu → My history: you can save or share this response anytime."
+            : "القائمة → السجل: يمكنك حفظ أو مشاركة هذه الإجابة في أي وقت.";
+
+        const header = formatResponse({
+          lang: L,
+          confidence: conf,
+          summary: isLong ? (L === "fr" ? "restitution détaillée ci-dessous." : L === "en" ? "full write-up below." : "عرض مفصل أدناه."),
+          tips,
+          seed: Date.now() % 100000,
+          joiner: " ",
+        });
+
+        const finalText = isLong ? `${header}\n\n${modelText}` : formatResponse({
+          lang: L,
+          confidence: conf,
+          summary: modelText,
+          tips,
+          seed: (Date.now() + 7) % 100000,
+          joiner: " ",
+        });
+
         setHistory((h) => [
-          { role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() },
+          { role: "assistant", text: finalText, time: new Date().toISOString() },
           ...h,
         ]);
       }
@@ -797,4 +853,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-      }
+          }
