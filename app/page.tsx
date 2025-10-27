@@ -14,7 +14,7 @@ import EN from "@/i18n/en";
 import AR from "@/i18n/ar";
 import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
 
-// 🧠 Réponses premium (texte/audio/ocr) — diagnostic → analyse → restitution → ouverture
+// 🧠 Réponses premium (texte/audio/ocr) — moteur universel
 import { formatResponse } from "@/lib/txtPhrases";
 
 // Boutons (➕ / 🔑) à droite de la barre
@@ -372,32 +372,13 @@ async function safeCopy(text: string) {
 function assessConfidence(text: string): "high" | "medium" | "low" {
   const len = text.length;
   const lines = (text.match(/\n/g) || []).length;
-  const bullets = (text.match(/(^|\n)\s*(?:[-•]|\d+\.)/g) || []).length; // ← amélioration
+  const bullets = (text.match(/(^|\n)\s*(?:[-•]|\d+\.)/g) || []).length;
   if (len > 1200 || bullets >= 3 || lines >= 8) return "high";
   if (len > 300 || bullets >= 1 || lines >= 3) return "medium";
   return "low";
 }
 
-// Filtre de ton : supprime les tournures d’excuse et les adoucit en formulation neutre
-function purifyTone(raw: string, L: "fr" | "en" | "ar"): string {
-  let s = raw;
-
-  // FR
-  s = s.replace(/\bje\s+suis\s+d[ée]sol[ée]e?\b\s*,?\s*/gi, "");
-  s = s.replace(/\b(d[ée]sol[ée]e?|je\s+m['’]excuse)\b\s*,?\s*/gi, "");
-  // EN
-  s = s.replace(/\b(i'?m\s+sorry|sorry|apologies)\b\s*,?\s*/gi, "");
-  // AR (أعتذر / آسف)
-  s = s.replace(/\b(أعتذر|آسف)\b\s*،?\s*/g, "");
-
-  // Espaces propres
-  s = s.replace(/\s{2,}/g, " ").trim();
-  // Si une phrase commence par virgule résiduelle, nettoyer
-  s = s.replace(/^[,;:\s]+/, "");
-  return s;
-}
-
-// Raccourci langue pour txtPhrases
+// Raccourci langue
 function getLang(): "fr" | "en" | "ar" {
   try {
     const L = (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
@@ -413,7 +394,7 @@ export default function Page() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // i18n pour la bannière
+  // i18n pour la bannière + labels
   const lang = useMemo<"fr" | "en" | "ar">(() => {
     if (typeof window === "undefined") return "fr";
     return (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
@@ -574,60 +555,21 @@ export default function Page() {
         if (raw.includes("GROQ_API_KEY")) msg = "Service temporairement indisponible. (Configuration serveur requise)";
         setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
       } else {
-        // 🔧 Intégration des réponses premium (ton expert, variabilité élégante)
-        const modelTextRaw: string = String(data.text || "").trim();
+        // 🔧 Moteur universel : on passe le BRUT, il gère short/medium/long/reframe
+        const modelTextRaw: string = String(data.text || "");
         const L = getLang();
+        const conf = assessConfidence(modelTextRaw);
 
-        // Purification de ton (bannit "je suis désolé", "sorry", etc.)
-        const purified = purifyTone(modelTextRaw, L);
+        let finalText = formatResponse({
+          lang: L,
+          confidence: conf,
+          summary: modelTextRaw,       // texte brut du modèle
+          includeCta: false,
+          seed: Date.now() % 100000,
+          joiner: "\n\n",
+        });
 
-        // 🔧 Normalisation d'aération (éviter les triples sauts)
-        const modelText = purified.replace(/\n{3,}/g, "\n\n").trim();
-
-        // Heuristique d’enrobage :
-        // - Réponse directe (courte, sans liste) → on laisse tel quel.
-        // - Sinon, enveloppe premium stable (diagnostic → analyse → restitution → ouverture).
-        const isListy = /(\n|•|-|\d+\.)/.test(modelText);
-        const isVeryShort = modelText.length < 140 && !isListy;
-        const conf = assessConfidence(modelText);
-
-        let finalText = "";
-
-        if (isVeryShort) {
-          // Réponse directe, sans surcouche
-          finalText = modelText;
-        } else {
-          const isLong = modelText.length > 600;
-
-          // Aucun guidance/CTA injecté (respect charte : ouverture non-UI)
-          const header = formatResponse({
-            lang: L,
-            confidence: conf,
-            summary: isLong
-              ? (L === "fr"
-                  ? "restitution détaillée ci-dessous."
-                  : L === "en"
-                  ? "full write-up below."
-                  : "عرض مفصل أدناه.")
-              : "",
-            includeCta: false,
-            seed: Date.now() % 100000,
-            joiner: " ",
-          });
-
-          finalText = isLong
-            ? `${header}\n\n${modelText}`
-            : formatResponse({
-                lang: L,
-                confidence: conf,
-                summary: modelText,
-                includeCta: false,
-                seed: (Date.now() + 7) % 100000,
-                joiner: " ",
-              });
-        }
-
-        // Dernière normalisation avant affichage (au cas où)
+        // Confort d’affichage
         finalText = finalText.replace(/\n{3,}/g, "\n\n").trim();
 
         setHistory((h) => [
@@ -701,7 +643,7 @@ export default function Page() {
             disabled={loading}
             className="px-5 md:px-6 font-medium bg-[var(--panel-strong)] text-white hover:bg-[var(--panel-stronger)] transition disabled:opacity-60"
           >
-            {loading ? "…" : "OK"}
+            {loading ? "…" : lang === "ar" ? "إرسال" : lang === "en" ? "Send" : "Envoyer"}
           </button>
         </div>
 
@@ -794,7 +736,7 @@ export default function Page() {
                 onClick={async () => { await safeCopy(item.text); }}
                 className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] border border-[var(--border)]"
               >
-                Copier
+                {lang === "ar" ? "نسخ" : lang === "en" ? "Copy" : "Copier"}
               </button>
             )}
 
@@ -895,4 +837,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-  }
+}
