@@ -303,7 +303,7 @@ function AuthorizeReturnBridge() {
       }
     };
 
-    // 1) Chemin “params d’URL” (route /api/pay/authorize/return qui redirige avec flags)
+    // 1) Chemin “params d’URL”
     if (ok === "1") {
       const phone = phoneQS || (() => { try { return localStorage.getItem(PHONE_KEY) || ""; } catch { return ""; } })();
       emitAndClean(phone, deviceQS || undefined);
@@ -320,12 +320,12 @@ function AuthorizeReturnBridge() {
       return;
     }
 
-    // 2) Fallback “cookie” (route qui pose ob.deviceAuth=ok;Path=/;Max-Age=…)
+    // 2) Fallback “cookie”
     try {
       const ck = document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith("ob.deviceAuth="));
       if (!ck) return;
 
-      // Effacer immédiatement pour éviter re-trigger (compatible dev http & https)
+      // Effacer immédiatement pour éviter re-trigger
       document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax";
       try { document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax; Secure"; } catch {}
 
@@ -379,10 +379,9 @@ function assessConfidence(text: string): "high" | "medium" | "low" {
 }
 
 // Raccourci langue
-function getLang(): "fr" | "en" | "ar" {
+function readLangLS(): "fr" | "en" | "ar" {
   try {
-    const L = (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
-    return L;
+    return (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
   } catch {
     return "fr";
   }
@@ -394,12 +393,34 @@ export default function Page() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // i18n pour la bannière + labels
-  const lang = useMemo<"fr" | "en" | "ar">(() => {
-    if (typeof window === "undefined") return "fr";
-    return (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr";
+  // i18n réactive : état + écoute des changements (Menu → ob:lang-changed)
+  const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
+
+  useEffect(() => {
+    const onLangChanged = () => setLang(readLangLS());
+    window.addEventListener("ob:lang-changed", onLangChanged as EventListener);
+    // Bonus : si la langue change via localStorage (autre onglet)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "oneboarding.lang") setLang(readLangLS());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("ob:lang-changed", onLangChanged as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
-  const promoI18N = useMemo(() => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO), [lang]);
+
+  // Synchronise l'attribut lang + une classe légère pour ajustements AR
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("lang", lang);
+    root.classList.toggle("lang-ar", lang === "ar");
+  }, [lang]);
+
+  const promoI18N = useMemo(
+    () => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO),
+    [lang]
+  );
 
   // Initialiser le quota (reset à minuit si page ouverte)
   useEffect(() => { resetIfNewDay(); }, []);
@@ -557,7 +578,7 @@ export default function Page() {
       } else {
         // 🔧 Moteur universel : on passe le BRUT, il gère short/medium/long/reframe
         const modelTextRaw: string = String(data.text || "");
-        const L = getLang();
+        const L = lang; // on se base sur l'état réactif
         const conf = assessConfidence(modelTextRaw);
 
         let finalText = formatResponse({
@@ -630,7 +651,8 @@ export default function Page() {
         <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
           <textarea
             ref={taRef}
-            placeholder="Votre question…"
+            dir="auto"
+            placeholder={lang === "ar" ? "سؤالك…" : lang === "en" ? "Your question…" : "Votre question…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="flex-1 min-w-0 px-4 py-3 text-white bg-[var(--panel)] outline-none resize-none leading-6"
@@ -729,7 +751,7 @@ export default function Page() {
                   : "border-[var(--error-border)] bg-[var(--error-bg)]"
               }`}
           >
-            <p className="whitespace-pre-wrap">{item.text}</p>
+            <p className="whitespace-pre-wrap" dir="auto">{item.text}</p>
 
             {item.role === "assistant" && (
               <button
@@ -831,10 +853,15 @@ function StyleGlobals() {
       .ocr-skin [class*="fileName"],
       .ocr-skin [class*="name"] { display:none !important; }
 
+      /* Ajustements légers quand la langue active est l'arabe.
+         Pas d'inversion de layout : uniquement confort de lecture. */
+      .lang-ar textarea::placeholder { text-align: right; }
+      .lang-ar .msg-appear p[dir="auto"] { text-align: right; }
+
       /* Safe area + micro-anim du bouton Menu */
       .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
       @keyframes float { 0%{transform:translateY(0)} 50%{transform:translateY(-2px)} 100%{transform:translateY(0)} }
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-}
+  }
