@@ -579,7 +579,10 @@ export default function Page() {
         const L = getLang();
 
         // Purification de ton (bannit "je suis désolé", "sorry", etc.)
-        const modelText = purifyTone(modelTextRaw, L);
+        const purified = purifyTone(modelTextRaw, L);
+
+        // 🔧 Normalisation d'aération (éviter les triples sauts)
+        const modelText = purified.replace(/\n{3,}/g, "\n\n").trim();
 
         // Heuristique d’enrobage :
         // - Réponse directe (courte, sans liste) → on laisse tel quel.
@@ -623,6 +626,9 @@ export default function Page() {
                 joiner: " ",
               });
         }
+
+        // Dernière normalisation avant affichage (au cas où)
+        finalText = finalText.replace(/\n{3,}/g, "\n\n").trim();
 
         setHistory((h) => [
           { role: "assistant", text: finalText, time: new Date().toISOString() },
@@ -720,7 +726,7 @@ export default function Page() {
             disabled={!speechSupported}
             onClick={toggleMic}
             className={`h-12 w-12 rounded-xl border grid place-items-center transition
-              ${listening ? "border-[var(--accent)] bg-[color:var(--accent-tint)] mic-pulse" : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"}
+              ${listening ? "border-[var(--accent)] bg-[var(--accent-tint)] mic-pulse" : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"}
               disabled:opacity-50`}
             aria-label={speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"}
             title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
@@ -889,4 +895,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-      }
+  }
