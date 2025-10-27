@@ -92,6 +92,31 @@ function purifyTone(raw: string, lang: Lang): string {
   return s;
 }
 
+/* ---------------------- FR hybrid/overlap sanitizers ---------------------- */
+/* Évite les hybrides du type "je fournis vous suggérer". */
+
+function sanitizeFrenchHybrids(s: string): string {
+  let out = s;
+
+  // 1) Cas prioritaire : "je peux vous suggérer ..." → "je vous suggère ..."
+  out = out.replace(/\bje\s+peux\s+vous\s+sugg[eé]rer\b/gi, "je vous suggère");
+
+  // 2) Hybrides "fournis/donne ... vous suggérer" → "je vous propose ..."
+  out = out.replace(
+    /\b(?:je\s+)?(?:fournis?|donne(?:s)?)\s+(?:vous\s+)?sugg[eé]rer\b/gi,
+    "je vous propose de"
+  );
+
+  // 3) Variante plus générale : "propose vous suggérer" → "je vous propose"
+  out = out.replace(/\bpropose\s+vous\s+sugg[eé]rer\b/gi, "propose");
+
+  // 4) Double verbe contigu ("fournis vous suggère") → privilégier "je vous propose"
+  out = out.replace(/\b(?:je\s+)?fournis?\s+vous\s+sugg[eé]re(z?)\b/gi, "je vous propose");
+
+  // 5) Harmonisation douce : "je vous suggère des options" → OK (pas de modif)
+  return out;
+}
+
 /* --------------------------- Lexicon neutralizer -------------------------- */
 /* Remplace certains termes maladroits par des équivalents neutres. */
 
@@ -99,12 +124,17 @@ function neutralizeLexicon(s: string, lang: Lang): string {
   if (!s) return s;
 
   if (lang === "fr") {
-    return s
+    // Attention : "je peux" → "je fournis" UNIQUEMENT si NON suivi de "vous suggérer"
+    const fr = s
       .replace(/\bactualit[ée]s?\b/gi, "données récentes")
       .replace(/\b[ée]v[ée]nements?\b/gi, "données / conditions / éléments")
       .replace(/\bessayer\s+de\b/gi, "procéder à")
-      .replace(/\bje\s+peux\b/gi, "je fournis");
+      // garde "je peux vous suggérer ..." intact (sera normalisé plus haut)
+      .replace(/\bje\s+peux\b(?!\s+vous\s+sugg[eé]rer)/gi, "je fournis");
+
+    return sanitizeFrenchHybrids(fr);
   }
+
   if (lang === "en") {
     return s
       .replace(/\bevents?\b/gi, "data / conditions / items")
@@ -652,7 +682,8 @@ function detectIncapacity(s: string, lang: Lang): boolean {
 
 function detectProfile(textRaw: string, lang: Lang): Profile {
   const rawA = purifyTone(textRaw || "", lang);
-  const raw = normalizeBreaks(neutralizeLexicon(rawA, lang));
+  const rawB = neutralizeLexicon(rawA, lang);            // (inclut le garde-fou FR)
+  const raw  = normalizeBreaks(rawB);
   if (!raw) return "short";
 
   if (detectIncapacity(raw, lang)) return "reframe";
@@ -707,13 +738,15 @@ export function formatResponse(args: {
 
   const rng = typeof seed === "number" ? mulberry32(seed) : undefined;
 
-  // Texte brut → ton + lexique + retours
-  const text = normalizeBreaks(neutralizeLexicon(purifyTone(summary, lang), lang));
+  // Texte brut → ton + lexique + retours (avec sécurisation FR anti-hybrides)
+  let text = purifyTone(summary, lang);
+  text = neutralizeLexicon(text, lang);  // applique aussi sanitizeFrenchHybrids si FR
+  text = normalizeBreaks(text);
 
   // Profil adaptatif
   const profile = detectProfile(text, lang);
 
-  // Cas "reframe" (incapacité détectée → plan d’action) — on n’affiche PAS le texte problématique.
+  // Cas "reframe" (incapacité détectée → plan d’action)
   if (profile === "reframe") {
     const intro = pick(reframePool[lang].intro, rng);
     const steps = pick(reframePool[lang].steps, rng);
@@ -722,7 +755,6 @@ export function formatResponse(args: {
     const ctaText = includeCta ? buildCta(lang, ctaOptions) : "";
     const open = [guidanceSafe, ctaText].filter(Boolean).join(" ").trim();
 
-    // Structure : intro → steps → tip (+ ouverture/cta)
     return [intro, steps, [tip, open].filter(Boolean).join(" ")].filter(Boolean).join(joiner);
   }
 
@@ -765,4 +797,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-      }
+  }
