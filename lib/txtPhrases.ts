@@ -1,31 +1,20 @@
 // lib/txtPhrases.ts
 //
 // Pool de formulations premium pour les réponses IA liées à des entrées texte
-// (saisie directe ou audio transcrit). Objectif : maintenir un ton d’expertise
-// constant avec le fil narratif : diagnostic → analyse → restitution → ouverture.
+// (saisie directe ou audio transcrit). Objectif : ton d’expertise constant,
+// avec le fil narratif stable : diagnostic → analyse → restitution → ouverture.
 // - Multilingue : fr / en / ar
 // - 7 variantes par niveau (high / medium / low) et par étape
-// - Ouverture libre : CTA optionnels (désactivés par défaut)
+// - Ouverture sobre : CTA optionnel (désactivé par défaut), jamais en premier
 //
-// API principale : formatResponse({ lang, confidence, summary, guidance, tips, includeCta, ctaOptions, seed, joiner })
+// API : formatResponse({ lang, confidence, summary, guidance, tips, includeCta, ctaOptions, seed, joiner })
 //
-// Exemple :
-//   import { formatResponse } from "@/lib/txtPhrases";
-//   const msg = formatResponse({
-//     lang: "fr",
-//     confidence: "medium",
-//     summary: "Les points clés X / Y, puis recommandations Z.",
-//     guidance: "Si vous voulez, je peux développer le point Y.",
-//     // tips est un alias souple ; si guidance est vide, tips est utilisé.
-//     tips: "Menu → Mon historique : enregistrer ou partager.",
-//     includeCta: false, // par défaut : false (ouverture non « pushy »)
-//   });
-//
-// Notes :
-// - Le mot « erreur » est proscrit. On privilégie : “lecture prudente”, “analyse partielle”, etc.
-// - {summary} est injecté dans la phase “restitution”.
-// - {guidance} et {cta} peuvent être mentionnés dans “ouverture” selon includeCta et guidance.
-// - {tips} est aussi pris en charge si présent dans les formulations.
+// Notes de style (charte OneBoarding AI) :
+// - Jamais d’excuses (“je suis désolé”, etc.). On assume calmement le cadre.
+// - Aucune référence à l’UI dans le texte (pas de “Menu → …”).
+// - {summary} est injecté dans “restitution”.
+// - {guidance} peut être utilisé dans “ouverture” (et {tips} est un alias souple).
+// - {cta} n’apparaît que si includeCta === true.
 
 export type Lang = "fr" | "en" | "ar";
 export type Confidence = "high" | "medium" | "low";
@@ -62,6 +51,7 @@ function squashSpaces(s: string) {
 }
 
 /* ------------------------------ CTA builder ------------------------------- */
+/* Ne fait référence à aucune UI ; formulation sobre et générique. */
 
 function buildCta(lang: Lang, kinds: CtaKind[]): string {
   if (!kinds.length) return "";
@@ -78,8 +68,7 @@ function buildCta(lang: Lang, kinds: CtaKind[]): string {
       bits.length === 1 ? bits[0] :
       bits.length === 2 ? `${bits[0]} ou ${bits[1]}` :
       `${bits[0]}, ${bits[1]} ou ${bits[2]}`;
-    const hint = hasSave || hasShare ? " depuis Menu → Mon historique" : "";
-    return `Vous pouvez ${list}${hint}.`;
+    return `Vous pouvez ${list}.`;
   }
 
   if (lang === "en") {
@@ -91,8 +80,7 @@ function buildCta(lang: Lang, kinds: CtaKind[]): string {
       bits.length === 1 ? bits[0] :
       bits.length === 2 ? `${bits[0]} or ${bits[1]}` :
       `${bits[0]}, ${bits[1]} or ${bits[2]}`;
-    const hint = hasSave || hasShare ? " from Menu → My history" : "";
-    return `You can ${list}${hint}.`;
+    return `You can ${list}.`;
   }
 
   // ar
@@ -105,8 +93,7 @@ function buildCta(lang: Lang, kinds: CtaKind[]): string {
       bits.length === 1 ? bits[0] :
       bits.length === 2 ? `${bits[0]} أو ${bits[1]}` :
       `${bits[0]}، ${bits[1]} أو ${bits[2]}`;
-    const hint = hasSave || hasShare ? " من القائمة → السجل" : "";
-    return `بإمكانك ${list}${hint}.`;
+    return `بإمكانك ${list}.`;
   }
 }
 
@@ -220,9 +207,9 @@ const pool: Pool = {
         "Vue fiable : {summary}"
       ],
       opening: [
-        "Si vous souhaitez, je peux préciser en fonction d’exemples concrets. {guidance} {cta}",
+        "Si vous le souhaitez, je précise avec des exemples ciblés. {guidance} {cta}",
         "On peut lever les ambiguïtés avec un peu plus de contexte. {guidance} {cta}",
-        "Je peux compléter dès que vous me donnez un angle plus précis. {guidance} {cta}",
+        "Je complète dès que vous me donnez un angle plus précis. {guidance} {cta}",
         "Prêt à itérer pour aboutir à une version plus riche. {guidance} {cta}",
         "Je peux formuler des variantes selon l’usage visé. {guidance} {cta}",
         "Nous pouvons étendre la synthèse en ajoutant des éléments ciblés. {guidance} {cta}",
@@ -474,7 +461,7 @@ export function formatResponse(args: {
   summary?: string;          // injecté dans {summary}
   guidance?: string;         // injecté dans {guidance}
   tips?: string;             // alias souple ; si guidance vide, tips est utilisé
-  includeCta?: boolean;      // si true, injecte un CTA dans {cta}
+  includeCta?: boolean;      // si true, injecte un CTA dans {cta} (neutre)
   ctaOptions?: CtaKind[];    // par défaut: ["copy","save","share"]
   seed?: number;             // variabilité déterministe
   joiner?: string;           // séparateur entre phrases (par défaut : " ")
@@ -496,8 +483,10 @@ export function formatResponse(args: {
   const bucket = langPool[confidence];
   if (!bucket) throw new Error(`Unsupported confidence: ${confidence}`);
 
-  // Compat : si guidance absent/vidé mais tips fourni → utiliser tips comme guidance.
-  const guidanceSafe = (guidance && guidance.trim()) ? guidance.trim() : ((tips && tips.trim()) ? tips.trim() : "");
+  // Compat : guidance prioritaire ; sinon, tips comme secours.
+  const guidanceSafe =
+    (guidance && guidance.trim()) ? guidance.trim() :
+    (tips && tips.trim()) ? tips.trim() : "";
 
   const rng = typeof seed === "number" ? mulberry32(seed) : undefined;
 
@@ -508,15 +497,14 @@ export function formatResponse(args: {
   const ctaText = includeCta ? buildCta(lang, ctaOptions) : "";
   const openRaw = pick(bucket.opening, rng);
 
-  // Remplacements souples : {guidance} et/ou {tips} selon disponibilité.
   let open = openRaw
     .replace("{guidance}", guidanceSafe)
-    .replace("{tips}", guidanceSafe) // support si des variantes utilisent {tips}
+    .replace("{tips}", guidanceSafe)
     .replace("{cta}", ctaText);
 
   open = squashSpaces(open);
 
-  // 4 phrases, ton expert, sans jargon ni auto-flagellation.
+  // 4 phrases, ton expert, sans jargon ni UI.
   return [diag, ana, res, open].filter(Boolean).join(joiner);
 }
 
@@ -533,4 +521,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-  }
+      }
