@@ -570,14 +570,20 @@ export default function Page() {
             ? "Menu → My history: you can save or share this response anytime."
             : "القائمة → السجل: يمكنك حفظ أو مشاركة هذه الإجابة في أي وقت.";
 
-        const header = formatResponse({
-          lang: L,
-          confidence: conf,
-          summary: isLong ? (L === "fr" ? "restitution détaillée ci-dessous." : L === "en" ? "full write-up below." : "عرض مفصل أدناه."),
-          tips,
-          seed: Date.now() % 100000,
-          joiner: " ",
-        });
+       const header = formatResponse({
+  lang: L,
+  confidence: conf,
+  summary: isLong
+    ? (L === "fr"
+        ? "restitution détaillée ci-dessous."
+        : L === "en"
+        ? "full write-up below."
+        : "عرض مفصل أدناه.")
+    : "",
+  tips,
+  seed: Date.now() % 100000,
+  joiner: " ",
+});
 
         const finalText = isLong ? `${header}\n\n${modelText}` : formatResponse({
           lang: L,
