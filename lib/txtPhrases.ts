@@ -93,7 +93,7 @@ function purifyTone(raw: string, lang: Lang): string {
 }
 
 /* ---------------------- FR hybrid/overlap sanitizers ---------------------- */
-/* Évite les hybrides du type "je fournis vous suggérer". */
+/* Évite les hybrides du type "je fournis vous suggérer" / "je fournis vous aider". */
 
 function sanitizeFrenchHybrids(s: string): string {
   let out = s;
@@ -113,20 +113,20 @@ function sanitizeFrenchHybrids(s: string): string {
   // 4) "fournis vous suggère" → "je vous propose"
   out = out.replace(/\b(?:je\s+)?fournis?\s+vous\s+sugg[eé]re(z?)\b/gi, "je vous propose");
 
+  // 5) Hybride d’aide : "fournis/donne vous aider" → "je peux vous aider"
+  out = out.replace(/\b(?:je\s+)?(?:fournis?|donne(?:s)?)\s+vous\s+aider\b/gi, "je peux vous aider");
+
   return out;
 }
 
 /* ---------------------- EN hybrid/overlap sanitizers ---------------------- */
-/* Évite les hybrides du type "I deliver suggest" / "I provide you recommend". */
+/* Évite les hybrides "I deliver/provide/give ... suggest" et "... help". */
 
 function sanitizeEnglishHybrids(s: string): string {
   let out = s;
 
   // 1) "I can suggest/recommend/propose ..." → "I suggest/recommend/propose ..."
-  out = out.replace(
-    /\bI\s+can\s+(suggest|recommend|propose)\b/gi,
-    (_m, v: string) => `I ${v.toLowerCase()}`
-  );
+  out = out.replace(/\bI\s+can\s+(suggest|recommend|propose)\b/gi, (_m, v: string) => `I ${v.toLowerCase()}`);
 
   // 2) "I (deliver|provide|give) (you )?suggest/recommend/propose" → "I suggest/recommend/propose"
   out = out.replace(
@@ -134,11 +134,8 @@ function sanitizeEnglishHybrids(s: string): string {
     (_m, v: string) => `I ${v.toLowerCase()}`
   );
 
-  // 3) "deliver you a suggestion/recommendation" → "suggest/recommend"
-  out = out.replace(
-    /\bI\s+(?:deliver|provide|give)\s+(?:you\s+)?a\s+(suggestion|recommendation)\b/gi,
-    (_m, v: string) => (v.toLowerCase().startsWith("recom") ? "I recommend" : "I suggest")
-  );
+  // 3) "deliver/provide/give ... (help|assistance)" → "I can help"
+  out = out.replace(/\bI\s+(?:deliver|provide|give)\s+(?:you\s+)?(?:help|assistance)\b/gi, "I can help");
 
   return out;
 }
@@ -150,28 +147,28 @@ function neutralizeLexicon(s: string, lang: Lang): string {
   if (!s) return s;
 
   if (lang === "fr") {
-    // Attention : "je peux" → "je fournis" UNIQUEMENT si NON suivi de "vous suggérer"
+    // "je peux" → "je fournis" SAUF si suivi de "vous suggérer" ou "vous aider"
     const fr = s
       .replace(/\bactualit[ée]s?\b/gi, "données récentes")
       .replace(/\b[ée]v[ée]nements?\b/gi, "données / conditions / éléments")
       .replace(/\bessayer\s+de\b/gi, "procéder à")
-      .replace(/\bje\s+peux\b(?!\s+vous\s+sugg[eé]rer)/gi, "je fournis");
+      .replace(/\bje\s+peux\b(?!\s+vous\s+sugg[eé]rer)(?!\s+vous\s+aider\b)/gi, "je fournis");
 
     return sanitizeFrenchHybrids(fr);
   }
 
   if (lang === "en") {
-    // Garde-fou : "I can" → "I deliver" SAUF si suivi de suggest/recommend/propose
+    // "I can" → "I deliver" SAUF si suivi de suggest/recommend/propose/help/assist
     const en = s
       .replace(/\bevents?\b/gi, "data / conditions / items")
       .replace(/\bnews\b/gi, "recent data")
       .replace(/\btry to\b/gi, "proceed to")
-      .replace(/\bI\s+can\b(?!\s+(?:suggest|recommend|propose)\b)/gi, "I deliver");
+      .replace(/\bI\s+can\b(?!\s+(?:suggest|recommend|propose|help|assist)\b)/gi, "I deliver");
 
     return sanitizeEnglishHybrids(en);
   }
 
-  // ar
+  // ar (inchangé — on ne touche pas aux patrons d’aide naturels)
   return s
     .replace(/\bأحداث\b/g, "بيانات / ظروف / عناصر")
     .replace(/\bأخبار\b/g, "بيانات حديثة");
@@ -826,4 +823,4 @@ export function addVariant(
 
 export function getPool() {
   return pool;
-}
+    }
