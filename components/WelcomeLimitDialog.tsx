@@ -38,12 +38,16 @@ export default function WelcomeLimitDialog({
     const d = ref.current;
     if (!d) return;
     const r = d.getBoundingClientRect();
-    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    const inside =
+      e.clientX >= r.left &&
+      e.clientX <= r.right &&
+      e.clientY >= r.top &&
+      e.clientY <= r.bottom;
     if (!inside) onClose();
   };
 
   function goSubscribe() {
-    // Ouvre TA modale existante (Menu) d’activation/espace
+    // Ouvre ta modale d’activation/espace (déjà branchée côté Menu)
     window.dispatchEvent(new CustomEvent("ob:open-activate"));
     onClose();
   }
@@ -71,9 +75,24 @@ export default function WelcomeLimitDialog({
           </div>
 
           <div className={`space-y-3 text-[15px] leading-6 ${rtl ? "text-right" : ""}`}>
-            <p>{t.lead1}</p>
-            <p>{t.lead2}</p>
-            <p className="font-medium">{t.footer}</p>
+            <p className="font-medium">{t.headline}</p>
+
+            <p>{t.instruction}</p>
+
+            <div>
+              <p className="font-medium">{t.plansTitle}</p>
+              <ul className="opacity-90 list-none space-y-1">
+                <li>{t.planA}</li>
+                <li>{t.planB}</li>
+              </ul>
+            </div>
+
+            <p className="opacity-90">{t.elseReturn}</p>
+
+            <div className="pt-1">
+              <p className="font-medium">{t.brandWelcome}</p>
+              <p>{t.brandBul1}<br />{t.brandBul2}</p>
+            </div>
           </div>
 
           <div className={`mt-5 flex gap-3 ${rtl ? "justify-start" : "justify-end"}`}>
@@ -100,30 +119,59 @@ export default function WelcomeLimitDialog({
 }
 
 const TEXT = {
+  /** FR — texte fourni par toi (intégré tel quel, avec une structuration légère) */
   fr: {
     title: "Bienvenue dans OneBoarding AI",
     close: "Fermer",
-    lead1: "Vous avez profité de vos 3 interactions gratuites du jour.",
-    lead2: "Activez votre espace personnel pour un accès illimité.",
-    footer: "Activation en 30 secondes (paiement inclus).",
+    headline: "✨ Vos 3 interactions offertes pour aujourd’hui sont terminées.",
+    instruction:
+      "Pour continuer votre expérience OneBoarding AI en accès illimité : activez votre espace personnel en 30 secondes (paiement inclus).",
+    plansTitle: "Choisissez librement votre forfait :",
+    planA: "🔹 Abonnement 5 €/mois — accès continu, sans interruption.",
+    planB: "🔸 Accès libre 5 € — un mois complet, sans engagement.",
+    elseReturn:
+      "Sinon : Vous pouvez aussi revenir demain pour profiter de 3 nouvelles interactions gratuites.",
+    brandWelcome: "Bienvenue dans OneBoarding AI",
+    brandBul1: "👉 Votre IA personnelle, à votre service.",
+    brandBul2: "👉 Activez votre futur dès aujourd’hui.",
     subscribe: "Souscription",
     later: "Plus tard",
   },
+
+  /** EN — traduction fidèle et premium */
   en: {
     title: "Welcome to OneBoarding AI",
     close: "Close",
-    lead1: "You’ve used your 3 free daily interactions.",
-    lead2: "Activate your personal space for unlimited access.",
-    footer: "Activation in 30 seconds (payment included).",
+    headline: "✨ Your 3 free interactions for today are finished.",
+    instruction:
+      "To continue your OneBoarding AI experience with unlimited access, activate your personal space in 30 seconds (payment included).",
+    plansTitle: "Choose your plan:",
+    planA: "🔹 Subscription €5/month — continuous access, no interruption.",
+    planB: "🔸 One-month pass €5 — a full month, no commitment.",
+    elseReturn:
+      "Otherwise: you can come back tomorrow to enjoy 3 new free interactions.",
+    brandWelcome: "Welcome to OneBoarding AI",
+    brandBul1: "👉 Your personal AI, at your service.",
+    brandBul2: "👉 Activate your future today.",
     subscribe: "Subscribe",
     later: "Later",
   },
+
+  /** AR — ترجمة دقيقة بأسلوب مهني، مع الحفاظ على المعنى والهيكلة */
   ar: {
     title: "مرحبًا بك في OneBoarding AI",
     close: "إغلاق",
-    lead1: "لقد استخدمت 3 تفاعلاتك المجانية لليوم.",
-    lead2: "فعّل مساحتك الشخصية للوصول غير المحدود.",
-    footer: "تفعيل خلال 30 ثانية (يشمل الدفع).",
+    headline: "✨ انتهت تفاعلاتك الثلاث المجانية لليوم.",
+    instruction:
+      "للاستمرار في تجربة OneBoarding AI بوصول غير محدود: فعِّل مساحتك الشخصية خلال 30 ثانية (يشمل الدفع).",
+    plansTitle: "اختر الخطة المناسبة:",
+    planA: "🔹 اشتراك 5€ شهريًا — وصول مستمر دون انقطاع.",
+    planB: "🔸 وصول حر 5€ — شهر كامل دون التزام.",
+    elseReturn:
+      "بدلًا من ذلك: يمكنك العودة غدًا للاستفادة من 3 تفاعلات مجانية جديدة.",
+    brandWelcome: "مرحبًا بك في OneBoarding AI",
+    brandBul1: "👉 ذكاؤك الشخصي، في خدمتك.",
+    brandBul2: "👉 فعِّل مستقبلك اليوم.",
     subscribe: "الاشتراك",
     later: "لاحقًا",
   },
