@@ -1,27 +1,17 @@
 // app/page.tsx
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
-
-// 🔔 (Ancienne bannière quota + i18n) — supprimée au profit d’une modale Welcome
-// import QuotaPromoBanner from "@/components/QuotaPromoBanner";
-// import FR from "@/i18n/fr";
-// import EN from "@/i18n/en";
-// import AR from "@/i18n/ar";
-// import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
+import ChatPanel from "@/components/ChatPanel";
 
 // 🧠 Réponses premium (texte/audio/ocr) — moteur universel
 import { formatResponse } from "@/lib/txtPhrases";
 
-// ✅ Nouveau : quota via API + modale de bienvenue
-import { consumeOne } from "@/lib/quotaClient";
-import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
-
-// Boutons (➕ / 🔑) à droite de la barre
+// Boutons (➕ / 🔑) à droite
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
 
 /* =================== Const =================== */
@@ -393,53 +383,32 @@ function readLangLS(): "fr" | "en" | "ar" {
 
 /* =================== Page =================== */
 export default function Page() {
-  const [input, setInput] = useState("");
-  const [history, setHistory] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(false);
-
   // i18n réactive : état + écoute des changements (Menu → ob:lang-changed)
   const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
-
   useEffect(() => {
     const onLangChanged = () => setLang(readLangLS());
     window.addEventListener("ob:lang-changed", onLangChanged as EventListener);
-    // Bonus : si la langue change via localStorage (autre onglet)
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "oneboarding.lang") setLang(readLangLS());
-    };
+    const onStorage = (e: StorageEvent) => { if (e.key === "oneboarding.lang") setLang(readLangLS()); };
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener("ob:lang-changed", onLangChanged as EventListener);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
-
-  // Synchronise l'attribut lang + une classe légère pour ajustements AR
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("lang", lang);
     root.classList.toggle("lang-ar", lang === "ar");
   }, [lang]);
 
-  // (Ancienne i18n bannière — conservée si tu veux la réactiver plus tard)
-  // const promoI18N = useMemo(
-  //   () => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO),
-  //   [lang]
-  // );
-
-  // (Ancien resetIfNewDay basé LS) — remplacé par cookie côté serveur
-  // useEffect(() => { resetIfNewDay(); }, []);
-
   // OCR
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // 🎙️ Micro
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recogRef = useRef<any>(null);
-  const baseInputRef = useRef<string>("");
+  // Historique & chargement
+  const [history, setHistory] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // 🧹 Modal Effacer
   const [showClearModal, setShowClearModal] = useState(false);
@@ -455,56 +424,6 @@ export default function Page() {
     return () => window.removeEventListener("ob:open-legal", onOpen as EventListener);
   }, []);
 
-  // Textarea auto-expansion (×3 lignes)
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const ta = taRef.current; if (!ta) return;
-    ta.style.height = "auto";
-    const max = 3, lineHeight = 24, maxHeight = max * lineHeight + 16;
-    ta.style.height = Math.min(ta.scrollHeight, maxHeight) + "px";
-    ta.style.overflowY = ta.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [input]);
-
-  // SpeechRec init
-  useEffect(() => {
-    const SR: any =
-      (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
-      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
-    if (!SR) return;
-
-    setSpeechSupported(true);
-    const r = new SR();
-    r.lang = "fr-FR";
-    r.continuous = true;
-    r.interimResults = false;
-    r.maxAlternatives = 1;
-
-    r.onstart = () => { baseInputRef.current = input; setListening(true); };
-    r.onresult = (e: any) => {
-      let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) final += " " + e.results[i][0].transcript;
-      setInput(cleanText([baseInputRef.current, final].join(" ")));
-    };
-    const stopUI = () => setListening(false);
-    r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
-
-    recogRef.current = r;
-  }, [input]);
-
-  function toggleMic() {
-    const r = recogRef.current; if (!r) return;
-    if (!listening) { try { r.start(); } catch {} return; }
-    try { r.stop(); } catch {}
-    setTimeout(() => {
-      const rr = recogRef.current as any;
-      if (rr && rr.abort) { try { rr.abort(); } catch {} }
-      setListening(false);
-    }, 600);
-  }
-
-  // 🔔 Modale de bienvenue (quota)
-  const [showWelcome, setShowWelcome] = useState(false);
-
   // historique persist
   useEffect(() => {
     try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
@@ -513,28 +432,6 @@ export default function Page() {
     try { localStorage.setItem("oneboarding.history", JSON.stringify(history)); } catch {}
   }, [history]);
 
-  // 🔄 réagir aux effacements/maj venant du Menu (sans refresh)
-  useEffect(() => {
-    const reload = () => {
-      try {
-        const s = localStorage.getItem("oneboarding.history");
-        const arr = s ? (JSON.parse(s) as Item[]) : [];
-        setHistory(arr);
-      } catch {
-        setHistory([]);
-      }
-    };
-    const clear = () => setHistory([]);
-
-    window.addEventListener("ob:history-cleared", clear as EventListener);
-    window.addEventListener("ob:history-updated", reload as EventListener);
-
-    return () => {
-      window.removeEventListener("ob:history-cleared", clear as EventListener);
-      window.removeEventListener("ob:history-updated", reload as EventListener);
-    };
-  }, []);
-
   // Auto-scroll top après génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
@@ -542,80 +439,62 @@ export default function Page() {
     prevLoadingRef.current = loading;
   }, [loading]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  // === Pipeline “event bridge” : reçoit le texte à envoyer depuis ChatPanel ===
+  useEffect(() => {
+    const onSubmit = async (evt: Event) => {
+      const e = evt as CustomEvent<{ text?: string; lang?: "fr"|"en"|"ar" }>;
+      const text = (e.detail?.text || "").trim();
+      const L = (e.detail?.lang as "fr"|"en"|"ar") || lang;
+      if (!text || loading) return;
 
-    // 🧮 Quota gratuit (non-membres) — cookie serveur + modale Welcome
-    const plan = localStorage.getItem(PLAN_KEY); // null si non-membre
-    if (!plan) {
-      const q = await consumeOne();
-      if (!q.ok && q.code === "LIMIT_REACHED") {
-        setShowWelcome(true); // 👉 affiche la fenêtre de bienvenue (Souscription / Plus tard)
-        return;
-      }
-      // ok:true (used/remaining) ou bypass:true → continuer le flow.
-    }
+      // Push user
+      const now = new Date().toISOString();
+      const hasOcr = Boolean(ocrText.trim());
+      const shown = text || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
+      if (shown) setHistory((h) => [{ role: "user", text: shown, time: now }, ...h]);
 
-    const q = input.trim();
-    const hasOcr = Boolean(ocrText.trim());
-    if (!q && !hasOcr) return;
-    if (loading) return;
+      setLoading(true);
 
-    const now = new Date().toISOString();
-    const userShown = q || (hasOcr ? "(Question vide — envoi du texte OCR uniquement)" : "");
-    if (userShown) setHistory((h) => [{ role: "user", text: userShown, time: now }, ...h]);
+      const composedPrompt = hasOcr
+        ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${text || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+        : text;
 
-    setInput(""); setLoading(true);
-
-    const composedPrompt = hasOcr
-      ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
-          q || "(aucune)"
-        }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
-      : q;
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: composedPrompt }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        const raw = String(data?.error || `HTTP ${res.status}`);
-        let msg = `Erreur: ${raw}`;
-        if (raw.includes("GROQ_API_KEY")) msg = "Service temporairement indisponible. (Configuration serveur requise)";
-        setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
-      } else {
-        // 🔧 Moteur universel : on passe le BRUT, il gère short/medium/long/reframe
-        const modelTextRaw: string = String(data.text || "");
-        const L = lang; // on se base sur l'état réactif
-        const conf = assessConfidence(modelTextRaw);
-
-        let finalText = formatResponse({
-          lang: L,
-          confidence: conf,
-          summary: modelTextRaw,       // texte brut du modèle
-          includeCta: false,
-          seed: Date.now() % 100000,
-          joiner: "\n\n",
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: composedPrompt }),
         });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) {
+          const raw = String(data?.error || `HTTP ${res.status}`);
+          let msg = `Erreur: ${raw}`;
+          if (raw.includes("GROQ_API_KEY")) msg = "Service temporairement indisponible. (Configuration serveur requise)";
+          setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h]);
+        } else {
+          const modelTextRaw: string = String(data.text || "");
+          const conf = assessConfidence(modelTextRaw);
 
-        // Confort d’affichage
-        finalText = finalText.replace(/\n{3,}/g, "\n\n").trim();
+          let finalText = formatResponse({
+            lang: L,
+            confidence: conf,
+            summary: modelTextRaw,
+            includeCta: false,
+            seed: Date.now() % 100000,
+            joiner: "\n\n",
+          }).replace(/\n{3,}/g, "\n\n").trim();
 
-        setHistory((h) => [
-          { role: "assistant", text: finalText, time: new Date().toISOString() },
-          ...h,
-        ]);
+          setHistory((h) => [{ role: "assistant", text: finalText, time: new Date().toISOString() }, ...h]);
+        }
+      } catch (err: any) {
+        setHistory((h) => [{ role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() }, ...h]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setHistory((h) => [
-        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
-        ...h,
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
+    };
+
+    window.addEventListener("ob:chat-submit", onSubmit as EventListener);
+    return () => window.removeEventListener("ob:chat-submit", onSubmit as EventListener);
+  }, [lang, ocrText, loading]);
 
   // Déclenche file input d’OcrUploader
   function triggerHiddenFileInput() {
@@ -655,72 +534,31 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Barre d’entrée */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mb-2 z-[10]">
-        <div className="flex items-stretch shadow-[0_6px_26px_rgba(0,0,0,0.25)] rounded-2xl overflow-hidden border border-[var(--border)]">
-          <textarea
-            ref={taRef}
-            dir="auto"
-            placeholder={lang === "ar" ? "سؤالك…" : lang === "en" ? "Your question…" : "Votre question…"}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 min-w-0 px-4 py-3 text-white bg-[var(--panel)] outline-none resize-none leading-6"
-            rows={1}
-            style={{ maxHeight: 96 }}
-          />
-          <div className="w-px bg-[var(--border)]" aria-hidden />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-5 md:px-6 font-medium bg-[var(--panel-strong)] text-white hover:bg-[var(--panel-stronger)] transition disabled:opacity-60"
-          >
-            {loading ? "…" : lang === "ar" ? "إرسال" : lang === "en" ? "Send" : "Envoyer"}
-          </button>
-        </div>
-
-        {/* actions sous la barre : 2 à gauche + boutons à droite */}
-        <div className="mt-3 flex gap-3 items-center">
-          {/* 📎 OCR */}
-          <button
-            type="button"
-            onClick={() => setShowOcr((v) => !v)}
-            className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
-            title="Joindre un document (OCR)"
-            aria-label="Joindre un document"
-          >
-            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* Barre d’actions au-dessus du chat : OCR à gauche, Auth à droite */}
+      <div className="w-full max-w-3xl mb-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowOcr((v) => !v)}
+          className="h-12 px-4 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
+          title="Joindre un document (OCR)"
+          aria-label="Joindre un document"
+        >
+          <span className="inline-flex items-center gap-2">
+            <svg className="h-5 w-5 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
             </svg>
-          </button>
+            OCR
+          </span>
+        </button>
 
-          {/* 🎤 Micro */}
-          <button
-            type="button"
-            disabled={!speechSupported}
-            onClick={toggleMic}
-            className={`h-12 w-12 rounded-xl border grid place-items-center transition
-              ${listening ? "border-[var(--accent)] bg-[var(--accent-tint)] mic-pulse" : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"}
-              disabled:opacity-50`}
-            aria-label={speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"}
-            title={speechSupported ? "Saisie vocale" : "Micro non supporté"}
-          >
-            <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
-              <path d="M19 10.5a7 7 0 01-14 0" />
-              <path d="M12 21v-3" />
-            </svg>
-          </button>
-
-          {/* ➕ / 🔑 à droite */}
-          <div className="ml-auto">
-            <RightAuthButtons />
-          </div>
+        <div className="ml-auto">
+          <RightAuthButtons />
         </div>
-      </form>
+      </div>
 
       {/* Tiroir OCR */}
       {showOcr && (
-        <div ref={ocrContainerRef} className="w-full max-w-md mb-6 animate-fadeUp ocr-skin z-[10]">
+        <div ref={ocrContainerRef} className="w-full max-w-3xl mb-6 animate-fadeUp ocr-skin z-[10]">
           <div className="mb-3 flex gap-2">
             <button
               type="button"
@@ -734,13 +572,13 @@ export default function Page() {
         </div>
       )}
 
-      {/* 🔔 Ancienne bannière (supprimée pour l’expérience “surprise positive”) */}
-      {/* <div className="w-full max-w-md">
-        <QuotaPromoBanner i18nPromo={promoI18N} />
-      </div> */}
+      {/* ChatPanel (gère input + quota + Welcome dialog) */}
+      <div className="w-full max-w-3xl">
+        <ChatPanel />
+      </div>
 
       {/* Historique */}
-      <div className="w-full max-w-md space-y-3 pb-10 z-[1]">
+      <div className="w-full max-w-3xl space-y-3 pb-10 z-[1] mt-3">
         {loading && (
           <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
             <p className="text-[var(--fg)]"><span className="typing-dots" aria-live="polite">•••</span></p>
@@ -778,9 +616,6 @@ export default function Page() {
           </div>
         ))}
       </div>
-
-      {/* Modale Bienvenue (quota) */}
-      <WelcomeLimitDialog open={showWelcome} onClose={() => setShowWelcome(false)} lang={lang} />
 
       {/* Modals utilitaires */}
       <ConfirmDialog
@@ -876,4 +711,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-                        }
+        }
