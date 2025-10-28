@@ -85,7 +85,51 @@ export default function RightAuthButtons() {
   const blueRef = useRef<HTMLDialogElement | null>(null);
   const goldRef = useRef<HTMLDialogElement | null>(null);
 
-  // Écoute du changement de langue (émis par le Menu)
+  /* ====== Option 1 : écouter les mutations d’URL (push/replace/pop) ====== */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const readAndSetLang = () => {
+      const next = getInitialLang();
+      setLang((prev) => (prev !== next ? next : prev));
+    };
+
+    // Patch soft de pushState / replaceState pour émettre un événement
+    const origPush = history.pushState;
+    const origReplace = history.replaceState;
+
+    const notify = () => window.dispatchEvent(new Event("ob:url-changed"));
+
+    // @ts-expect-error: spread typage permissif pour History API
+    history.pushState = function (...args) {
+      const ret = origPush.apply(this, args as any);
+      notify();
+      return ret;
+    };
+    // @ts-expect-error
+    history.replaceState = function (...args) {
+      const ret = origReplace.apply(this, args as any);
+      notify();
+      return ret;
+    };
+
+    // Réagir aux changements d’URL (retour/avant + push/replace)
+    const onPop = () => readAndSetLang();
+    const onCustom = () => readAndSetLang();
+
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("ob:url-changed", onCustom);
+
+    // Cleanup : restaurer History et remove listeners
+    return () => {
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("ob:url-changed", onCustom);
+    };
+  }, []);
+
+  // Écoute du changement de langue émis par le Menu (déjà en place chez toi)
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as string | undefined;
