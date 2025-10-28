@@ -9,7 +9,10 @@ const TZ = "Africa/Casablanca";
 /** yyyy-mm-dd en Africa/Casablanca */
 function casablancaStamp(d = new Date()): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
   return fmt.format(d);
 }
@@ -29,14 +32,15 @@ function makeCookie(val: { stamp: string; used: number }) {
     name: COOKIE,
     value: JSON.stringify(val),
     httpOnly: true,
-    sameSite: "Lax" as const,
+    sameSite: "lax" as const, // ← corrige la casse ("lax")
     secure: true,
     path: "/",
+    maxAge: 60 * 60 * 24, // 24h (optionnel)
   };
 }
 
 /** TODO(Phase 2): vrai check abonné (DB PayPal ↔ userId) */
-function isSubscriber(req: NextRequest): boolean {
+function isSubscriber(_req: NextRequest): boolean {
   // Bypass provisoire : lis un cookie booléen si tu en as un, sinon false.
   // Ex: return req.cookies.get("ob_is_sub")?.value === "1";
   return false;
@@ -54,13 +58,13 @@ export async function POST(req: NextRequest) {
 
   if (state.used >= LIMIT) {
     const res = NextResponse.json({ ok: false, code: "LIMIT_REACHED", stamp: today });
-    res.cookies.set(makeCookie(state));
+    res.cookies.set(makeCookie(state)); // ← objet ResponseCookie
     return res;
   }
 
   state.used += 1;
   const remaining = Math.max(0, LIMIT - state.used);
   const res = NextResponse.json({ ok: true, used: state.used, remaining, stamp: today });
-  res.cookies.set(makeCookie(state));
+  res.cookies.set(makeCookie(state)); // ← objet ResponseCookie
   return res;
-}
+      }
