@@ -7,15 +7,19 @@ import Image from "next/image";
 import OcrUploader from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
 
-// 🔔 Bannière quota + i18n
-import QuotaPromoBanner from "@/components/QuotaPromoBanner";
-import FR from "@/i18n/fr";
-import EN from "@/i18n/en";
-import AR from "@/i18n/ar";
-import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
+// 🔔 (Ancienne bannière quota + i18n) — supprimée au profit d’une modale Welcome
+// import QuotaPromoBanner from "@/components/QuotaPromoBanner";
+// import FR from "@/i18n/fr";
+// import EN from "@/i18n/en";
+// import AR from "@/i18n/ar";
+// import { noteInteractionAndMaybeLock, resetIfNewDay } from "@/lib/quota";
 
 // 🧠 Réponses premium (texte/audio/ocr) — moteur universel
 import { formatResponse } from "@/lib/txtPhrases";
+
+// ✅ Nouveau : quota via API + modale de bienvenue
+import { consumeOne } from "@/lib/quotaClient";
+import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
 
 // Boutons (➕ / 🔑) à droite de la barre
 const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
@@ -417,13 +421,14 @@ export default function Page() {
     root.classList.toggle("lang-ar", lang === "ar");
   }, [lang]);
 
-  const promoI18N = useMemo(
-    () => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO),
-    [lang]
-  );
+  // (Ancienne i18n bannière — conservée si tu veux la réactiver plus tard)
+  // const promoI18N = useMemo(
+  //   () => (lang === "ar" ? AR.PROMO : lang === "en" ? EN.PROMO : FR.PROMO),
+  //   [lang]
+  // );
 
-  // Initialiser le quota (reset à minuit si page ouverte)
-  useEffect(() => { resetIfNewDay(); }, []);
+  // (Ancien resetIfNewDay basé LS) — remplacé par cookie côté serveur
+  // useEffect(() => { resetIfNewDay(); }, []);
 
   // OCR
   const [showOcr, setShowOcr] = useState(false);
@@ -497,6 +502,9 @@ export default function Page() {
     }, 600);
   }
 
+  // 🔔 Modale de bienvenue (quota)
+  const [showWelcome, setShowWelcome] = useState(false);
+
   // historique persist
   useEffect(() => {
     try { const s = localStorage.getItem("oneboarding.history"); if (s) setHistory(JSON.parse(s)); } catch {}
@@ -537,14 +545,15 @@ export default function Page() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // 🧮 Quota gratuit (non-membres) — comptage “au clic OK”
+    // 🧮 Quota gratuit (non-membres) — cookie serveur + modale Welcome
     const plan = localStorage.getItem(PLAN_KEY); // null si non-membre
     if (!plan) {
-      const { reached } = noteInteractionAndMaybeLock();
-      if (reached) {
-        // On bloque l’envoi et on laisse la bannière inviter à activer l’espace
+      const q = await consumeOne();
+      if (!q.ok && q.code === "LIMIT_REACHED") {
+        setShowWelcome(true); // 👉 affiche la fenêtre de bienvenue (Souscription / Plus tard)
         return;
       }
+      // ok:true (used/remaining) ou bypass:true → continuer le flow.
     }
 
     const q = input.trim();
@@ -725,10 +734,10 @@ export default function Page() {
         </div>
       )}
 
-      {/* 🔔 Bannière quota (apparaît si non-membre et quota atteint / flag actif) */}
-      <div className="w-full max-w-md">
+      {/* 🔔 Ancienne bannière (supprimée pour l’expérience “surprise positive”) */}
+      {/* <div className="w-full max-w-md">
         <QuotaPromoBanner i18nPromo={promoI18N} />
-      </div>
+      </div> */}
 
       {/* Historique */}
       <div className="w-full max-w-md space-y-3 pb-10 z-[1]">
@@ -769,6 +778,9 @@ export default function Page() {
           </div>
         ))}
       </div>
+
+      {/* Modale Bienvenue (quota) */}
+      <WelcomeLimitDialog open={showWelcome} onClose={() => setShowWelcome(false)} lang={lang} />
 
       {/* Modals utilitaires */}
       <ConfirmDialog
@@ -864,4 +876,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-  }
+                        }
