@@ -85,7 +85,7 @@ export default function RightAuthButtons() {
   const blueRef = useRef<HTMLDialogElement | null>(null);
   const goldRef = useRef<HTMLDialogElement | null>(null);
 
-  /* ====== Option 1 : écouter les mutations d’URL (push/replace/pop) ====== */
+  /* ====== Option 1 : écoute automatique des mutations d’URL ====== */
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -94,33 +94,29 @@ export default function RightAuthButtons() {
       setLang((prev) => (prev !== next ? next : prev));
     };
 
-    // Patch soft de pushState / replaceState pour émettre un événement
-    const origPush = history.pushState;
-    const origReplace = history.replaceState;
-
     const notify = () => window.dispatchEvent(new Event("ob:url-changed"));
 
-    // @ts-expect-error: spread typage permissif pour History API
-    history.pushState = function (...args) {
-      const ret = origPush.apply(this, args as any);
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+
+    const newPush: History["pushState"] = (...args) => {
+      origPush(...args);
       notify();
-      return ret;
     };
-    // @ts-expect-error
-    history.replaceState = function (...args) {
-      const ret = origReplace.apply(this, args as any);
+    const newReplace: History["replaceState"] = (...args) => {
+      origReplace(...args);
       notify();
-      return ret;
     };
 
-    // Réagir aux changements d’URL (retour/avant + push/replace)
+    history.pushState = newPush;
+    history.replaceState = newReplace;
+
     const onPop = () => readAndSetLang();
     const onCustom = () => readAndSetLang();
 
     window.addEventListener("popstate", onPop);
     window.addEventListener("ob:url-changed", onCustom);
 
-    // Cleanup : restaurer History et remove listeners
     return () => {
       history.pushState = origPush;
       history.replaceState = origReplace;
@@ -129,7 +125,7 @@ export default function RightAuthButtons() {
     };
   }, []);
 
-  // Écoute du changement de langue émis par le Menu (déjà en place chez toi)
+  // Écoute du signal de langue émis par le Menu
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as string | undefined;
@@ -142,7 +138,7 @@ export default function RightAuthButtons() {
       window.removeEventListener("ob:lang-changed", handler as EventListener);
   }, []);
 
-  // Ouvrir/fermer les dialogs selon état
+  // Ouvrir/fermer les dialogs
   useEffect(() => {
     const d = blueRef.current;
     if (!d) return;
@@ -156,7 +152,7 @@ export default function RightAuthButtons() {
     if (!openGold && d.open) d.close();
   }, [openGold]);
 
-  // Gérer ESC / Cancel natif
+  // ESC / Cancel
   useEffect(() => {
     const attach = (dlg: HTMLDialogElement | null, onClose: () => void) => {
       if (!dlg) return () => {};
@@ -175,7 +171,7 @@ export default function RightAuthButtons() {
     };
   }, []);
 
-  // Fermer si clic sur le backdrop
+  // Fermeture sur clic backdrop
   const onBackdropClick =
     (setOpen: (v: boolean) => void, ref: React.RefObject<HTMLDialogElement>) =>
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -253,7 +249,7 @@ export default function RightAuthButtons() {
         </button>
       </div>
 
-      {/* Backdrop natif doux */}
+      {/* Backdrop */}
       <style>{`
         dialog::backdrop {
           background: rgba(0,0,0,.45);
@@ -371,4 +367,4 @@ export default function RightAuthButtons() {
       </dialog>
     </>
   );
-        }
+      }
