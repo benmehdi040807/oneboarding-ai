@@ -35,7 +35,7 @@ const COPY: Record<Lang, Copy> = {
         kind: "ul",
         items: [
           "Nom : Benmehdi Mohamed Rida",
-          "E-mail : office.benmehdi@gmail.com",
+          "E-mail : Support@oneboardingai.com",
         ],
       },
       {
