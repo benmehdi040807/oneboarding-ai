@@ -1,4 +1,4 @@
-// app/api/quota/route.ts
+// app/api/quota/consume/route.ts
 import { NextRequest, NextResponse } from "next/server";
 export const runtime = "edge";
 
@@ -32,43 +32,39 @@ function makeCookie(val: { stamp: string; used: number }) {
     name: COOKIE,
     value: JSON.stringify(val),
     httpOnly: true,
-    sameSite: "lax" as const, // ← casse corrigée
+    sameSite: "lax" as const, // ← corrige la casse ("lax")
     secure: true,
     path: "/",
-    maxAge: 60 * 60 * 24, // 24h (optionnel mais pratique)
+    maxAge: 60 * 60 * 24, // 24h (optionnel)
   };
 }
 
-/** TODO(Phase 2): vrai check abonné */
+/** TODO(Phase 2): vrai check abonné (DB PayPal ↔ userId) */
 function isSubscriber(_req: NextRequest): boolean {
+  // Bypass provisoire : lis un cookie booléen si tu en as un, sinon false.
+  // Ex: return req.cookies.get("ob_is_sub")?.value === "1";
   return false;
 }
 
-// GET: renvoie l’état courant (sans consommer de quota)
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
+  // Abonné = illimité
   if (isSubscriber(req)) {
-    return NextResponse.json({
-      ok: true,
-      bypass: true,
-      used: 0,
-      remaining: Infinity,
-      stamp: casablancaStamp(),
-      tz: TZ,
-    });
+    return NextResponse.json({ ok: true, bypass: true });
   }
 
   const today = casablancaStamp();
   let state = readCookie(req) || { stamp: today, used: 0 };
   if (state.stamp !== today) state = { stamp: today, used: 0 };
 
+  if (state.used >= LIMIT) {
+    const res = NextResponse.json({ ok: false, code: "LIMIT_REACHED", stamp: today });
+    res.cookies.set(makeCookie(state)); // ← objet ResponseCookie
+    return res;
+  }
+
+  state.used += 1;
   const remaining = Math.max(0, LIMIT - state.used);
-  const res = NextResponse.json({
-    ok: true,
-    used: state.used,
-    remaining,
-    stamp: today,
-    tz: TZ,
-  });
-  res.cookies.set(makeCookie(state)); // ← objet ResponseCookie, OK
+  const res = NextResponse.json({ ok: true, used: state.used, remaining, stamp: today });
+  res.cookies.set(makeCookie(state)); // ← objet ResponseCookie
   return res;
 }
