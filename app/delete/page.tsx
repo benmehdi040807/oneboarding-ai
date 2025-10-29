@@ -55,7 +55,7 @@ export default function DeletePage({
         "@type": "ContactPoint",
         contactType: "Data protection officer",
         name: "Benmehdi Mohamed Rida",
-        email: "office.benmehdi@gmail.com",
+        email: "Support@oneboardingai.com",
       },
     },
     policyStatus: "Active",
