@@ -32,10 +32,10 @@ function makeCookie(val: { stamp: string; used: number }) {
     name: COOKIE,
     value: JSON.stringify(val),
     httpOnly: true,
-    sameSite: "lax" as const, // ← casse corrigée
+    sameSite: "lax" as const, // <<< casse correcte
     secure: true,
     path: "/",
-    maxAge: 60 * 60 * 24, // 24h (optionnel mais pratique)
+    maxAge: 60 * 60 * 24, // 24h
   };
 }
 
@@ -44,7 +44,7 @@ function isSubscriber(_req: NextRequest): boolean {
   return false;
 }
 
-// GET: renvoie l’état courant (sans consommer de quota)
+/** GET: renvoie l’état courant (sans consommer) */
 export async function GET(req: NextRequest) {
   if (isSubscriber(req)) {
     return NextResponse.json({
@@ -69,6 +69,6 @@ export async function GET(req: NextRequest) {
     stamp: today,
     tz: TZ,
   });
-  res.cookies.set(makeCookie(state)); // ← objet ResponseCookie, OK
+  res.cookies.set(makeCookie(state)); // objet ResponseCookie → OK
   return res;
 }
