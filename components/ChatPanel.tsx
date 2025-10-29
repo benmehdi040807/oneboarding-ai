@@ -64,6 +64,13 @@ export default function ChatPanel() {
     };
   }, []);
 
+  /* ====== Petit utilitaire focus externe (optionnel, inoffensif) ====== */
+  useEffect(() => {
+    const onFocusReq = () => taRef.current?.focus();
+    window.addEventListener("ob:focus-input", onFocusReq);
+    return () => window.removeEventListener("ob:focus-input", onFocusReq);
+  }, []);
+
   /* ====== Gestion envoi ====== */
   async function onSend() {
     const text = input.trim();
@@ -75,8 +82,7 @@ export default function ChatPanel() {
 
       // Abonné (bypass) ou quota OK → on poursuit le flux d’envoi
       if (res.ok) {
-        // 🔔 Branche ici ton pipeline IA réel (API, actions, etc.)
-        // On notifie le système (ex: ton composant de chat principal)
+        // 🔔 Pipeline IA : on notifie la page par l’événement standard
         window.dispatchEvent(
           new CustomEvent("ob:chat-submit", { detail: { text, lang } })
         );
@@ -107,7 +113,6 @@ export default function ChatPanel() {
   const dir = isRTL ? "rtl" : "ltr";
   const align = isRTL ? "text-right" : "text-left";
 
-  // Libellés très sobres ; tu peux les remonter dans un i18n partagé si souhaité
   const LABELS: Record<Lang, { placeholder: string; send: string }> = {
     fr: { placeholder: "Écrivez ici…", send: "Envoyer" },
     en: { placeholder: "Type here…", send: "Send" },
@@ -127,6 +132,7 @@ export default function ChatPanel() {
       >
         <textarea
           ref={taRef}
+          data-ob-chat-input
           className={`
             w-full resize-none outline-none
             leading-6 text-[15px] placeholder-black/40
@@ -137,6 +143,7 @@ export default function ChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           placeholder={t.placeholder}
           dir={dir}
+          aria-label="Zone de saisie du message"
         />
 
         <div className={`mt-3 flex ${isRTL ? "justify-start" : "justify-end"}`}>
@@ -166,4 +173,4 @@ export default function ChatPanel() {
       />
     </section>
   );
-}
+        }
