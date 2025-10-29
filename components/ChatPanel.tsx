@@ -46,7 +46,6 @@ export default function ChatPanel() {
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
 
-    // Optionnel : si ta stack émet "ob:url-changed", on l’écoute aussi.
     const onUrl = () => {
       try {
         const sp = new URLSearchParams(window.location.search);
@@ -64,11 +63,27 @@ export default function ChatPanel() {
     };
   }, []);
 
-  /* ====== Petit utilitaire focus externe (optionnel, inoffensif) ====== */
+  /* ====== Petit utilitaire focus externe (optionnel) ====== */
   useEffect(() => {
     const onFocusReq = () => taRef.current?.focus();
     window.addEventListener("ob:focus-input", onFocusReq);
     return () => window.removeEventListener("ob:focus-input", onFocusReq);
+  }, []);
+
+  /* ====== 🔊 Injection micro → synchronisation React (Option A) ====== */
+  useEffect(() => {
+    const syncFromDom = (ev: Event) => {
+      const ta = taRef.current;
+      if (!ta) return;
+      // Ne réagit que si l'input vient de notre textarea contrôlé
+      if (ev.target === ta) {
+        // Met à jour le state pour que React reflète la valeur DOM
+        setInput(ta.value);
+      }
+    };
+    // Capture pour attraper aussi les events natifs dispatchés
+    window.addEventListener("input", syncFromDom, true);
+    return () => window.removeEventListener("input", syncFromDom, true);
   }, []);
 
   /* ====== Gestion envoi ====== */
@@ -80,28 +95,23 @@ export default function ChatPanel() {
     try {
       const res = await consumeOne();
 
-      // Abonné (bypass) ou quota OK → on poursuit le flux d’envoi
       if (res.ok) {
-        // 🔔 Pipeline IA : on notifie la page par l’événement standard
+        // Notifie la page (pipeline IA principal)
         window.dispatchEvent(
           new CustomEvent("ob:chat-submit", { detail: { text, lang } })
         );
         setInput("");
-        // Focus pour la prochaine saisie
         requestAnimationFrame(() => taRef.current?.focus());
         return;
       }
 
-      // Quota atteint → ouvrir la modale de bienvenue
       if (!res.ok && res.code === "LIMIT_REACHED") {
         setWelcomeOpen(true);
         return;
       }
 
-      // Autre cas improbable : fail silencieux (on reste gracieux)
       console.warn("Unexpected quota response:", res);
     } catch (err) {
-      // On ne rompt pas l’expérience : log doux
       console.error("Send error:", err);
     } finally {
       setSending(false);
@@ -160,7 +170,9 @@ export default function ChatPanel() {
             `}
             style={{ background: "linear-gradient(135deg,#111827,#374151)" }}
           >
-            {sending ? (lang === "ar" ? "جارٍ الإرسال…" : lang === "en" ? "Sending…" : "Envoi…") : t.send}
+            {sending
+              ? (lang === "ar" ? "جارٍ الإرسال…" : lang === "en" ? "Sending…" : "Envoi…")
+              : t.send}
           </button>
         </div>
       </div>
@@ -173,4 +185,4 @@ export default function ChatPanel() {
       />
     </section>
   );
-        }
+}
