@@ -439,7 +439,54 @@ export default function Page() {
     prevLoadingRef.current = loading;
   }, [loading]);
 
-  // === Pipeline “event bridge” : reçoit le texte à envoyer depuis ChatPanel ===
+  // === 🎙️ Micro (toujours visible) ===
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recogRef = useRef<any>(null);
+  useEffect(() => {
+    const SR: any =
+      (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
+      (typeof window !== "undefined" && (window as any).webkitSpeechRecognition);
+    if (!SR) { setSpeechSupported(false); return; }
+    setSpeechSupported(true);
+
+    const r = new SR();
+    r.lang = (lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR");
+    r.continuous = true;
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+
+    r.onstart = () => setListening(true);
+    r.onresult = (e: any) => {
+      let finalTxt = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) finalTxt += " " + e.results[i][0].transcript;
+      const text = cleanText(finalTxt);
+      if (text) {
+        // Envoi direct via le bridge existant (pas besoin de modifier ChatPanel)
+        window.dispatchEvent(new CustomEvent("ob:chat-submit", { detail: { text, lang } }));
+      }
+    };
+    const stopUI = () => setListening(false);
+    r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
+
+    recogRef.current = r;
+  }, [lang]);
+
+  function toggleMic() {
+    const r = recogRef.current;
+    if (!r) {
+      console.warn("Micro non supporté par ce navigateur.");
+      return;
+    }
+    try {
+      if (!listening) { r.start(); } else { r.stop(); }
+    } catch (e) {
+      console.warn("Échec démarrage/arrêt micro:", e);
+      setListening(false);
+    }
+  }
+
+  // === Pipeline “event bridge” : reçoit le texte (ChatPanel → génération) ===
   useEffect(() => {
     const onSubmit = async (evt: Event) => {
       const e = evt as CustomEvent<{ text?: string; lang?: "fr"|"en"|"ar" }>;
@@ -536,19 +583,35 @@ export default function Page() {
 
       {/* Barre d’actions au-dessus du chat : OCR à gauche, Auth à droite */}
       <div className="w-full max-w-3xl mb-3 flex items-center gap-3">
+        {/* OCR (icône seule) */}
         <button
           type="button"
           onClick={() => setShowOcr((v) => !v)}
-          className="h-12 px-4 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
+          className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
           title="Joindre un document (OCR)"
           aria-label="Joindre un document"
         >
-          <span className="inline-flex items-center gap-2">
-            <svg className="h-5 w-5 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
-            </svg>
-            OCR
-          </span>
+          <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
+          </svg>
+        </button>
+
+        {/* Micro (toujours visible) */}
+        <button
+          type="button"
+          onClick={toggleMic}
+          disabled={!speechSupported}
+          className={`h-12 w-12 rounded-xl border grid place-items-center transition
+            ${listening ? "border-[var(--accent)] bg-[var(--accent-tint)] mic-pulse" : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"}
+            ${!speechSupported ? "opacity-50 cursor-not-allowed" : ""}`}
+          aria-label={speechSupported ? (listening ? "Arrêter le micro" : "Parler") : "Micro non supporté"}
+          title={speechSupported ? (listening ? "Arrêter l’enregistrement" : "Saisie vocale") : "Micro non supporté"}
+        >
+          <svg className="h-6 w-6 text-[var(--fg)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
+            <path d="M19 10.5a7 7 0 01-14 0" />
+            <path d="M12 21v-3" />
+          </svg>
         </button>
 
         <div className="ml-auto">
@@ -711,4 +774,4 @@ function StyleGlobals() {
       .menu-float:focus-visible { animation: float .9s ease-in-out; outline: none; }
     `}</style>
   );
-        }
+      }
