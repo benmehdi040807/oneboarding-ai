@@ -457,15 +457,28 @@ export default function Page() {
     r.maxAlternatives = 1;
 
     r.onstart = () => setListening(true);
+
+    // ⤵️ IMPORTANT : Insérer le texte dicté dans le <textarea data-ob-chat-input> du ChatPanel.
     r.onresult = (e: any) => {
       let finalTxt = "";
       for (let i = e.resultIndex; i < e.results.length; i++) finalTxt += " " + e.results[i][0].transcript;
       const text = cleanText(finalTxt);
-      if (text) {
-        // Envoi direct via le bridge existant (pas besoin de modifier ChatPanel)
-        window.dispatchEvent(new CustomEvent("ob:chat-submit", { detail: { text, lang } }));
+      if (!text) return;
+
+      const ta = document.querySelector<HTMLTextAreaElement>("[data-ob-chat-input]");
+      if (ta) {
+        const needsSpace = ta.value && !/\s$/.test(ta.value);
+        ta.value = ta.value + (needsSpace ? " " : "") + text;
+        // Notifier React (inputs contrôlés) + focus + curseur fin
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        ta.focus();
+        const end = ta.value.length;
+        try { ta.setSelectionRange(end, end); } catch {}
+      } else {
+        console.warn("Input ChatPanel introuvable (data-ob-chat-input). Aucun envoi auto effectué.");
       }
     };
+
     const stopUI = () => setListening(false);
     r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
 
