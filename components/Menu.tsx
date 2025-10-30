@@ -270,7 +270,7 @@ export default function Menu() {
     const onHistoryCleared = () => setMessages([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
-    // 🔥 NEW: Abonnement activé (retour PayPal)
+    // 🔥 Abonnement activé (retour PayPal)
     const onSubscriptionActive = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       const newPlan: Plan = d?.plan === "one-month" ? "one-month" : "subscription";
@@ -288,7 +288,7 @@ export default function Menu() {
       setPlan(newPlan);
     };
 
-    // 🔥 NEW: Appareil autorisé (1 €)
+    // 🔥 Appareil autorisé (1 €)
     const onDeviceAuthorized = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       try {
@@ -418,12 +418,14 @@ export default function Menu() {
     toast(t.HIST.SAVED);
   }
 
+  // ⛔️ NE SUPPRIME PLUS ICI DIRECTEMENT.
+  // On délègue maintenant à app/page.tsx (le "parent visuel" qui possède le state history).
   function clearHistoryConfirmed() {
-    writeJSON("oneboarding.history", []);
-    setMessages([]);
-    emit("ob:history-cleared");
+    // 1. On ferme la modale locale
     setConfirmOpen(false);
-    toast("Historique supprimé.");
+    // 2. On émet une requête globale au parent
+    window.dispatchEvent(new Event("ob:request-clear-history"));
+    // 3. (Le parent fera le vrai wipe + toast global si besoin)
   }
 
   /** ============ Langue ============ */
@@ -508,7 +510,7 @@ export default function Menu() {
   /** ============ Rendu ============ */
   return (
     <>
-      {/* Bouton flottant principal (largeur légèrement réduite) */}
+      {/* Bouton flottant principal */}
       <div
         className="fixed inset-x-0 z-[55] flex justify-center pointer-events-none"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 39px)" }}
@@ -855,4 +857,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-  }
+      }
