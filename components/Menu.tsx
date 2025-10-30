@@ -138,7 +138,8 @@ const I18N: Record<Lang, any> = {
       COPIED: "Text copied.",
       EMPTY: "No messages to share.",
       CONFIRM_TITLE: "Clear history?",
-      CONFIRM_MSG: "This action is irreversible. Consider sharing or saving if you want to keep your content.",
+      CONFIRM_MSG:
+        "This action is irreversible. Consider sharing or saving if you want to keep your content.",
       CANCEL: "Cancel",
       CONFIRM: "Delete",
     },
@@ -149,7 +150,8 @@ const I18N: Record<Lang, any> = {
       ACCEPT: "Read & approved",
       LATER: "Later",
       TITLE: "Legal information",
-      CONSENT_NOTE: "By clicking “Read & approved”, you acknowledge having read this information.",
+      CONSENT_NOTE:
+        "By clicking “Read & approved”, you acknowledge having read this information.",
       CONSENTED: "Consent recorded.",
     },
   },
@@ -193,7 +195,8 @@ const I18N: Record<Lang, any> = {
       ACCEPT: "قُرِئ وتمت الموافقة",
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
-      CONSENT_NOTE: "بالنقر على «قُرِئ وتمت الموافقة» فأنت تُقرّ بأنك اطّلعت على هذه المعلومات.",
+      CONSENT_NOTE:
+        "بالنقر على «قُرِئ وتمت الموافقة» فأنت تُقرّ بأنك اطّلعت على هذه المعلومات.",
       CONSENTED: "تم تسجيل الموافقة.",
     },
   },
@@ -252,7 +255,11 @@ export default function Menu() {
 
     const onSetConnected = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
-      if (d?.phoneE164) try { localStorage.setItem("oneboarding.phoneE164", d.phoneE164); } catch {}
+      if (d?.phoneE164) {
+        try {
+          localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
+        } catch {}
+      }
       setConnected(true);
     };
 
@@ -278,9 +285,14 @@ export default function Menu() {
       try {
         localStorage.setItem("ob_connected", "1");
         localStorage.setItem("oneboarding.spaceActive", "1");
-        if (newPlan) localStorage.setItem("oneboarding.plan", newPlan);
-        else localStorage.removeItem("oneboarding.plan");
-        if (d?.phoneE164) localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
+        if (newPlan) {
+          localStorage.setItem("oneboarding.plan", newPlan);
+        } else {
+          localStorage.removeItem("oneboarding.plan");
+        }
+        if (d?.phoneE164) {
+          localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
+        }
       } catch {}
 
       setConnected(true);
@@ -294,7 +306,9 @@ export default function Menu() {
       try {
         localStorage.setItem("ob_connected", "1");
         localStorage.setItem("oneboarding.spaceActive", "1");
-        if (d?.phoneE164) localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
+        if (d?.phoneE164) {
+          localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
+        }
       } catch {}
       setConnected(true);
       setSpaceActive(true);
@@ -418,14 +432,29 @@ export default function Menu() {
     toast(t.HIST.SAVED);
   }
 
-  // ⛔️ NE SUPPRIME PLUS ICI DIRECTEMENT.
-  // On délègue maintenant à app/page.tsx (le "parent visuel" qui possède le state history).
+  // ⛔️ Ne supprime plus l'historique ici.
+  // On délègue le wipe final à app/page.tsx (qui possède le state history).
   function clearHistoryConfirmed() {
-    // 1. On ferme la modale locale
+    // Fermer la modale locale de confirmation
     setConfirmOpen(false);
-    // 2. On émet une requête globale au parent
-    window.dispatchEvent(new Event("ob:request-clear-history"));
-    // 3. (Le parent fera le vrai wipe + toast global si besoin)
+
+    // Déterminer la langue active au moment du clic
+    let currentLang: Lang = lang;
+    try {
+      const lsLang = localStorage.getItem("oneboarding.lang") as Lang | null;
+      if (lsLang && ["fr", "en", "ar"].includes(lsLang)) {
+        currentLang = lsLang as Lang;
+      }
+    } catch {
+      /* noop */
+    }
+
+    // Demander à la page d'ouvrir la confirmation finale multilingue
+    window.dispatchEvent(
+      new CustomEvent("ob:request-clear-history", {
+        detail: { lang: currentLang },
+      })
+    );
   }
 
   /** ============ Langue ============ */
@@ -677,7 +706,10 @@ export default function Menu() {
                   {t.LEGAL.LATER}
                 </button>
               )}
-              <button onClick={acceptLegal} className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90">
+              <button
+                onClick={acceptLegal}
+                className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
+              >
                 {t.LEGAL.ACCEPT}
               </button>
             </div>
@@ -798,22 +830,30 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
 
       <article dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-4 leading-6">
         {t.sections.map((s: LegalSection, i: number) => {
-          if (s.kind === "hr") return <hr key={i} className="border-black/10 my-3" />;
-          if (s.kind === "h2")
+          if (s.kind === "hr") {
+            return <hr key={i} className="border-black/10 my-3" />;
+          }
+          if (s.kind === "h2") {
             return (
               <h2 key={i} className="text-lg font-semibold mt-3">
                 {s.text}
               </h2>
             );
-          if (s.kind === "p")
+          }
+          if (s.kind === "p") {
             return (s as any).html ? (
-              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
+              <p
+                key={i}
+                className="opacity-90"
+                dangerouslySetInnerHTML={{ __html: (s as any).text }}
+              />
             ) : (
               <p key={i} className="opacity-90">
                 {s.text}
               </p>
             );
-          if (s.kind === "ul")
+          }
+          if (s.kind === "ul") {
             return (
               <ul key={i} className="list-disc pl-5 space-y-1 opacity-90">
                 {s.items.map((li, j) => (
@@ -821,6 +861,7 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
                 ))}
               </ul>
             );
+          }
           return null;
         })}
 
@@ -830,17 +871,26 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a href="https://oneboardingai.com/delete" className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href="https://oneboardingai.com/delete"
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a href="https://oneboardingai.com/terms" className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href="https://oneboardingai.com/terms"
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a href="https://oneboardingai.com/trademark" className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href="https://oneboardingai.com/trademark"
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/trademark
               </a>
             </li>
@@ -857,4 +907,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-      }
+          }
