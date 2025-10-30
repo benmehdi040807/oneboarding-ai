@@ -490,13 +490,13 @@ function readLangLS(): "fr" | "en" | "ar" {
 export default function Page() {
   // i18n réactive : état + écoute des changements (Menu → ob:lang-changed)
   const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
-  const recogRef = useRef<any>(null); // déplacé plus haut pour qu'on puisse le toucher dans onLangChanged
+  const recogRef = useRef<any>(null); // utilisé par la reco pour set .lang live
 
   useEffect(() => {
     const onLangChanged = () => {
       const next = readLangLS();
       setLang(next);
-      // si reco vocale déjà initialisée, on met à jour sa langue live
+      // maj live de la reco vocale si déjà initialisée
       if (recogRef.current) {
         recogRef.current.lang =
           next === "ar" ? "ar-MA" : next === "en" ? "en-US" : "fr-FR";
@@ -543,6 +543,9 @@ export default function Page() {
   // 🧹 Modal Effacer (côté page — c'est ELLE qui supprime vraiment)
   const [showClearModal, setShowClearModal] = useState(false);
 
+  // 🗣 langue à utiliser dans cette modale finale
+  const [clearLang, setClearLang] = useState<"fr" | "en" | "ar">("fr");
+
   // ⚖️ CGU/Privacy (ouvert si Menu émet ob:open-legal ET pas de consentement)
   const [showLegal, setShowLegal] = useState(false);
   useEffect(() => {
@@ -568,10 +571,15 @@ export default function Page() {
     } catch {}
   }, [history]);
 
-  // ✨ NEW: écoute la demande de suppression venant du Menu
+  // ✨ écoute la demande de suppression venant du Menu
   useEffect(() => {
-    const onRequestClear = () => {
-      // on n'efface pas direct, on ouvre notre propre modal
+    const onRequestClear = (evt: Event) => {
+      const e = evt as CustomEvent<{ lang?: "fr" | "en" | "ar" }>;
+      // on capture la langue fournie par le Menu au moment du clic
+      const requestedLang =
+        e.detail?.lang === "en" || e.detail?.lang === "ar" ? e.detail.lang : "fr";
+
+      setClearLang(requestedLang);
       setShowClearModal(true);
     };
     window.addEventListener(
@@ -594,7 +602,7 @@ export default function Page() {
     prevLoadingRef.current = loading;
   }, [loading]);
 
-  // === 🎙️ Micro (toujours visible) ===
+  // === 🎙️ Micro (toujours visible)
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
 
@@ -672,7 +680,7 @@ export default function Page() {
     }
   }
 
-  // === Pipeline “event bridge” : reçoit le texte (ChatPanel → génération) ===
+  // === Pipeline “event bridge” : reçoit le texte (ChatPanel → génération)
   useEffect(() => {
     const onSubmit = async (
       evt: Event
@@ -794,6 +802,41 @@ export default function Page() {
     setShowClearModal(false);
     window.dispatchEvent(new Event("ob:history-cleared"));
   }
+
+  // libellés modale suppression finalisés selon clearLang
+  const CLEAR_I18N: Record<
+    "fr" | "en" | "ar",
+    {
+      title: string;
+      desc: string;
+      confirm: string;
+      cancel: string;
+    }
+  > = {
+    fr: {
+      title: "Effacer l’historique ?",
+      desc:
+        "Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible.",
+      confirm: "Effacer",
+      cancel: "Annuler",
+    },
+    en: {
+      title: "Clear history?",
+      desc:
+        "Do you really want to delete the conversation history? This action cannot be undone.",
+      confirm: "Delete",
+      cancel: "Cancel",
+    },
+    ar: {
+      title: "حذف السجل؟",
+      desc:
+        "هل تريد حقاً حذف سجل المحادثة؟ هذا الإجراء لا رجوع فيه.",
+      confirm: "حذف",
+      cancel: "إلغاء",
+    },
+  };
+
+  const modalCopy = CLEAR_I18N[clearLang] || CLEAR_I18N.fr;
 
   return (
     <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 pb-[120px] selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
@@ -972,10 +1015,10 @@ export default function Page() {
       {/* Modals utilitaires */}
       <ConfirmDialog
         open={showClearModal}
-        title="Effacer l’histoire ?"
-        description="Souhaitez-vous vraiment supprimer l’historique de la conversation ? Cette action est irréversible."
-        confirmLabel="Effacer"
-        cancelLabel="Annuler"
+        title={modalCopy.title}
+        description={modalCopy.desc}
+        confirmLabel={modalCopy.confirm}
+        cancelLabel={modalCopy.cancel}
         onConfirm={clearHistory}
         onCancel={() => setShowClearModal(false)}
       />
