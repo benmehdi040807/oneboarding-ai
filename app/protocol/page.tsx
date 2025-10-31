@@ -1,4 +1,5 @@
 // app/protocol/page.tsx
+import { Suspense } from "react";
 import { Metadata } from "next";
 import ProtocolClientPage from "./ProtocolClientPage";
 
@@ -16,7 +17,6 @@ const metadataFR: Metadata = {
   alternates: {
     canonical: "/protocol",
     languages: {
-      // hreflang map
       fr: "/protocol?lang=fr",
       en: "/protocol?lang=en",
       ar: "/protocol?lang=ar",
@@ -106,5 +106,9 @@ const metadataAR: Metadata = {
 export const metadata = metadataFR;
 
 export default function ProtocolPage() {
-  return <ProtocolClientPage />;
+  return (
+    <Suspense fallback={null}>
+      <ProtocolClientPage />
+    </Suspense>
+  );
 }
