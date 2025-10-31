@@ -25,6 +25,49 @@ export default function ProtocolClientPage() {
       <article className="w-full max-w-3xl text-base leading-relaxed text-neutral-200">
         {/* PREFACE / HEADER */}
         <header className="mb-10 border border-neutral-800/60 rounded-2xl bg-neutral-900/40 p-4 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+          {/* barre langue */}
+          <div
+            className={`mb-4 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs ${
+              isRTL ? "flex-row-reverse" : ""
+            }`}
+          >
+            {/* FR */}
+            <a
+              href="/protocol?lang=fr"
+              className={`px-2.5 py-1 rounded-lg border text-[11px] sm:text-xs font-medium ${
+                lang === "fr"
+                  ? "bg-neutral-800 text-neutral-100 border-neutral-600 shadow-[0_0_20px_rgba(0,0,0,0.8)]"
+                  : "bg-neutral-800/30 text-neutral-400 border-neutral-700 hover:bg-neutral-800/50 hover:text-neutral-200"
+              }`}
+            >
+              FR
+            </a>
+
+            {/* EN */}
+            <a
+              href="/protocol?lang=en"
+              className={`px-2.5 py-1 rounded-lg border text-[11px] sm:text-xs font-medium ${
+                lang === "en"
+                  ? "bg-neutral-800 text-neutral-100 border-neutral-600 shadow-[0_0_20px_rgba(0,0,0,0.8)]"
+                  : "bg-neutral-800/30 text-neutral-400 border-neutral-700 hover:bg-neutral-800/50 hover:text-neutral-200"
+              }`}
+            >
+              EN
+            </a>
+
+            {/* AR */}
+            <a
+              href="/protocol?lang=ar"
+              className={`px-2.5 py-1 rounded-lg border text-[11px] sm:text-xs font-medium ${
+                lang === "ar"
+                  ? "bg-neutral-800 text-neutral-100 border-neutral-600 shadow-[0_0_20px_rgba(0,0,0,0.8)]"
+                  : "bg-neutral-800/30 text-neutral-400 border-neutral-700 hover:bg-neutral-800/50 hover:text-neutral-200"
+              }`}
+            >
+              AR
+            </a>
+          </div>
+
           {/* accroche trilingue */}
           <div className="text-xs sm:text-[13px] text-neutral-400 space-y-1 mb-4">
             {copy.intro.prefaceTop.map((line, idx) => (
@@ -40,9 +83,7 @@ export default function ProtocolClientPage() {
           </h1>
 
           {/* Sous-titre */}
-          <p className="text-sm text-neutral-400 mb-3">
-            {copy.intro.subtitle}
-          </p>
+          <p className="text-sm text-neutral-400 mb-3">{copy.intro.subtitle}</p>
 
           {/* Version / date */}
           <p className="text-xs text-neutral-500">{copy.intro.dateVersion}</p>
@@ -159,10 +200,21 @@ export default function ProtocolClientPage() {
         </section>
 
         {/* BOUTON RETOUR ACCUEIL */}
-        <div className="mt-12 flex">
+        <div className="mt-12 flex justify-center">
           <a
             href="/"
-            className="inline-block rounded-xl bg-neutral-800 text-neutral-100 text-sm font-medium px-4 py-2 border border-neutral-700 hover:bg-neutral-700 focus:bg-neutral-700 outline-none transition-colors"
+            className={`
+              inline-block text-sm font-medium rounded-xl
+              px-4 py-2
+              border border-cyan-400/20
+              bg-gradient-to-r from-blue-600/20 to-cyan-400/20
+              text-cyan-300
+              shadow-[0_0_30px_rgba(34,211,238,0.3)]
+              hover:from-blue-600/30 hover:to-cyan-400/30
+              hover:text-cyan-200
+              focus:outline-none focus:ring-2 focus:ring-cyan-400/40
+              transition-colors
+            `}
           >
             {copy.backButtonLabel}
           </a>
@@ -177,4 +229,4 @@ export default function ProtocolClientPage() {
       </article>
     </main>
   );
-                              }
+}
