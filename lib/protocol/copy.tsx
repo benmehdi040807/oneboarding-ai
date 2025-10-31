@@ -21,7 +21,7 @@ type ProtocolCopy = {
     dateVersion: string; // "31 octobre 2025 – Version 1.0"
   };
   sections: SectionContent[];
-  referencesBlockTitle: string; // "Références documentaires OneBoarding AI :"
+  referencesBlockTitle: string; // "Références documentaires :"
   referencesLinks: { href: string; text: string }[];
   signatureBlock: {
     heading: string;
@@ -221,7 +221,8 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
       }
     ],
 
-    referencesBlockTitle: "Références documentaires OneBoarding AI :",
+    // bloc affiché en bas de page dans ProtocolClientPage
+    referencesBlockTitle: "Références documentaires :",
     referencesLinks: [
       { href: "https://oneboardingai.com/legal", text: "oneboardingai.com/legal" },
       { href: "https://oneboardingai.com/terms", text: "oneboardingai.com/terms" },
@@ -433,7 +434,8 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
       }
     ],
 
-    referencesBlockTitle: "OneBoarding AI — Reference pages:",
+    // bloc affiché en bas de page dans ProtocolClientPage
+    referencesBlockTitle: "Reference pages :",
     referencesLinks: [
       { href: "https://oneboardingai.com/legal", text: "oneboardingai.com/legal" },
       { href: "https://oneboardingai.com/terms", text: "oneboardingai.com/terms" },
@@ -645,7 +647,8 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
       }
     ],
 
-    referencesBlockTitle: "الصفحات المرجعية لمنصّة ون بوردينغ أي آي :",
+    // bloc affiché en bas de page dans ProtocolClientPage
+    referencesBlockTitle: "الصفحات المرجعية :",
     referencesLinks: [
       { href: "https://oneboardingai.com/legal", text: "oneboardingai.com/legal" },
       { href: "https://oneboardingai.com/terms", text: "oneboardingai.com/terms" },
