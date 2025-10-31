@@ -1,6 +1,5 @@
 // app/protocol/page.tsx
-
-import { Suspense } from "react";
+import { Metadata } from "next";
 import ProtocolClientPage from "./ProtocolClientPage";
 
 // --- [SEO / Open Graph / hreflang for /protocol] ---
@@ -8,7 +7,7 @@ import ProtocolClientPage from "./ProtocolClientPage";
 const SITE_URL = "https://oneboardingai.com";
 
 // FR (canonique actuelle)
-const metadataFR = {
+const metadataFR: Metadata = {
   metadataBase: new URL(SITE_URL),
   title:
     "Protocole OneBoarding AI — Consentement numérique souverain & accès sécurisé",
@@ -17,9 +16,11 @@ const metadataFR = {
   alternates: {
     canonical: "/protocol",
     languages: {
+      // hreflang map
       fr: "/protocol?lang=fr",
       en: "/protocol?lang=en",
       ar: "/protocol?lang=ar",
+      "x-default": "/protocol?lang=en",
     },
   },
   openGraph: {
@@ -37,8 +38,8 @@ const metadataFR = {
   },
 };
 
-// EN (future /en/protocol)
-const metadataEN = {
+// EN (prête pour usage mondial)
+const metadataEN: Metadata = {
   metadataBase: new URL(SITE_URL),
   title:
     "OneBoarding AI Protocol — Sovereign Digital Consent & Secure Access",
@@ -50,6 +51,7 @@ const metadataEN = {
       fr: "/protocol?lang=fr",
       en: "/protocol?lang=en",
       ar: "/protocol?lang=ar",
+      "x-default": "/protocol?lang=en",
     },
   },
   openGraph: {
@@ -67,9 +69,9 @@ const metadataEN = {
   },
 };
 
-// AR (future /ar/protocol)
-// avec رِضى
-const metadataAR = {
+// AR (prête pour usage monde arabe)
+// Nom conforme : بنمهدي محمد رضى
+const metadataAR: Metadata = {
   metadataBase: new URL(SITE_URL),
   title:
     "بروتوكول ون بوردينغ أي آي — الموافقة الرقمية السيادية وحقّ الوصول الآمن",
@@ -81,6 +83,7 @@ const metadataAR = {
       fr: "/protocol?lang=fr",
       en: "/protocol?lang=en",
       ar: "/protocol?lang=ar",
+      "x-default": "/protocol?lang=en",
     },
   },
   openGraph: {
@@ -89,7 +92,7 @@ const metadataAR = {
     title:
       "بروتوكول ون بوردينغ أي آي — نموذج سيادي للثقة بين الإنسان والذكاء الاصطناعي",
     description:
-      "هوية قانونية مستقلة، موافقة صريحة وموثّقة، ووصول آمن لا يعتمد على شركات التكنولوجيا الكبرى. الأسبقية منشورة باسم بنمهدي محمد رِضى بتاريخ 31 أكتوبر 2025.",
+      "هوية قانونية مستقلة، موافقة صريحة وموثّقة، ووصول آمن لا يعتمد على شركات التكنولوجيا الكبرى. الأسبقية منشورة باسم بنمهدي محمد رضى بتاريخ 31 أكتوبر 2025.",
     siteName: "OneBoarding AI",
   },
   robots: {
@@ -98,13 +101,10 @@ const metadataAR = {
   },
 };
 
-// 👉 Pour l’instant, FR est notre version canonique mondiale
+// 👉 FR est la version actuellement publiée (canonique officielle).
+// Next.js utilisera cet objet pour générer <title>, <meta>, <link rel="alternate" hreflang="..."/>, OpenGraph, etc.
 export const metadata = metadataFR;
 
 export default function ProtocolPage() {
-  return (
-    <Suspense>
-      <ProtocolClientPage />
-    </Suspense>
-  );
+  return <ProtocolClientPage />;
 }
