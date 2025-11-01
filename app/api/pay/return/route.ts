@@ -3,11 +3,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PLAN_IDS, ppGetSubscription } from "@/lib/paypal";
 import { prisma } from "@/lib/db";
-import { addDays } from "date-fns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+// Petite util interne, évite d'ajouter une dépendance externe :
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
 function baseUrl() {
   const b = process.env.NEXT_PUBLIC_BASE_URL || "https://oneboardingai.com";
@@ -39,44 +45,37 @@ function resolvePlanFrom(
 /**
  * /api/pay/return
  *
- * Rôle juridique + technique :
+ * Rôle :
  *
  * 1. Récupère l'ID d'abonnement PayPal (subId).
  * 2. Lit la souscription PayPal complète (ppGetSubscription).
- * 3. Extrait les infos qu'on avait encodées dans custom_id au moment de /pay/start :
- *      - phone  (numéro souverain E.164)
- *      - deviceId (identifiant local du device fondateur)
- *      - kind  ("subscription" | "one-month")
- *      - consent (boolean) → true si l'utilisateur avait DÉJÀ cliqué
- *        « Lu et approuvé » sur la page légale AVANT de partir payer.
+ * 3. Extrait ce qu'on a encodé dans custom_id au moment de /pay/start :
+ *      - phone     (numéro souverain E.164)
+ *      - deviceId  (ID local du device fondateur)
+ *      - kind      ("subscription" | "one-month")
+ *      - consent   (boolean) → true si l'utilisateur avait DÉJÀ cliqué
+ *        « Lu et approuvé » sur la page légale avant d'aller payer.
  *
  * 4. Crée l'utilisateur s'il n'existe pas encore :
- *      - phoneE164 = identifiant juridique stable (ancre souveraine)
- *      - consentAt = now() UNIQUEMENT si:
+ *      - phoneE164 = identifiant souverain
+ *      - consentAt = now() UNIQUEMENT SI:
  *          a) user n'existait pas avant, ET
- *          b) consent === true (donc il avait déjà approuvé la page légale).
- *        Sinon, consentAt reste NULL. On ne fabrique pas un consentement.
- *        La page /legal et son bouton "Lu et approuvé" sont la seule source valide.
+ *          b) consent === true (il a déjà approuvé la page légale).
+ *      Sinon consentAt reste NULL. Pas de consentement fictif.
+ *      Si l'utilisateur existe déjà : on ne touche jamais consentAt.
  *
- *    SI l'utilisateur existe déjà :
- *      - On NE TOUCHE PAS consentAt. Jamais.
+ * 5. Upsert l'abonnement dans Subscription.
  *
- * 5. Upsert l'abonnement dans Subscription (plan interne, status PayPal, etc.).
+ * 6. Autorise immédiatement le device qui vient d'activer l'espace
+ *    (authorized = true, revokedAt = null, lastSeenAt = now).
  *
- * 6. Le device qui vient d'activer l'espace est immédiatement autorisé :
- *      - authorized = true
- *      - revokedAt = null
- *      - lastSeenAt = now
- *    Il devient le device légitime pour ce numéro souverain.
+ * 7. Crée une Session valable 30 jours (userId + deviceId),
+ *    puis dépose un cookie httpOnly "ob_session" pour arriver connecté.
  *
- * 7. On crée une Session 30 jours liée à (userId + deviceId),
- *    puis on dépose un cookie httpOnly "ob_session" pour que
- *    l'utilisateur arrive déjà connecté après redirection.
+ * 8. Redirige vers "/?paid=1".
  *
- * 8. Redirection finale vers "/?paid=1".
- *
- * Ce handler ne gère PAS la désactivation d'espace ni l'arrêt de facturation.
- * Ça se fera via un autre endpoint ("Désactiver mon espace") avec warning explicite.
+ * Ce handler NE résilie PAS l'abonnement et NE désactive PAS l'espace.
+ * Ça sera un autre endpoint : "Désactiver mon espace" avec warning clair.
  */
 export async function GET(req: NextRequest) {
   const B = baseUrl();
@@ -85,7 +84,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
 
-    // 1. Récupération de l'ID de souscription renvoyé par PayPal
+    // 1. ID de souscription PayPal renvoyé dans l'URL
     const subId =
       url.searchParams.get("subscription_id") ||
       url.searchParams.get("token") ||
@@ -95,18 +94,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${B}/?paid_error=NO_SUBSCRIPTION_ID`, 302);
     }
 
-    // 2. Lecture complète de la souscription PayPal
+    // 2. Lecture PayPal
     const pp = await ppGetSubscription(subId);
 
     // 3. Extraction de custom_id
-    //    - Nouveau format attendu : JSON.stringify({
-    //         phone: string,
-    //         deviceId: string,
-    //         kind: "subscription" | "one-month",
-    //         consent: boolean
-    //       })
+    //    Format attendu (nouveau) :
+    //    {
+    //      "phone": "+212...",
+    //      "deviceId": "xxxxxxxx-....",
+    //      "kind": "subscription" | "one-month",
+    //      "consent": true | false
+    //    }
     //
-    //    - Ancien format legacy : juste le phone en clair.
+    //    Ancien format (legacy) : juste le phone en clair.
     let phoneFromCustom: string | undefined;
     let deviceIdFromCustom: string | undefined;
     let kindFromCustom: string | undefined;
@@ -125,32 +125,32 @@ export async function GET(req: NextRequest) {
         kindFromCustom = parsed?.kind;
         consentFromCustom = parsed?.consent === true;
       } catch {
-        // fallback legacy : juste le phone
+        // fallback legacy
         if (isE164(rawCustom)) {
           phoneFromCustom = rawCustom;
         }
       }
     }
 
-    // Vérification stricte du numéro souverain
+    // Vérif du numéro souverain
     const phoneE164 = phoneFromCustom;
     if (!isE164(phoneE164)) {
       return NextResponse.redirect(`${B}/?paid_error=NO_PHONE`, 302);
     }
 
-    // device qui vient d'activer l'espace (peut être absent si vieux flow)
+    // device fondateur (peut être vide si vieux flow)
     const deviceId =
       deviceIdFromCustom && deviceIdFromCustom.trim().length >= 8
         ? deviceIdFromCustom.trim()
         : undefined;
 
-    // Déduire le plan interne
+    // Plan interne
     const planInternal = resolvePlanFrom(pp?.plan_id, kindFromCustom);
 
-    // Statut brut PayPal (ex: "APPROVAL_PENDING", "ACTIVE", etc.)
+    // Statut PayPal brut
     const subStatus = pp?.status ?? "ACTIVE";
 
-    // Fin de période (utile pour "valable jusqu'au ...")
+    // Fin de période (prochaine échéance facturation PayPal)
     let periodEnd: Date | null = null;
     const maybeNextBill = pp?.billing_info?.next_billing_time;
     if (maybeNextBill && typeof maybeNextBill === "string") {
@@ -163,18 +163,12 @@ export async function GET(req: NextRequest) {
     // 4. USER : création ou récupération
     //
     // Règle :
-    //  - Si l'utilisateur n'existe pas encore :
-    //      • On le crée.
-    //      • consentAt = now() UNIQUEMENT SI consentFromCustom === true
-    //        (c'est-à-dire : il avait déjà cliqué "Lu et approuvé"
-    //         sur la page légale avant d'aller payer).
+    //  - Pas d'utilisateur -> on crée.
+    //    consentAt = now() UNIQUEMENT SI consentFromCustom === true
+    //    (donc il a déjà cliqué "Lu et approuvé" sur la page légale
+    //    avant de partir payer).
     //
-    //  - S'il existe déjà :
-    //      • On le récupère tel quel.
-    //      • On NE MODIFIE PAS consentAt (il reste ce qu'il est).
-    //
-    // => On ne fabrique pas un consentement implicite.
-    // => On ne ré-écrit pas un consentement déjà scellé.
+    //  - User existe déjà -> on le récupère sans toucher consentAt.
     let user = await prisma.user.findUnique({
       where: { phoneE164 },
       select: { id: true },
@@ -184,8 +178,6 @@ export async function GET(req: NextRequest) {
       user = await prisma.user.create({
         data: {
           phoneE164,
-          // on ne pose consentAt que si l'humain avait déjà approuvé
-          // la page légale avant d'aller au paiement
           ...(consentFromCustom === true
             ? { consentAt: now }
             : {}),
@@ -196,7 +188,7 @@ export async function GET(req: NextRequest) {
 
     const userId = user.id;
 
-    // 5. SUBSCRIPTION : rattacher le plan économique PayPal à ce user
+    // 5. SUBSCRIPTION : abonnement PayPal lié au user
     await prisma.subscription.upsert({
       where: { paypalId: subId },
       create: {
@@ -215,14 +207,13 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 6. DEVICE : autoriser immédiatement l'appareil fondateur
+    // 6. DEVICE : autoriser tout de suite le device qui vient d'activer l'espace
     //
-    // L'appareil qui vient d'activer l'espace est autorisé sans friction.
-    // => authorized = true
-    // => revokedAt = null
-    // => lastSeenAt = now
+    // authorized = true
+    // revokedAt = null
+    // lastSeenAt = now
     //
-    // S'il n'y a pas de deviceId (vieux flow), on saute.
+    // Si pas de deviceId (ancien flux), on saute.
     let sessionId: string | null = null;
     let sessionExpiresAt: Date | null = null;
 
@@ -255,11 +246,7 @@ export async function GET(req: NextRequest) {
         select: { deviceId: true },
       });
 
-      // 7. SESSION : création d'une session 30 jours
-      // Cette session prouve :
-      //  (a) identité souveraine (numéro),
-      //  (b) possession matérielle (device autorisé),
-      //  et donne accès immédiat à l'espace.
+      // 7. SESSION : 30 jours
       const EXPIRE_AFTER_DAYS = 30;
       const exp = addDays(now, EXPIRE_AFTER_DAYS);
 
@@ -282,8 +269,8 @@ export async function GET(req: NextRequest) {
 
     // 8. REDIRECTION + COOKIE DE SESSION
     //
-    // On redirige l'utilisateur vers "/?paid=1" et on dépose
-    // un cookie httpOnly "ob_session" pour qu'il arrive déjà connecté.
+    // On renvoie /?paid=1 et on set le cookie "ob_session"
+    // httpOnly pour que l'espace soit directement actif côté client.
     const redirectUrl = `${B}/?paid=1`;
     const res = NextResponse.redirect(redirectUrl, 302);
 
@@ -305,4 +292,4 @@ export async function GET(req: NextRequest) {
       302
     );
   }
-}
+          }
