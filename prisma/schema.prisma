@@ -18,7 +18,7 @@ generator client {
 model User {
   id         String    @id @default(cuid())
   phoneE164  String    @unique
-  consentAt  DateTime? @db.Timestamptz // timestamp du consentement enregistré
+  consentAt  DateTime? @db.Timestamptz
   createdAt  DateTime  @default(now()) @db.Timestamptz
   updatedAt  DateTime  @updatedAt @db.Timestamptz
 
@@ -27,7 +27,8 @@ model User {
   histories      History[]
   devices        Device[]
   sessions       Session[]
-  deviceIntents  DeviceOrderIntent[]
+  deviceIntents  DeviceOrderIntent[]   // DEPRECATED (conservé pour audit)
+  pairingChallenges DevicePairingChallenge[]
 
   @@index([createdAt])
 }
@@ -35,10 +36,6 @@ model User {
 // =========================
 //    Abonnements (PayPal)
 // =========================
-// plan/status en STRING (compat & flex)
-// currentPeriodEnd : fin de période courante
-// cancelAtPeriodEnd : résiliation programmée en fin de période
-// cancelledAt : date de résiliation effective décidée (ex nunc)
 model Subscription {
   id                String    @id @default(cuid())
   userId            String
@@ -78,9 +75,6 @@ model Profile {
 // =========================
 //    Historique (journal libre)
 // =========================
-// Trace conversationnelle / génération de contenu
-// inputJson: données d'entrée (paramètres, contexte)
-// outputText: rendu généré
 model History {
   id          String   @id @default(cuid())
   userId      String
@@ -116,21 +110,13 @@ model Template {
 // =========================
 //    Appareils (multi-device)
 // =========================
-// isFounder: appareil fondateur (appareil de création de l'espace)
-// authorized: état courant
-// firstAuthorizedAt: première validation officielle de cet appareil
-// revokedAt: révocation ultérieure explicite (ex: téléphone perdu)
-// lastSeenAt: suivi sécurité / housekeeping
-// Règle Protocole Benmehdi :
-//  - l'appareil fondateur est autorisé d'office lors de l'activation initiale
-//  - il ne peut pas être révoqué automatiquement par l'ajout d'un nouvel appareil
 model Device {
   id                String    @id @default(cuid())
   userId            String
   deviceId          String
-  label             String?           // ex: "iPhone 15", "Pixel 8"
+  label             String?
   userAgent         String?
-  platform          String?           // ex: "iOS", "Android", "Web"
+  platform          String?
   isFounder         Boolean   @default(false)
   authorized        Boolean   @default(false)
   firstAuthorizedAt DateTime? @db.Timestamptz
@@ -150,9 +136,6 @@ model Device {
 // =========================
 //    Sessions opaques (DB)
 // =========================
-// expiresAt: invalidation automatique
-// revokedAt: logout / rotation du token
-// deviceId: facultatif (session liée à un appareil précis)
 model Session {
   id         String   @id @default(cuid())
   userId     String
@@ -170,11 +153,45 @@ model Session {
 }
 
 // =========================
-//    Intent de paiement "1€" (device)
+//    Pairing Challenge (v2) — Benmehdi Protocol
 // =========================
-// orderId PayPal unique
-// status libre ("CREATED"|"APPROVED"|"CAPTURED"|...)
-// payload: JSON brut PayPal pour l’auditabilité
+// - code stocké en toute sécurité : hash (SHA-256 + salt + pepper)
+// - affichage côté appareils autorisés via chiffrement AES-256-GCM (pas de clair en base)
+model DevicePairingChallenge {
+  id                 String   @id @default(cuid())
+  userId             String
+  newDeviceId        String
+  status             String   @default("PENDING") // PENDING | APPROVED | REJECTED | EXPIRED
+
+  // Vérification (irréversible)
+  codeHash           String
+  codeSalt           String
+
+  // Affichage (réversible chiffré)
+  encCode            Bytes
+  encIv              Bytes
+  encTag             Bytes
+
+  attemptsLeft       Int      @default(5)
+  expiresAt          DateTime @db.Timestamptz
+  createdAt          DateTime @default(now()) @db.Timestamptz
+
+  approvedAt         DateTime? @db.Timestamptz
+  approvedByDeviceId String?
+  rejectedAt         DateTime? @db.Timestamptz
+  rejectReason       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status, expiresAt])
+  @@index([userId, newDeviceId])
+}
+
+// =========================
+//    Intent de paiement "1€" (device) — DEPRECATED
+// =========================
+// Conservé pour auditabilité/archives. À supprimer lors d’une V majeure.
 model DeviceOrderIntent {
   id          String   @id @default(cuid())
   userId      String
