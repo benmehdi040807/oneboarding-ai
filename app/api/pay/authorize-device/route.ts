@@ -10,11 +10,11 @@ export const revalidate = 0;
 type ReqBody = {
   phoneE164?: string;
   deviceId?: string;
-  amount?: string;        // optionnel (défaut 1.00)
-  currency?: string;      // optionnel (défaut EUR)
-  return_url?: string;    // optionnel
-  cancel_url?: string;    // optionnel
-  revokeOldest?: boolean; // accepté mais géré ailleurs (/api/devices/revoke-oldest)
+  amount?: string;      // optionnel (défaut 1.00)
+  currency?: string;    // optionnel (défaut EUR)
+  return_url?: string;  // optionnel
+  cancel_url?: string;  // optionnel
+  // revokeOldest?: boolean; // plus utilisé: révocation se fait désormais explicitement
 };
 
 type Ok  = { ok: true; approvalUrl: string; orderId: string };
@@ -39,6 +39,7 @@ async function createOrder(
   opts: { amount: string; currency: string; return_url: string; cancel_url: string }
 ): Promise<{ data: any; debugId?: string }> {
   const url = `${PP_BASE.replace(/\/$/, "")}/v2/checkout/orders`;
+
   const body = {
     intent: "CAPTURE",
     purchase_units: [
@@ -47,7 +48,7 @@ async function createOrder(
           currency_code: opts.currency,
           value: opts.amount,
         },
-        description: "Autorisation appareil OneBoarding AI",
+        description: "Autorisation d’appareil OneBoarding AI (validation 1 €)",
       },
     ],
     application_context: {
@@ -55,7 +56,7 @@ async function createOrder(
       user_action: "PAY_NOW",
       return_url: opts.return_url,
       cancel_url: opts.cancel_url,
-      // shipping_preference: "NO_SHIPPING", // décommenter si souhaité
+      // shipping_preference: "NO_SHIPPING", // possible optimisation
     },
   };
 
@@ -95,19 +96,31 @@ export async function POST(req: Request) {
     const deviceId = body.deviceId;
 
     if (typeof phoneE164 !== "string" || !phoneE164.startsWith("+")) {
-      return NextResponse.json<Err>({ ok: false, error: "BAD_PHONE" }, { status: 400 });
+      return NextResponse.json<Err>(
+        { ok: false, error: "BAD_PHONE" },
+        { status: 400 }
+      );
     }
     if (typeof deviceId !== "string" || !deviceId.trim()) {
-      return NextResponse.json<Err>({ ok: false, error: "BAD_DEVICE_ID" }, { status: 400 });
+      return NextResponse.json<Err>(
+        { ok: false, error: "BAD_DEVICE_ID" },
+        { status: 400 }
+      );
     }
 
-    // 1) Vérifier que l'utilisateur existe (membre)
-    const user = await prisma.user.findUnique({ where: { phoneE164 } });
+    // 1) Vérifier que l'utilisateur existe (membre confirmé)
+    const user = await prisma.user.findUnique({
+      where: { phoneE164 },
+      select: { id: true },
+    });
     if (!user) {
-      return NextResponse.json<Err>({ ok: false, error: "NO_USER" }, { status: 404 });
+      return NextResponse.json<Err>(
+        { ok: false, error: "NO_USER" },
+        { status: 404 }
+      );
     }
 
-    // 2) Préparer order PayPal (1 €)
+    // 2) Construire la commande PayPal (1 € / 1.00 EUR)
     const amount   = sanitizeAmount(body.amount);
     const currency = (body.currency || DEFAULT_CURRENCY).toUpperCase();
 
@@ -117,10 +130,17 @@ export async function POST(req: Request) {
       `${B}/api/pay/authorize/return`;
     const cancel_url =
       body.cancel_url ||
-      `${B}/?paypal_cancel=1&purpose=authorize_device&device=${encodeURIComponent(deviceId)}`;
+      `${B}/?paypal_cancel=1&purpose=authorize_device&device=${encodeURIComponent(
+        deviceId
+      )}`;
 
     const token = await ppAccessToken();
-    const { data: order, debugId } = await createOrder(token, { amount, currency, return_url, cancel_url });
+    const { data: order, debugId } = await createOrder(token, {
+      amount,
+      currency,
+      return_url,
+      cancel_url,
+    });
 
     const approvalUrl: string | undefined = Array.isArray(order?.links)
       ? order.links.find((l: any) => l?.rel === "approve")?.href
@@ -129,12 +149,27 @@ export async function POST(req: Request) {
 
     if (!approvalUrl || !orderId) {
       return NextResponse.json<Err>(
-        { ok: false, error: "NO_APPROVAL_URL", raw: order, debugId },
+        {
+          ok: false,
+          error: "NO_APPROVAL_URL",
+          raw: order,
+          debugId,
+        },
         { status: 500 }
       );
     }
 
-    // 3) Journaliser l’intent pour le webhook/retour
+    // 3) Journaliser l’intention pour rattacher definitivement:
+    //    - quel user
+    //    - quel device
+    //    - quel ordre PayPal
+    //    - et dans quel but exact (purpose)
+    //
+    //    On embarque aussi un snapshot contextuel (UA/IP) pour la preuve.
+    const ua = (req.headers.get("user-agent") || "").slice(0, 300);
+    const ipFull = req.headers.get("x-forwarded-for") || "";
+    const ip = ipFull.split(",")[0]?.trim() || "";
+
     await prisma.deviceOrderIntent
       .create({
         data: {
@@ -144,19 +179,39 @@ export async function POST(req: Request) {
           amount,
           currency,
           status: "CREATED",
-          payload: JSON.stringify({ return_url, cancel_url }),
+          purpose: "AUTHORIZE_DEVICE",
+          payload: JSON.stringify({
+            return_url,
+            cancel_url,
+            ua,
+            ip,
+            ts: new Date().toISOString(),
+          }),
         },
       })
       .catch(() => {
-        /* ne bloque pas le flux si l’insertion échoue */
+        // Ne bloque pas le flux si l’insertion échoue ponctuellement.
       });
 
-    return NextResponse.json<Ok>({ ok: true, approvalUrl, orderId });
+    // 4) Réponse front:
+    //    Le front enverra l'utilisateur vers approvalUrl.
+    //    Grâce à l'activation PayPal que tu viens d'obtenir,
+    //    cette page proposera paiement CB direct (sans création de compte)
+    //    ou login PayPal.
+    return NextResponse.json<Ok>(
+      { ok: true, approvalUrl, orderId },
+      { status: 200 }
+    );
   } catch (e: any) {
     console.error("PAY_AUTHORIZE_DEVICE_ERR", e);
     return NextResponse.json<Err>(
-      { ok: false, error: e?.message || "SERVER_ERROR", raw: e?.raw, debugId: e?.debugId },
+      {
+        ok: false,
+        error: e?.message || "SERVER_ERROR",
+        raw: e?.raw,
+        debugId: e?.debugId,
+      },
       { status: 500 }
     );
   }
-         }
+}
