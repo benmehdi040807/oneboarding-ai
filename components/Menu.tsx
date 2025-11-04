@@ -1113,6 +1113,15 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       ? "For additional information, please consult:"
       : "Pour toute information complémentaire, vous pouvez consulter:";
 
+  // 👇 Harmonisation des liens avec /protocol et langue active
+  const qs = lang === "fr" ? "" : `?lang=${lang}`;
+  const links = {
+    deleteHref: `/delete${qs}`,
+    termsHref: `/terms${qs}`,
+    protocolHref: `/protocol${qs}`,
+    trademarkHref: `/trademark${qs}`,
+  };
+
   return (
     <main className="p-4">
       <h1 className="text-xl font-semibold mb-3">{t.title}</h1>
@@ -1160,26 +1169,22 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a
-                href="https://oneboardingai.com/delete"
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a
-                href="https://oneboardingai.com/terms"
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a
-                href="https://oneboardingai.com/trademark"
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
+                oneboardingai.com/protocol
+              </a>
+            </li>
+            <li>
+              <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/trademark
               </a>
             </li>
@@ -1196,4 +1201,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-    }
+      }
