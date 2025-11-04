@@ -55,7 +55,7 @@ export default function DeletePage({
         "@type": "ContactPoint",
         contactType: "Data protection officer",
         name: "Benmehdi Mohamed Rida",
-        email: "Support@oneboardingai.com",
+        email: "support@oneboardingai.com", // normalized lowercase
       },
     },
     policyStatus: "Active",
@@ -65,6 +65,9 @@ export default function DeletePage({
 
   const backLabel =
     lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
+
+  // util pour paddings RTL/LTR dans les listes
+  const listPad = lang === "ar" ? "pr-5" : "pl-5";
 
   return (
     <main
@@ -110,7 +113,7 @@ export default function DeletePage({
         </a>
       </nav>
 
-      <h1 className="text-2xl font-bold mb-6 text-center">{t.title}</h1>
+      <h1 className="text-xl font-bold mb-4">{t.title}</h1>
 
       <article className="space-y-4">
         {t.sections.map(
@@ -129,7 +132,7 @@ export default function DeletePage({
               );
             if (s.kind === "ul")
               return (
-                <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
+                <ul key={i} className={`list-disc ${listPad} space-y-1.5 opacity-90`}>
                   {s.items?.map((li: string, j: number) => (
                     <li key={j}>{li}</li>
                   ))}
