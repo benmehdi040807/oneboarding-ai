@@ -65,18 +65,9 @@ const T: Record<Lang, any> = {
     PHONE_LABEL: "Numéro de téléphone (membre)",
     PHONE_PH: "+33 6 12 34 56 78",
     INFO:
-      "Nous vérifions votre espace et votre appareil. Si c’est un nouvel appareil, nous vous proposerons une nouvelle autorisation.",
+      "Nous vérifions votre espace et votre appareil. Si c’est un nouvel appareil, une confirmation par code s’affichera sur vos appareils déjà connectés.",
     CANCEL: "Annuler",
     CONTINUE: "Continuer",
-    REVOKE_HINT:
-      "Limite d’appareils atteinte ({max}/{max}). En continuant, le plus ancien appareil sera révoqué.",
-    REVOKE_OPT: "Révoquer l’appareil le plus ancien",
-    AUTH_TITLE: "Autoriser cet appareil",
-    AUTH_TEXT:
-      "Pour votre sécurité, nous confirmons votre identité avant d’ajouter cet appareil à votre espace. Cette vérification s’effectue via votre moyen de paiement (ex. PayPal) et permet d’authentifier les informations associées à votre espace. Ça ne crée aucun nouvel engagement et ça coûte 1 € seulement.",
-    AUTH_FINE:
-      "Contrôle d’identité sécurisé pour autoriser l’accès sur un nouvel appareil.",
-    AUTH_BTN: "Autoriser cet appareil",
     WELCOME_OK: "Bienvenue — appareil reconnu.",
     NOT_MEMBER:
       "Vous n’êtes pas encore membre. Utilisez « Activer mon espace » pour choisir votre formule.",
@@ -84,23 +75,27 @@ const T: Record<Lang, any> = {
     INVALID_PHONE: "Vérifiez votre numéro et réessayez.",
     LOADING: "…",
     BANNER_REDIRECTING: "Redirection vers l’activation…",
+    PAIR_TITLE: "Autoriser ce nouvel appareil",
+    PAIR_HINT:
+      "Un code à 6 chiffres s’affiche sur vos appareils déjà connectés. Recopiez-le ici pour confirmer que c’est bien vous.",
+    CODE_LABEL: "Code de sécurité",
+    CODE_PH: "123456",
+    SUBMIT: "Confirmer",
+    TRY_AGAIN: "Renvoyer un code",
+    INVALID_CODE: "Code invalide. Tentatives restantes : {n}.",
+    EXPIRED: "Code expiré. Renvoyez un nouveau code.",
+    SLOTS_FULL: "Limite d’appareils atteinte. Révoquez un appareil, puis réessayez.",
+    START_FAIL: "Impossible de démarrer la vérification.",
+    DEVICE_ALREADY_AUTHORIZED: "Cet appareil est déjà autorisé.",
   },
   en: {
     TITLE: "Secure sign-in",
     PHONE_LABEL: "Phone number (member)",
     PHONE_PH: "+1 415 555 2671",
     INFO:
-      "We’ll check your space and device. If this is a new device, we’ll offer a new authorization.",
+      "We’ll check your space and device. If this is a new device, a 6-digit code will show on your already-connected devices.",
     CANCEL: "Cancel",
     CONTINUE: "Continue",
-    REVOKE_HINT:
-      "Device limit reached ({max}/{max}). Continuing will revoke the oldest device.",
-    REVOKE_OPT: "Revoke the oldest device",
-    AUTH_TITLE: "Authorize this device",
-    AUTH_TEXT:
-      "For your security, we confirm your identity before adding this device to your space. This verification is done via your payment method (e.g. PayPal) and cross-checks the information associated with your space. It creates no new commitment and costs only €1.",
-    AUTH_FINE: "Light identity check to authorize access on a new device.",
-    AUTH_BTN: "Authorize this device",
     WELCOME_OK: "Welcome — device recognized.",
     NOT_MEMBER:
       "You are not a member yet. Use “Activate my space” to choose a plan.",
@@ -108,29 +103,45 @@ const T: Record<Lang, any> = {
     INVALID_PHONE: "Please check your number and try again.",
     LOADING: "…",
     BANNER_REDIRECTING: "Redirecting to activation…",
+    PAIR_TITLE: "Authorize this new device",
+    PAIR_HINT:
+      "A 6-digit code appears on your already-connected devices. Enter it here to confirm it’s you.",
+    CODE_LABEL: "Security code",
+    CODE_PH: "123456",
+    SUBMIT: "Confirm",
+    TRY_AGAIN: "Send a new code",
+    INVALID_CODE: "Invalid code. Attempts left: {n}.",
+    EXPIRED: "Code expired. Request a new one.",
+    SLOTS_FULL: "Device limit reached. Revoke a device then try again.",
+    START_FAIL: "Unable to start verification.",
+    DEVICE_ALREADY_AUTHORIZED: "This device is already authorized.",
   },
   ar: {
     TITLE: "تسجيل آمن",
     PHONE_LABEL: "رقم الهاتف (عضو)",
     PHONE_PH: "+212 6 12 34 56 78",
     INFO:
-      "سنتحقق من حسابك وجهازك. إذا كان هذا جهازًا جديدًا، سنقترح تفويضًا جديدًا.",
+      "سنتحقق من حسابك وجهازك. إذا كان هذا جهازًا جديدًا، سيظهر رمز من 6 أرقام على أجهزتك المتصلة مسبقًا.",
     CANCEL: "إلغاء",
     CONTINUE: "متابعة",
-    REVOKE_HINT:
-      "تم بلوغ الحد الأقصى للأجهزة ({max}/{max}). بالمتابعة سيتم إلغاء أقدم جهاز.",
-    REVOKE_OPT: "إلغاء أقدم جهاز",
-    AUTH_TITLE: "تفويض هذا الجهاز",
-    AUTH_TEXT:
-      "لأمانك، نؤكّد هويتك قبل إضافة هذا الجهاز إلى مساحتك. تتم هذه المراجعة عبر وسيلة الدفع لديك (مثال: باي بال) وتُطابق البيانات المرتبطة بمساحتك. لا تنشئ أي التزام جديد، وتكلفتها 1€ فقط.",
-    AUTH_FINE: "تحقق هوية خفيف لتأكيد الوصول على جهاز جديد.",
-    AUTH_BTN: "تفويض هذا الجهاز",
     WELCOME_OK: "مرحبًا — تم التعرّف على الجهاز.",
     NOT_MEMBER: "لست عضوًا بعد. استخدم «تفعيل مساحتي» لاختيار الخطة.",
     ERROR: "حدث خطأ. حاول مجددًا.",
     INVALID_PHONE: "تحقق من رقمك وحاول مرة أخرى.",
     LOADING: "…",
     BANNER_REDIRECTING: "جارٍ التحويل إلى التفعيل…",
+    PAIR_TITLE: "تفويض هذا الجهاز الجديد",
+    PAIR_HINT:
+      "سيظهر رمز من 6 أرقام على أجهزتك المتصلة مسبقًا. أدخله هنا لتأكيد هويتك.",
+    CODE_LABEL: "رمز الأمان",
+    CODE_PH: "123456",
+    SUBMIT: "تأكيد",
+    TRY_AGAIN: "إرسال رمز جديد",
+    INVALID_CODE: "رمز غير صحيح. المحاولات المتبقية: {n}.",
+    EXPIRED: "انتهت صلاحية الرمز. اطلب رمزًا جديدًا.",
+    SLOTS_FULL: "الحد الأقصى للأجهزة مُكتمل. ألغِ جهازًا ثم أعد المحاولة.",
+    START_FAIL: "تعذّر بدء التحقق.",
+    DEVICE_ALREADY_AUTHORIZED: "هذا الجهاز مصادق عليه بالفعل.",
   },
 };
 
@@ -147,10 +158,13 @@ export default function ConnectModal() {
   const [phone, setPhone] = useState("");
   const [checking, setChecking] = useState(false);
 
-  // Nouvel appareil (écran vérification 1 €)
-  const [needOneEuro, setNeedOneEuro] = useState(false);
-  const [revokeOldest, setRevokeOldest] = useState(false);
-  const [maxDevices, setMaxDevices] = useState(3);
+  // État PAIRING v2 (remplace l’ancien 1 €)
+  const [pairingActive, setPairingActive] = useState(false);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [attemptsLeft, setAttemptsLeft] = useState<number>(5);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
+  const [code, setCode] = useState("");
 
   // Bandeau "non membre" + erreur inline
   const [showNonMember, setShowNonMember] = useState(false);
@@ -187,7 +201,7 @@ export default function ConnectModal() {
     return () => window.removeEventListener("ob:open-connect", openEvt);
   }, []);
 
-  /* --- Succès d'autorisation (retour de paiement / webhook → event global) --- */
+  /* --- Succès d'autorisation (event global) --- */
   useEffect(() => {
     const onAuthorized = (e: Event) => {
       const detail = (e as CustomEvent<DeviceAuthorizedDetail>).detail;
@@ -228,8 +242,8 @@ export default function ConnectModal() {
 
   // Autofocus à l’ouverture de la modale
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 60);
-  }, [open]);
+    if (open) setTimeout(() => (pairingActive ? codeInputRef.current?.focus() : inputRef.current?.focus()), 60);
+  }, [open, pairingActive]);
 
   useEffect(() => {
     const d = dialogRef.current;
@@ -260,11 +274,15 @@ export default function ConnectModal() {
   function handleClose() {
     setOpen(false);
     setChecking(false);
-    setNeedOneEuro(false);
-    setRevokeOldest(false);
     setShowNonMember(false);
     setError(null);
     clearTimer();
+    // reset pairing
+    setPairingActive(false);
+    setChallengeId(null);
+    setAttemptsLeft(5);
+    setExpiresAt(null);
+    setCode("");
   }
 
   /* --------------------------------- API calls -------------------------------- */
@@ -297,23 +315,44 @@ export default function ConnectModal() {
     }
   }
 
-  async function startOneEuro(phoneE164: string, revoke: boolean) {
-    const deviceId = getOrCreateDeviceId();
-    const res = await fetch("/api/pay/authorize-device", {
+  async function startPairing(phoneE164: string) {
+    const newDeviceId = getOrCreateDeviceId();
+    const res = await fetch("/api/pairing/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneE164, deviceId, revokeOldest: revoke }),
+      cache: "no-store",
+      body: JSON.stringify({ phoneE164, newDeviceId }),
     });
-    const out = await res.json().catch(() => ({}));
-    if (!res.ok || !out?.ok) {
-      if (out?.error === "NO_USER") {
-        throw new Error("NO_USER");
-      }
-      throw new Error(out?.error || `HTTP_${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok) {
+      const err = data?.error || `HTTP_${res.status}`;
+      throw new Error(err);
     }
-    const approval = out?.approvalUrl as string | undefined;
-    if (!approval) throw new Error("NO_APPROVAL_URL");
-    window.location.href = approval;
+    return data as {
+      ok: true;
+      challengeId: string;
+      expiresAt: string;
+      attemptsLeft: number;
+      alreadyPending: boolean;
+      note: "CODE_VISIBLE_ON_AUTH_DEVICES";
+    };
+  }
+
+  async function confirmPairing(code6: string) {
+    if (!challengeId) throw new Error("NO_CHALLENGE");
+    const res = await fetch("/api/pairing/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ challengeId, code: code6 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.error || `HTTP_${res.status}`);
+    }
+    return data as
+      | { ok: true; authorized: true; userId: string; newDeviceId: string }
+      | { ok: true; authorized: false; error: "SLOTS_FULL" | "INVALID_CODE" | "EXPIRED" | "NO_CHALLENGE"; attemptsLeft?: number };
   }
 
   async function connectKnown() {
@@ -336,7 +375,6 @@ export default function ConnectModal() {
       setError(null);
 
       const p = (phone || "").trim();
-      // Validation stricte : nombre complet (seuil minimal 10 caractères)
       if (!p || !p.startsWith("+") || p.length < 10) {
         setError(t.INVALID_PHONE);
         inputRef.current?.focus();
@@ -358,14 +396,23 @@ export default function ConnectModal() {
         return;
       }
 
-      // b) Membre + nouvel appareil → proposer vérification (1 €)
+      // b) Membre + nouvel appareil → Pairing v2
       if (chk.ok && planActive && !deviceKnown) {
-        const max = chk.devices?.maxDevices ?? 3;
-        const cnt = chk.devices?.deviceCount ?? 0;
-        setMaxDevices(max);
-        setRevokeOldest(cnt >= max);
-        setNeedOneEuro(true);
-        return;
+        try {
+          const started = await startPairing(p);
+          setPairingActive(true);
+          setChallengeId(started.challengeId);
+          setAttemptsLeft(started.attemptsLeft ?? 5);
+          setExpiresAt(started.expiresAt);
+          setTimeout(() => codeInputRef.current?.focus(), 60);
+          return;
+        } catch (e: any) {
+          const msg = String(e?.message || "");
+          if (msg === "SLOTS_FULL") setError(t.SLOTS_FULL);
+          else if (msg === "DEVICE_ALREADY_AUTHORIZED") setError(t.DEVICE_ALREADY_AUTHORIZED);
+          else setError(t.START_FAIL);
+          return;
+        }
       }
 
       // c) NO_USER / non-membre → afficher bandeau puis basculer
@@ -383,23 +430,41 @@ export default function ConnectModal() {
     }
   }
 
-  async function onAuthorizeOneEuro() {
+  async function onSubmitCode(e: React.FormEvent) {
+    e.preventDefault();
+    const code6 = (code || "").replace(/[^\d]/g, "");
+    if (code6.length !== 6) {
+      setError(t.INVALID_PHONE); // petit message générique
+      return;
+    }
+    setChecking(true);
+    setError(null);
     try {
-      setChecking(true);
-      await startOneEuro(phone, revokeOldest);
-      // retour de paiement → event ob:device-authorized (géré plus haut)
-    } catch (e: any) {
-      if (e?.message === "NO_USER") {
-        setShowNonMember(true);
-        clearTimer();
-        redirectTimerRef.current = window.setTimeout(() => {
-          setShowNonMember(false);
-          window.dispatchEvent(new Event("ob:open-activate"));
-          handleClose();
-        }, 2600);
-      } else {
-        toast(t.ERROR);
+      const out = await confirmPairing(code6);
+      if (out.ok && (out as any).authorized) {
+        // succès : on déclenche le même “connectKnown”
+        await connectKnown();
+        return;
       }
+      const err = (out as any).error as string | undefined;
+      if (err === "INVALID_CODE") {
+        const n = (out as any).attemptsLeft ?? attemptsLeft - 1;
+        setAttemptsLeft(n);
+        setError(t.INVALID_CODE.replace("{n}", String(n)));
+        return;
+      }
+      if (err === "EXPIRED") {
+        setError(t.EXPIRED);
+        return;
+      }
+      if (err === "SLOTS_FULL") {
+        setError(t.SLOTS_FULL);
+        return;
+      }
+      // NO_CHALLENGE / autre
+      setError(t.START_FAIL);
+    } catch {
+      setError(t.ERROR);
     } finally {
       setChecking(false);
     }
@@ -427,44 +492,41 @@ export default function ConnectModal() {
             </button>
           </div>
 
-          {/* Saisie téléphone (toujours LTR) */}
-          <label className="text-sm block mb-1">{t.PHONE_LABEL}</label>
-          <div dir="ltr">
-            <input
-              ref={inputRef}
-              className="w-full px-3 py-2 rounded-xl border border-black/15 bg-black/[0.04] outline-none"
-              placeholder={t.PHONE_PH}
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setError(null);
-              }}
-              inputMode="tel"
-              autoComplete="tel"
-            />
-          </div>
-
-          {/* Erreur de validation inline */}
-          {error && (
-            <div className="mt-2 text-sm text-red-600" role="status" aria-live="polite">
-              {error}
-            </div>
-          )}
-
-          {/* Bandeau non-membre (dans la modale) */}
-          {showNonMember && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="mt-3 rounded-xl border border-amber-300/40 bg-amber-100 text-amber-900 px-3 py-2 text-sm"
-            >
-              {t.NOT_MEMBER} <span className="opacity-75">{t.BANNER_REDIRECTING}</span>
-            </div>
-          )}
-
-          {/* Écran principal (connexion neutre) */}
-          {!needOneEuro && (
+          {/* Étape 1 : saisie téléphone */}
+          {!pairingActive && (
             <>
+              <label className="text-sm block mb-1">{t.PHONE_LABEL}</label>
+              <div dir="ltr">
+                <input
+                  ref={inputRef}
+                  className="w-full px-3 py-2 rounded-xl border border-black/15 bg-black/[0.04] outline-none"
+                  placeholder={t.PHONE_PH}
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setError(null);
+                  }}
+                  inputMode="tel"
+                  autoComplete="tel"
+                />
+              </div>
+
+              {error && (
+                <div className="mt-2 text-sm text-red-600" role="status" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
+              {showNonMember && (
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className="mt-3 rounded-xl border border-amber-300/40 bg-amber-100 text-amber-900 px-3 py-2 text-sm"
+                >
+                  {t.NOT_MEMBER} <span className="opacity-75">{t.BANNER_REDIRECTING}</span>
+                </div>
+              )}
+
               <p className="text-xs text-black/70 mt-3">{t.INFO}</p>
               <div className="mt-4 flex items-center justify-end gap-2">
                 <button
@@ -486,53 +548,74 @@ export default function ConnectModal() {
             </>
           )}
 
-          {/* Écran “autoriser (1 €)” — seulement membre existant + nouvel appareil */}
-          {needOneEuro && (
-            <div className="mt-4 space-y-3">
-              <h3 className="text-base font-semibold">{t.AUTH_TITLE}</h3>
-              <p className="text-sm text-black/80">{t.AUTH_TEXT}</p>
-              <p className="text-[11px] text-black/60">{t.AUTH_FINE}</p>
+          {/* Étape 2 : saisie du code (Pairing v2) */}
+          {pairingActive && (
+            <form onSubmit={onSubmitCode} className="mt-2">
+              <h3 className="text-base font-semibold">{t.PAIR_TITLE}</h3>
+              <p className="text-sm text-black/80 mt-1">{t.PAIR_HINT}</p>
 
-              {revokeOldest && (
-                <div className="mt-2 p-3 rounded-xl border border-yellow-400/30 bg-yellow-300/15 text-black/85">
-                  {t.REVOKE_HINT.replaceAll("{max}", String(maxDevices))}
+              <label className="text-sm block mt-3 mb-1">{t.CODE_LABEL}</label>
+              <input
+                ref={codeInputRef}
+                dir="ltr"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder={t.CODE_PH}
+                value={code}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "").slice(0, 6);
+                  setCode(v);
+                  setError(null);
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-black/15 bg-black/[0.04] outline-none tracking-[0.3em] text-center text-lg"
+              />
+
+              {expiresAt && (
+                <div className="mt-2 text-xs text-black/60">
+                  TTL : jusqu’au {new Date(expiresAt).toLocaleString()}
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                <input
-                  id="revokeOldest"
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={revokeOldest}
-                  onChange={(e) => setRevokeOldest(e.target.checked)}
-                />
-                <label htmlFor="revokeOldest" className="text-sm">
-                  {t.REVOKE_OPT}
-                </label>
-              </div>
+              {error && (
+                <div className="mt-2 text-sm text-red-600" role="status" aria-live="polite">
+                  {error}
+                </div>
+              )}
 
-              <div className="mt-2 flex items-center justify-end gap-2">
+              <div className="mt-4 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={handleClose}
-                  className="px-4 py-2 rounded-xl border border-black/15 bg-black/5 hover:bg-black/10"
+                  onClick={() => {
+                    // réinitialiser et renvoyer un nouveau challenge
+                    setPairingActive(false);
+                    setChallengeId(null);
+                    setAttemptsLeft(5);
+                    setExpiresAt(null);
+                    setCode("");
+                    // relance onContinue() pour rejouer la logique (device inconnu → startPairing)
+                    onContinue();
+                  }}
+                  className="px-3 py-2 rounded-xl border border-black/15 bg-black/5 hover:bg-black/10 text-sm"
                 >
-                  {t.CANCEL}
+                  {t.TRY_AGAIN}
                 </button>
                 <button
-                  type="button"
-                  onClick={onAuthorizeOneEuro}
-                  disabled={checking}
+                  type="submit"
+                  disabled={checking || code.replace(/[^\d]/g, "").length !== 6}
                   className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 disabled:opacity-60"
                 >
-                  {checking ? t.LOADING : t.AUTH_BTN}
+                  {checking ? t.LOADING : t.SUBMIT}
                 </button>
               </div>
-            </div>
+
+              <div className="mt-2 text-xs text-black/60">
+                {attemptsLeft < 5 ? t.INVALID_CODE.replace("{n}", String(attemptsLeft)) : ""}
+              </div>
+            </form>
           )}
         </div>
       </dialog>
     </>
   );
-         }
+        }
