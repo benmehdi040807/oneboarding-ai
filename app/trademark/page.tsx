@@ -91,7 +91,7 @@ export default function Page() {
         {/* Bloc “informations complémentaires” */}
         <div className="mt-6 border-t border-black/10 pt-4">
           <p className="opacity-90">{moreInfoLabel}</p>
-          <div className="mt-2">
+          <div className="mt-2 space-y-1.5">
             <p>
               <Link
                 href={`/legal?lang=${lang}`}
@@ -114,6 +114,22 @@ export default function Page() {
                 className="underline text-blue-700 hover:text-blue-900 break-all"
               >
                 oneboardingai.com/delete
+              </Link>
+            </p>
+            <p>
+              <Link
+                href={`/protocol?lang=${lang}`}
+                className="underline text-blue-700 hover:text-blue-900 break-all"
+              >
+                oneboardingai.com/protocol
+              </Link>
+            </p>
+            <p>
+              <Link
+                href={`/trademark?lang=${lang}`}
+                className="underline text-blue-700 hover:text-blue-900 break-all"
+              >
+                oneboardingai.com/trademark
               </Link>
             </p>
           </div>
