@@ -1,187 +1,222 @@
-// app/legal/page.tsx
-export const runtime = "nodejs";
+// lib/legal/copy.ts
 
-export const metadata = {
-  title: "Informations légales — OneBoarding AI",
-  description:
-    "Manifeste de confiance, Conditions d’utilisation, Politique de confidentialité, et informations éditeur — OneBoarding AI.",
-  alternates: {
-    canonical: "https://oneboardingai.com/legal",
-    languages: {
-      fr: "https://oneboardingai.com/legal?lang=fr",
-      en: "https://oneboardingai.com/legal?lang=en",
-      ar: "https://oneboardingai.com/legal?lang=ar",
+export type Lang = "fr" | "en" | "ar";
+
+export type Section =
+  | { kind: "h2"; text: string }
+  | { kind: "p"; text: string; html?: boolean }
+  | { kind: "ul"; items: string[] }
+  | { kind: "hr" };
+
+export type Copy = {
+  title: string;
+  sections: Section[];
+  version: { h: string; v: string; note: string };
+};
+
+const COPY: Record<Lang, Copy> = {
+  fr: {
+    title: "Informations légales",
+    sections: [
+      { kind: "h2", text: "🌍 Manifeste de Confiance – OneBoarding AI" },
+      {
+        kind: "p",
+        text:
+          "OneBoarding AI est une plateforme d’intelligence artificielle interactive conçue pour offrir à chaque utilisateur une expérience pédagogique et enrichissante.",
+      },
+      {
+        kind: "ul",
+        items: [
+          "🛡️ Clarté & sécurité : l’utilisateur reste maître de son usage et responsable de ses choix.",
+          "🌐 Universalité : respect des règles d’ordre public de chaque pays.",
+          "⚖️ Équilibre : moyens raisonnables côté éditeur, responsabilité d’usage côté utilisateur.",
+          "🤝 Confiance & transparence : confidentialité, respect mutuel et bonne foi.",
+        ],
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "Conditions Générales d’Utilisation (CGU)" },
+      { kind: "p", text: "1) Objet : assistance alimentée par IA, aide à la décision." },
+      {
+        kind: "p",
+        text:
+          "2) Responsabilité de l’utilisateur : les contenus générés ne constituent pas des conseils professionnels personnalisés. Vérifications requises avant toute décision engageante.",
+      },
+      {
+        kind: "p",
+        text:
+          "3) Indemnisation : l’utilisateur indemnise OneBoarding AI en cas d’usage non conforme ou violation de droits.",
+      },
+      {
+        kind: "p",
+        text:
+          "4) Limitation de responsabilité : dans les limites légales, pas de responsabilité pour dommages indirects (perte de profit, données, etc.).",
+      },
+      {
+        kind: "p",
+        text: "5) Exceptions : sans préjudice des droits impératifs des consommateurs.",
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "Politique de Confidentialité" },
+      {
+        kind: "ul",
+        items: [
+          "Stockage local : historique et consentements enregistrés uniquement sur votre appareil.",
+          "Sous-traitants techniques : acheminement des requêtes IA sans conservation ni corrélation d’identité personnelle.",
+          "Statistiques : mesures agrégées et anonymisées destinées à améliorer le service.",
+          "Effacement : suppression possible à tout moment des données locales.",
+        ],
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "Qui sommes-nous" },
+      {
+        kind: "p",
+        text:
+          "OneBoarding AI est conçu, développé et dirigé par Benmehdi Mohamed Rida, avec pour vocation de rendre l’IA simple, rapide et universelle.",
+      },
+    ],
+    version: {
+      h: "Version & Mises à jour",
+      v: "Version 1.0.0 — Octobre 2025",
+      note: "Un changelog indiquera les évolutions futures.",
+    },
+  },
+
+  en: {
+    title: "Legal Information",
+    sections: [
+      { kind: "h2", text: "🌍 Trust Manifesto – OneBoarding AI" },
+      {
+        kind: "p",
+        text:
+          "OneBoarding AI is an interactive AI platform designed to offer every user an educational and enriching experience.",
+      },
+      {
+        kind: "ul",
+        items: [
+          "🛡️ Clarity & safety: users remain in control and responsible for their choices.",
+          "🌐 Universality: respect for public-order rules in each country.",
+          "⚖️ Balance: reasonable means on the publisher’s side, responsible use on the user’s side.",
+          "🤝 Trust & transparency: confidentiality, mutual respect, and good faith.",
+        ],
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "Terms of Use" },
+      { kind: "p", text: "1) Purpose: AI-powered assistance, decision support." },
+      {
+        kind: "p",
+        text:
+          "2) User responsibility: generated content does not constitute personalized professional advice. Verification required before any binding decision.",
+      },
+      {
+        kind: "p",
+        text:
+          "3) Indemnification: users hold OneBoarding AI harmless in case of misuse or rights violations.",
+      },
+      {
+        kind: "p",
+        text:
+          "4) Limitation of liability: within legal limits, no liability for indirect damages (loss of profit, data, etc.).",
+      },
+      {
+        kind: "p",
+        text: "5) Exceptions: without prejudice to mandatory consumer rights.",
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "Privacy Policy" },
+      {
+        kind: "ul",
+        items: [
+          "Local storage: history and consents remain on the user’s device only.",
+          "Technical processors: routing of AI requests without personal identity linkage or storage.",
+          "Statistics: aggregated and anonymized metrics to improve the service.",
+          "Erasure: users can delete local data at any time.",
+        ],
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "About" },
+      {
+        kind: "p",
+        text:
+          "OneBoarding AI was conceived, developed, and authored by Benmehdi Mohamed Rida, aiming to make AI simple, fast, and universal.",
+      },
+    ],
+    version: {
+      h: "Version & Updates",
+      v: "Version 1.0.0 — October 2025",
+      note: "A changelog will indicate future evolutions.",
+    },
+  },
+
+  ar: {
+    title: "معلومات قانونية",
+    sections: [
+      { kind: "h2", text: "🌍 بيان الثقة – OneBoarding AI" },
+      {
+        kind: "p",
+        text:
+          "منصّة OneBoarding AI منصّة ذكاءٍ اصطناعيٍّ تفاعلية تهدف إلى تقديم تجربة تعليمية مُثرية لكل مستخدم.",
+      },
+      {
+        kind: "ul",
+        items: [
+          "🛡️ الوضوح والأمان: يبقى المستخدم متحكّمًا ومسؤولًا عن اختياراته.",
+          "🌐 العالمية: احترام قواعد النظام العام في كل بلد.",
+          "⚖️ التوازن: وسائل معقولة من الناشر، ومسؤولية الاستخدام على عاتق المستخدم.",
+          "🤝 الثقة والشفافية: سرّية واحترام متبادل وحسن نية.",
+        ],
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "شروط الاستخدام" },
+      { kind: "p", text: "1) الهدف: مساعدة قائمة على الذكاء الاصطناعي ودعم اتخاذ القرار." },
+      {
+        kind: "p",
+        text:
+          "2) مسؤولية المستخدم: المحتوى المُولَّد لا يُعتبر استشارة مهنية مُخصَّصة. يلزم التحقّق قبل أي قرار مُلزِم.",
+      },
+      {
+        kind: "p",
+        text:
+          "3) التعويض: يُعفى OneBoarding AI من المسؤولية عند الاستعمال غير المتوافق أو انتهاك الحقوق.",
+      },
+      {
+        kind: "p",
+        text:
+          "4) تحديد المسؤولية: في حدود القانون، لا مسؤولية عن الأضرار غير المباشرة (الأرباح، البيانات، الأعمال…).",
+      },
+      { kind: "p", text: "5) الاستثناءات: دون المساس بحقوق المستهلك الإلزامية." },
+      { kind: "hr" },
+      { kind: "h2", text: "سياسة الخصوصية" },
+      {
+        kind: "ul",
+        items: [
+          "تخزين محلي: السجلّ والموافقات محفوظة فقط على جهاز المستخدم.",
+          "معالِجون تقنيون: تمرير الطلبات دون حفظٍ أو ربطٍ بالهوية الشخصية.",
+          "إحصاءات مُجهَّلة: قياسات مُجمَّعة لتحسين الخدمة.",
+          "الحذف: يمكنك حذف البيانات المحليّة في أي وقت.",
+        ],
+      },
+      { kind: "hr" },
+      { kind: "h2", text: "من نحن" },
+      {
+        kind: "p",
+        html: true,
+        text:
+          'تم ابتكار وتطوير OneBoarding AI من طرف <strong class="nowrap-ar">بنمهدي محمد رضى</strong>، بهدف جعل الذكاء الاصطناعي بسيطًا وسريعًا وعالميًا.',
+      },
+    ],
+    version: {
+      h: "الإصدار والتحديث",
+      v: "الإصدار 1.0.0 — أكتوبر 2025",
+      note: "سيُعرض سجلّ تغييرات للتحديثات القادمة.",
     },
   },
 };
 
-import { COPY, type Lang, type Section } from "@/lib/legal/copy";
-
-function pickLang(sp?: URLSearchParams): Lang {
-  const raw = sp?.get("lang")?.toLowerCase();
-  if (raw === "en" || raw === "ar") return raw as Lang;
-  return "fr";
-}
-function isEmbed(sp?: URLSearchParams): boolean {
-  return sp?.get("embed") === "1";
+/** Helper: retourne la copie pour une langue donnée */
+export function legalCopyFor(lang: Lang): Copy {
+  if (lang === "en" || lang === "ar") return COPY[lang];
+  return COPY.fr;
 }
 
-export default function LegalPage({
-  searchParams,
-}: {
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
-  const sp =
-    typeof searchParams === "object"
-      ? new URLSearchParams(
-          Object.entries(searchParams)
-            .filter(([_, v]) => typeof v === "string")
-            .map(([k, v]) => [k, String(v)])
-        )
-      : undefined;
-
-  const lang = pickLang(sp);
-  const embed = isEmbed(sp);
-  const t = COPY[lang];
-
-  // Libellé harmonisé (2 mots) comme /terms et /trademark
-  const backLabel =
-    lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
-
-  // Liens complémentaires — conservent la langue courante
-  const qs = lang === "fr" ? "" : `?lang=${lang}`;
-  const links = {
-    termsHref: `/terms${qs}`,
-    deleteHref: `/delete${qs}`,
-    protocolHref: `/protocol${qs}`,
-    trademarkHref: `/trademark${qs}`,
-  };
-  const moreLabel =
-    lang === "ar"
-      ? "للمزيد من المعلومات، يُرجى زيارة:"
-      : lang === "en"
-      ? "For additional information, please consult:"
-      : "Pour toute information complémentaire, vous pouvez consulter :";
-
-  return (
-    <main
-      className={`px-4 py-8 mx-auto w-full max-w-3xl text-black leading-7 ${
-        embed ? "pt-4" : ""
-      } ${lang === "ar" ? "pr-4" : ""}`}
-      dir={lang === "ar" ? "rtl" : "ltr"}
-    >
-      {/* Sélecteur de langue — absent en mode embed */}
-      {!embed && (
-        <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
-          <span className="opacity-70 mr-2">
-            {lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:"}
-          </span>
-          <a
-            href="?lang=fr"
-            className={`px-2 py-1 rounded border mr-1 ${
-              lang === "fr" ? "bg-black text-white border-black" : "border-black/20"
-            }`}
-          >
-            FR
-          </a>
-          <a
-            href="?lang=en"
-            className={`px-2 py-1 rounded border mr-1 ${
-              lang === "en" ? "bg-black text-white border-black" : "border-black/20"
-            }`}
-          >
-            EN
-          </a>
-          <a
-            href="?lang=ar"
-            className={`px-2 py-1 rounded border ${
-              lang === "ar" ? "bg-black text-white border-black" : "border-black/20"
-            }`}
-          >
-            AR
-          </a>
-        </nav>
-      )}
-
-      <h1 className="text-2xl font-bold mb-6 text-center">{t.title}</h1>
-
-      <article className="space-y-4">
-        {t.sections.map((s: Section, i: number) => {
-          if (s.kind === "hr") return <hr key={i} className="border-black/10 my-3" />;
-          if (s.kind === "h2")
-            return (
-              <h2 key={i} className="text-xl font-semibold mt-4">
-                {s.text}
-              </h2>
-            );
-          if (s.kind === "p")
-            return (s as any).html ? (
-              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
-            ) : (
-              <p key={i} className="opacity-90">
-                {s.text}
-              </p>
-            );
-          if (s.kind === "ul")
-            return (
-              <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
-                {(s as any).items.map((li: string, j: number) => (
-                  <li key={j}>{li}</li>
-                ))}
-              </ul>
-            );
-          return null;
-        })}
-
-        {/* Bloc “informations complémentaires” */}
-        <div className="mt-2">
-          <p className="opacity-90">
-            {moreLabel}
-            <br />
-            <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
-              oneboardingai.com/terms
-            </a>
-            <br />
-            <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
-              oneboardingai.com/delete
-            </a>
-            <br />
-            <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
-              oneboardingai.com/protocol
-            </a>
-            <br />
-            <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
-              oneboardingai.com/trademark
-            </a>
-          </p>
-        </div>
-
-        <hr className="border-black/10 my-3" />
-
-        {/* Bloc version : petit, compact */}
-        <div className="text-sm leading-6">
-          <h3 className="font-semibold m-0">{t.version.h}</h3>
-          <p className="font-semibold m-0">{t.version.v}</p>
-          <p className="opacity-90 m-0">{t.version.note}</p>
-        </div>
-
-        {/* Espace & bouton retour (hors embed) */}
-        {!embed && <div className="mt-6" />}
-        {!embed && (
-          <p className="mt-3 text-center">
-            <a
-              href="/"
-              className="
-                inline-block px-5 py-2 rounded-xl border border-transparent
-                bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                text-white shadow-sm hover:opacity-90 transition
-              "
-            >
-              {backLabel}
-            </a>
-          </p>
-        )}
-      </article>
-    </main>
-  );
-          }
+/** Exports nommés utiles côté UI */
+export { COPY };
