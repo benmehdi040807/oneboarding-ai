@@ -11,9 +11,21 @@ type Plan = "subscription" | "one-month" | null;
 type Lang = "fr" | "en" | "ar";
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
+type PendingData = {
+  challengeId: string;
+  code: string;
+  newDeviceId: string;
+  expiresAt: string; // ISO
+  // attemptsLeft?: number; // non affiché côté UI (anti-spam serveur only)
+};
+
 /** ===================== Constantes ===================== */
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
 const CONSENT_AT_KEY = "oneboarding.legalConsentAt";
+const DEVICE_ID_KEY = "oneboarding.deviceId";
+
+const POLL_INTERVAL_MS = 12000; // ~12s
+const POLL_MAX_TICKS = 5;       // ~1 min
 
 /** ===================== Utils ===================== */
 async function copy(text: string) {
@@ -60,6 +72,33 @@ function toast(msg: string) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1700);
 }
+function uuid4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+function getOrCreateDeviceId(): string {
+  try {
+    const cur = localStorage.getItem(DEVICE_ID_KEY);
+    if (cur) return cur;
+    const id = uuid4();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+    return id;
+  } catch {
+    return "device-fallback";
+  }
+}
+function two(n: number) {
+  return n < 10 ? `0${n}` : String(n);
+}
+function formatCountdown(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${two(mm)}:${two(ss)}`;
+}
 
 /** ===================== i18n ===================== */
 const I18N: Record<Lang, any> = {
@@ -83,6 +122,17 @@ const I18N: Record<Lang, any> = {
       SUB: "abonnement",
       ONEOFF: "accès libre",
       NONE: "—",
+      // Pairing UI
+      DETECTED_BANNER: "Nouvel appareil détecté",
+      VIEW: "Consulter",
+      PENDING_TITLE: "Un nouvel appareil demande l’accès à votre espace.",
+      AUTHORIZE: "Autoriser",
+      IGNORE: "Ignorer",
+      CODE_LIVE: "Code d’appairage actif",
+      EXPIRES_AT: "expire à",
+      CLOSE: "Fermer",
+      EXPIRED: "Code expiré. Relancez depuis le nouvel appareil.",
+      DONE_NEUTRAL: "Demande terminée. Merci de vérifier le nouvel appareil.",
     },
     HIST: {
       SHARE: "Partager mon historique",
@@ -129,6 +179,17 @@ const I18N: Record<Lang, any> = {
       SUB: "subscription",
       ONEOFF: "one-month",
       NONE: "—",
+      // Pairing UI
+      DETECTED_BANNER: "New device detected",
+      VIEW: "View",
+      PENDING_TITLE: "A new device is requesting access to your space.",
+      AUTHORIZE: "Authorize",
+      IGNORE: "Ignore",
+      CODE_LIVE: "Active pairing code",
+      EXPIRES_AT: "expires at",
+      CLOSE: "Close",
+      EXPIRED: "Code expired. Please restart from the new device.",
+      DONE_NEUTRAL: "Request finished. Please check the new device.",
     },
     HIST: {
       SHARE: "Share my history",
@@ -175,6 +236,17 @@ const I18N: Record<Lang, any> = {
       SUB: "اشتراك",
       ONEOFF: "وصول لشهر",
       NONE: "—",
+      // Pairing UI
+      DETECTED_BANNER: "تم الكشف عن جهاز جديد",
+      VIEW: "عرض",
+      PENDING_TITLE: "يوجد جهاز جديد يطلب الوصول إلى مساحتك.",
+      AUTHORIZE: "السماح",
+      IGNORE: "تجاهُل",
+      CODE_LIVE: "رمز الاقتران النشط",
+      EXPIRES_AT: "ينتهي عند",
+      CLOSE: "إغلاق",
+      EXPIRED: "انتهت صلاحية الرمز. يُرجى إعادة البدء من الجهاز الجديد.",
+      DONE_NEUTRAL: "انتهى الطلب. يُرجى التحقق من الجهاز الجديد.",
     },
     HIST: {
       SHARE: "مشاركة السجل",
@@ -228,6 +300,17 @@ export default function Menu() {
 
   const menuPushedRef = useRef(false);
   const legalPushedRef = useRef(false);
+
+  // Pairing (ancien appareil)
+  const [pending, setPending] = useState<PendingData | null>(null); // données préchargées (non affichées tant que pas "Autoriser")
+  const [pendingBanner, setPendingBanner] = useState(false);        // affiche le bandeau "Nouvel appareil détecté"
+  const [showPendingCard, setShowPendingCard] = useState(false);    // encart sous "Mon compte"
+  const [revealCode, setRevealCode] = useState(false);              // après clic [Autoriser]
+  const [remainingMs, setRemainingMs] = useState<number>(0);        // compte à rebours
+
+  const pollTimerRef = useRef<number | null>(null);
+  const pollTicksRef = useRef<number>(0);
+  const countdownRef = useRef<number | null>(null);
 
   const t = useMemo(() => I18N[lang], [lang]);
 
@@ -300,18 +383,10 @@ export default function Menu() {
       setPlan(newPlan);
     };
 
-    // 🔥 Appareil autorisé (1 €)
-    const onDeviceAuthorized = (e: Event) => {
-      const d = (e as CustomEvent).detail || {};
-      try {
-        localStorage.setItem("ob_connected", "1");
-        localStorage.setItem("oneboarding.spaceActive", "1");
-        if (d?.phoneE164) {
-          localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
-        }
-      } catch {}
-      setConnected(true);
-      setSpaceActive(true);
+    // 🔥 Appareil autorisé (événement côté nouveau device — pas attendu ici)
+    const onDeviceAuthorized = () => {
+      // Pas d’action spécifique côté ancien appareil (menu) sans push/SSE.
+      // Le cycle de polling se charge de masquer l’encart si plus de PENDING.
     };
 
     window.addEventListener("ob:connected-changed", onAuthChanged);
@@ -341,6 +416,145 @@ export default function Menu() {
   function emit(name: string, detail?: any) {
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }
+
+  /** ============ Pairing: fetch pending ============ */
+  async function fetchPendingOnce(): Promise<PendingData | null> {
+    try {
+      const deviceId = getOrCreateDeviceId();
+      const res = await fetch("/api/pairing/pending", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ob-device-id": deviceId, // auth réelle côté serveur: cookie + device
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) return null;
+      if (data.has === false) return null;
+      // has:true
+      return {
+        challengeId: data.challengeId,
+        code: data.code,
+        newDeviceId: data.newDeviceId,
+        expiresAt: data.expiresAt,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function clearPolling() {
+    if (pollTimerRef.current) {
+      window.clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    pollTicksRef.current = 0;
+  }
+
+  function stopCountdown() {
+    if (countdownRef.current) {
+      window.clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setRemainingMs(0);
+  }
+
+  // Démarre micro-polling uniquement quand le Menu s’ouvre (et user connecté)
+  useEffect(() => {
+    if (!open || !connected) {
+      clearPolling();
+      return;
+    }
+
+    let mounted = true;
+
+    const prime = async () => {
+      const p = await fetchPendingOnce();
+      if (!mounted) return;
+
+      if (p) {
+        setPending(p);
+        setPendingBanner(true); // bandeau "Nouvel appareil détecté"
+        // On ne montre PAS encore le code ni la carte; l’utilisateur cliquera "Consulter" puis "Autoriser".
+      } else {
+        setPending(null);
+        setPendingBanner(false);
+        setShowPendingCard(false);
+        setRevealCode(false);
+        stopCountdown();
+      }
+    };
+
+    prime(); // première vérif immédiate
+
+    clearPolling();
+    pollTimerRef.current = window.setInterval(async () => {
+      pollTicksRef.current += 1;
+      const p = await fetchPendingOnce();
+      if (!mounted) return;
+
+      if (p) {
+        setPending(p);
+        setPendingBanner(true);
+
+        // Si le code est révélé, mettre à jour le TTL restant
+        if (revealCode) {
+          const ms = new Date(p.expiresAt).getTime() - Date.now();
+          setRemainingMs(ms);
+          if (ms <= 0) {
+            // Expiré: on masque encart + message
+            setRevealCode(false);
+            setShowPendingCard(false);
+            toast(t.ACC.EXPIRED);
+            stopCountdown();
+          }
+        }
+      } else {
+        // plus de PENDING: fermeture silencieuse + ligne neutre
+        if (showPendingCard || revealCode || pendingBanner) {
+          setShowPendingCard(false);
+          setRevealCode(false);
+          setPendingBanner(false);
+          setPending(null);
+          stopCountdown();
+          toast(t.ACC.DONE_NEUTRAL);
+        }
+      }
+
+      if (pollTicksRef.current >= POLL_MAX_TICKS) {
+        clearPolling();
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      mounted = false;
+      clearPolling();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, connected, revealCode, pendingBanner, showPendingCard, t.ACC.DONE_NEUTRAL, t.ACC.EXPIRED]);
+
+  // Quand on révèle le code, lancer un petit timer pour le compte à rebours en direct (1 Hz).
+  useEffect(() => {
+    if (!revealCode || !pending?.expiresAt) {
+      stopCountdown();
+      return;
+    }
+    const tick = () => {
+      const ms = new Date(pending.expiresAt).getTime() - Date.now();
+      setRemainingMs(ms);
+      if (ms <= 0) {
+        setRevealCode(false);
+        setShowPendingCard(false);
+        toast(t.ACC.EXPIRED);
+        stopCountdown();
+      }
+    };
+    tick(); // init immédiate
+    countdownRef.current = window.setInterval(tick, 1000);
+    return () => stopCountdown();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealCode, pending?.expiresAt, t.ACC.EXPIRED]);
 
   /** ============ Actions compte (orchestration uniquement) ============ */
   function handleConnect() {
@@ -606,6 +820,81 @@ export default function Menu() {
                         </b>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ===== Bandeau "Nouvel appareil détecté" (sous Mon compte) ===== */}
+                {pendingBanner && (
+                  <div className="sm:col-span-2 rounded-xl border border-cyan-300/40 bg-cyan-400/15 px-3 py-2 flex items-center justify-between">
+                    <span className="text-sm">{t.ACC.DETECTED_BANNER}</span>
+                    <button
+                      onClick={() => {
+                        setShowPendingCard(true);
+                        setRevealCode(false); // on présente d'abord Autoriser/Ignorer
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-cyan-300/40 bg-cyan-400/20 hover:bg-cyan-400/25 text-sm"
+                    >
+                      {t.ACC.VIEW}
+                    </button>
+                  </div>
+                )}
+
+                {/* ===== Encart de demande (affiché après "Consulter") ===== */}
+                {showPendingCard && (
+                  <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
+                    {!revealCode ? (
+                      <>
+                        <p className="text-sm opacity-90">{t.ACC.PENDING_TITLE}</p>
+                        <div className="mt-3 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setShowPendingCard(false); // "Ignorer" ferme l’encart (sans suite)
+                              // On conserve le bandeau si toujours PENDING en backend
+                            }}
+                            className="px-3 py-2 rounded-xl border border-white/15 bg-white/8 hover:bg-white/12 text-sm"
+                          >
+                            {t.ACC.IGNORE}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRevealCode(true); // révèle le code déjà préchargé
+                            }}
+                            className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 text-sm"
+                          >
+                            {t.ACC.AUTHORIZE}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm opacity-90">
+                          <span className="font-medium">{t.ACC.CODE_LIVE}</span>
+                          {": "}
+                          <span className="font-mono tracking-wider text-base">
+                            {pending?.code || "••••••"}
+                          </span>
+                          {" — "}
+                          <span className="opacity-85">
+                            {t.ACC.EXPIRES_AT}{" "}
+                            {pending
+                              ? new Date(pending.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                              : "--:--"}
+                            {remainingMs > 0 ? `  ( ${formatCountdown(remainingMs)} )` : ""}
+                          </span>
+                        </p>
+                        <div className="mt-3 flex items-center justify-end">
+                          <button
+                            onClick={() => {
+                              setShowPendingCard(false);
+                              setRevealCode(false);
+                            }}
+                            className="px-4 py-2 rounded-2xl border border-white/15 bg-white/8 hover:bg-white/12 text-sm"
+                          >
+                            {t.ACC.CLOSE}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -907,4 +1196,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-          }
+    }
