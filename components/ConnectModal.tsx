@@ -8,7 +8,7 @@ type Lang = "fr" | "en" | "ar";
 
 type CheckReply = {
   ok: boolean;
-  planActive?: boolean;
+  planActive?: boolean; // mappé depuis spaceActive côté /api/auth/check (GET)
   devices?: {
     hasAnyDevice: boolean;
     deviceKnown: boolean;
@@ -286,14 +286,15 @@ export default function ConnectModal() {
   }
 
   /* --------------------------------- API calls -------------------------------- */
-  async function apiCheck(phoneE164: string): Promise<CheckReply> {
+  // ⬇️ PATCH: utilise GET + cookie de session + header x-ob-device-id, et mappe spaceActive -> planActive
+  async function apiCheck(): Promise<CheckReply> {
     try {
       const deviceId = getOrCreateDeviceId();
       const res = await fetch("/api/auth/check", {
-        method: "POST",
+        method: "GET",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneE164, deviceId }),
+        headers: { "x-ob-device-id": deviceId },
+        cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -302,9 +303,10 @@ export default function ConnectModal() {
       const dev = data?.devices || {};
       return {
         ok: true,
-        planActive: !!data?.planActive,
+        // /api/auth/check renvoie spaceActive → on le mappe vers planActive attendu par le flux
+        planActive: !!data?.spaceActive,
         devices: {
-          hasAnyDevice: !!dev.hasAnyDevice,
+          hasAnyDevice: Number(dev.deviceCount || 0) > 0,
           deviceKnown: !!dev.deviceKnown,
           deviceCount: Number(dev.deviceCount || 0),
           maxDevices: Number(dev.maxDevices || 3),
@@ -352,7 +354,12 @@ export default function ConnectModal() {
     }
     return data as
       | { ok: true; authorized: true; userId: string; newDeviceId: string }
-      | { ok: true; authorized: false; error: "SLOTS_FULL" | "INVALID_CODE" | "EXPIRED" | "NO_CHALLENGE"; attemptsLeft?: number };
+      | {
+          ok: true;
+          authorized: false;
+          error: "SLOTS_FULL" | "INVALID_CODE" | "EXPIRED" | "NO_CHALLENGE";
+          attemptsLeft?: number;
+        };
   }
 
   async function connectKnown() {
@@ -375,6 +382,7 @@ export default function ConnectModal() {
       setError(null);
 
       const p = (phone || "").trim();
+      // On garde la vérif téléphone (utilisé par /pairing/start)
       if (!p || !p.startsWith("+") || p.length < 10) {
         setError(t.INVALID_PHONE);
         inputRef.current?.focus();
@@ -385,8 +393,8 @@ export default function ConnectModal() {
         localStorage.setItem("oneboarding.phoneE164", p);
       } catch {}
 
-      // 1) Vérification côté serveur (session + device)
-      const chk = await apiCheck(p);
+      // 1) Vérification côté serveur (session+cookie, device via header)
+      const chk = await apiCheck(); // ⬅️ plus de paramètre ici
       const deviceKnown = !!chk.devices?.deviceKnown;
       const planActive = !!chk.planActive;
 
@@ -434,7 +442,7 @@ export default function ConnectModal() {
     e.preventDefault();
     const code6 = (code || "").replace(/[^\d]/g, "");
     if (code6.length !== 6) {
-      setError(t.INVALID_PHONE); // petit message générique
+      setError(t.INVALID_PHONE); // message générique court
       return;
     }
     setChecking(true);
@@ -442,7 +450,6 @@ export default function ConnectModal() {
     try {
       const out = await confirmPairing(code6);
       if (out.ok && (out as any).authorized) {
-        // succès : on déclenche le même “connectKnown”
         await connectKnown();
         return;
       }
@@ -461,7 +468,6 @@ export default function ConnectModal() {
         setError(t.SLOTS_FULL);
         return;
       }
-      // NO_CHALLENGE / autre
       setError(t.START_FAIL);
     } catch {
       setError(t.ERROR);
@@ -618,4 +624,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-        }
+            }
