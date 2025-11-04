@@ -120,7 +120,8 @@ export const COPY = {
       <p className="text-sm">
         <em>
           Référence légale : Classification de Nice, 8ᵉ édition, fondée sur
-          l’Arrangement de Nice du 15 juin 1957 et ses révisions de Stockholm (1967) et Genève (1977).
+          l’Arrangement de Nice du 15 juin 1957 et ses révisions de Stockholm
+          (1967) et Genève (1977).
         </em>
       </p>
 
@@ -132,8 +133,50 @@ export const COPY = {
       </p>
 
       <p className="text-xs text-neutral-500 mt-4">
-        (Version : Octobre 2025 · Mainteneur : Maître Benmehdi Mohamed Rida — 
-        office.benmehdi@gmail.com · Domaine : Intelligence artificielle, droit, technologie, innovation. · Site : https://oneboardingai.com)
+        (Version : Octobre 2025 · Mainteneur : Maître Benmehdi Mohamed Rida —
+        office.benmehdi@gmail.com · Domaine : Intelligence artificielle, droit,
+        technologie, innovation. · Site : https://oneboardingai.com ·
+        Pages légales :{" "}
+        <a
+          href="https://oneboardingai.com/legal"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          /legal
+        </a>{" "}
+        —{" "}
+        <a
+          href="https://oneboardingai.com/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          /terms
+        </a>{" "}
+        —{" "}
+        <a
+          href="https://oneboardingai.com/delete"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          /delete
+        </a>{" "}
+        —{" "}
+        <a
+          href="https://oneboardingai.com/protocol"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          /protocol
+        </a>{" "}
+        —{" "}
+        <a
+          href="https://oneboardingai.com/trademark"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          /trademark
+        </a>
+        )
       </p>
     </article>
   ),
@@ -146,7 +189,7 @@ export const COPY = {
         <strong>OneBoarding AI®</strong> is a registered trademark in the{" "}
         <strong>Kingdom of Morocco</strong> with <strong>OMPIC</strong>.
         Filing receipt No. <strong>291822</strong>, dated{" "}
-        <strong>13 October 2025</strong>, filed at 
+        <strong>13 October 2025</strong>, filed at{" "}
         <strong>CCIS El Jadida</strong>.
       </p>
 
@@ -180,26 +223,33 @@ export const COPY = {
       <br />
 
       <p>
-        • <strong>Class 9 :</strong> AI software and applications; computer programs; digital platforms and data-processing systems.
+        • <strong>Class 9 :</strong> AI software and applications; computer
+        programs; digital platforms and data-processing systems.
       </p>
       <p>
-        • <strong>Class 35 :</strong> Business, management, strategy and communication consulting services assisted by AI.
+        • <strong>Class 35 :</strong> Business, management, strategy and
+        communication consulting services assisted by AI.
       </p>
       <p>
-        • <strong>Class 41 :</strong> Training, education, e-learning and personalized coaching related to AI technologies.
+        • <strong>Class 41 :</strong> Training, education, e-learning and
+        personalized coaching related to AI technologies.
       </p>
       <p>
-        • <strong>Class 42 :</strong> Research, design and development of AI solutions and technologies.
+        • <strong>Class 42 :</strong> Research, design and development of AI
+        solutions and technologies.
       </p>
       <p>
-        • <strong>Class 45 :</strong> Legal services, compliance, ethics and regulation related to AI.
+        • <strong>Class 45 :</strong> Legal services, compliance, ethics and
+        regulation related to AI.
       </p>
 
       <br />
 
       <p className="text-sm">
         <em>
-          Legal reference: Nice Classification, 8th edition, based on the Nice Agreement of 15 June 1957 and its revisions (Stockholm 1967; Geneva 1977).
+          Legal reference: Nice Classification, 8th edition, based on the Nice
+          Agreement of 15 June 1957 and its revisions (Stockholm 1967; Geneva
+          1977).
         </em>
       </p>
 
@@ -207,6 +257,32 @@ export const COPY = {
 
       <p className="mt-8 text-sm">
         © 2025 — OneBoarding AI® | All rights reserved.
+      </p>
+
+      <p className="text-xs text-neutral-500 mt-4">
+        (Version: October 2025 · Maintainer: Maître Benmehdi Mohamed Rida —
+        office.benmehdi@gmail.com · Domain: Artificial intelligence, law,
+        technology, innovation. · Site: https://oneboardingai.com · Legal pages:{" "}
+        <a href="https://oneboardingai.com/legal" target="_blank">
+          /legal
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/terms" target="_blank">
+          /terms
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/delete" target="_blank">
+          /delete
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/protocol" target="_blank">
+          /protocol
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/trademark" target="_blank">
+          /trademark
+        </a>
+        )
       </p>
     </article>
   ),
@@ -256,26 +332,32 @@ export const COPY = {
       <br />
 
       <p>
-        • <strong>الفئة 9 :</strong> برمجيات وتطبيقات الذكاء الاصطناعي؛ برامج حاسوبية؛ منصات رقمية وأنظمة معالجة البيانات.
+        • <strong>الفئة 9 :</strong> برمجيات وتطبيقات الذكاء الاصطناعي؛ برامج
+        حاسوبية؛ منصات رقمية وأنظمة معالجة البيانات.
       </p>
       <p>
-        • <strong>الفئة 35 :</strong> خدمات الاستشارة في الأعمال والإدارة والاستراتيجية والاتصال بمساعدة الذكاء الاصطناعي.
+        • <strong>الفئة 35 :</strong> خدمات الاستشارة في الأعمال والإدارة
+        والاستراتيجية والاتصال بمساعدة الذكاء الاصطناعي.
       </p>
       <p>
-        • <strong>الفئة 41 :</strong> التدريب والتعليم والتعلم الرقمي والمرافقة الشخصية المتعلقة بتقنيات الذكاء الاصطناعي.
+        • <strong>الفئة 41 :</strong> التدريب والتعليم والتعلم الرقمي
+        والمرافقة الشخصية المتعلقة بتقنيات الذكاء الاصطناعي.
       </p>
       <p>
-        • <strong>الفئة 42 :</strong> البحث والتصميم والتطوير لحلول وتقنيات الذكاء الاصطناعي.
+        • <strong>الفئة 42 :</strong> البحث والتصميم والتطوير لحلول وتقنيات
+        الذكاء الاصطناعي.
       </p>
       <p>
-        • <strong>الفئة 45 :</strong> الخدمات القانونية والامتثال والأخلاقيات والتنظيم المتعلقة بالذكاء الاصطناعي.
+        • <strong>الفئة 45 :</strong> الخدمات القانونية والامتثال والأخلاقيات
+        والتنظيم المتعلقة بالذكاء الاصطناعي.
       </p>
 
       <br />
 
       <p className="text-sm">
         <em>
-          مرجع قانوني : تصنيف نيس — الاتفاقية المؤرخة في 15 يونيو 1957 وتعديلات ستوكهولم (1967) وجنيف (1977).
+          مرجع قانوني : تصنيف نيس — الاتفاقية المؤرخة في 15 يونيو 1957
+          وتعديلات ستوكهولم (1967) وجنيف (1977).
         </em>
       </p>
 
@@ -283,6 +365,33 @@ export const COPY = {
 
       <p className="mt-8 text-sm">
         © 2025 — ®OneBoarding AI | جميع الحقوق محفوظة.
+      </p>
+
+      <p className="text-xs text-neutral-500 mt-4">
+        (الإصدار: أكتوبر 2025 · الصيانة: الأستاذ بنمهدي محمد رضى —
+        office.benmehdi@gmail.com · المجال: الذكاء الاصطناعي، القانون،
+        التكنولوجيا، الابتكار. · الموقع: https://oneboardingai.com · الصفحات
+        القانونية:{" "}
+        <a href="https://oneboardingai.com/legal" target="_blank">
+          /legal
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/terms" target="_blank">
+          /terms
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/delete" target="_blank">
+          /delete
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/protocol" target="_blank">
+          /protocol
+        </a>{" "}
+        —{" "}
+        <a href="https://oneboardingai.com/trademark" target="_blank">
+          /trademark
+        </a>
+        )
       </p>
     </article>
   ),
