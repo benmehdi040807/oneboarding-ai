@@ -213,15 +213,106 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
         ]
       },
 
+      /* ===== NOUVELLES SECTIONS ===== */
+
       {
-        title: "VIII. Références documentaires OneBoarding AI :",
+        title: "VIII. ID_UNIQ_OB — Identifiant universel personnel",
+        paragraphs: [
+          "Pour l’unicité et la portée mondiale, OneBoarding AI attribue à chaque membre un identifiant universel : ID_UNIQ_OB.",
+          "Par défaut, ID_UNIQ_OB = numéro de téléphone au format E.164 (préfixe pays + numéro).",
+          "Cet identifiant, commun à O₂ et fondamental pour O₃, permet :"
+        ],
+        list: [
+          "l’association claire humain ↔ IA personnelle ;",
+          "les liaisons inter-appareils avec consentement explicite ;",
+          "les sessions IA↔IA futures (Mirror IA) sous double consentement."
+        ],
+        subSections: [
+          {
+            subTitle: "Propriétés",
+            paragraphs: [
+              "Universalité (planétaire), simplicité (un seul identifiant), traçabilité (preuves horodatées), conformité (RGPD)."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "IX. Annexe — Consent Pairing Protocol v1 (CPP v1)",
+        paragraphs: [
+          "CPP v1 définit l’appairage d’un nouvel appareil avec consentement explicite du titulaire, sans tiers d’identité.",
+          "Le flux est sans friction et sécurisé, avec une limite de 3 appareils simultanés."
+        ],
+        list: [
+          "État serveur du challenge : PENDING → CONFIRMED → EXPIRED (ou SLOTS_FULL côté nouvel appareil).",
+          "Détection côté appareil déjà autorisé : bandeau « Nouvel appareil détecté — Consulter ».",
+          "Encart discret sous « Mon compte » : « Un nouvel appareil demande l’accès à votre espace. » Boutons : [Autoriser] [Ignorer].",
+          "Révélation du code à 6 chiffres uniquement après clic [Autoriser], avec compte à rebours jusqu’à l’heure d’expiration.",
+          "Micro-polling local borné : toutes ~12 s pendant ~1 minute (aucun bouton Rafraîchir).",
+          "Ignorer ferme l’encart immédiatement (aucune action serveur requise).",
+          "Fermeture automatique possible quand le code expire ; message neutre invitant à vérifier l’issue sur le nouvel appareil.",
+          "Slots : valeur par défaut 3 (variable d’environnement MAX_DEVICES)."
+        ],
+        subSections: [
+          {
+            subTitle: "Journal minimal recommandé",
+            paragraphs: [
+              "Horodatage, userId (ID_UNIQ_OB), deviceId appelant (autorisé), challengeId, statut (PENDING/CONFIRMED/EXPIRED/SLOTS_FULL).",
+              "Aucune PII superflue. Preuve simple, défendable, et conforme."
+            ]
+          },
+          {
+            subTitle: "Sécurité & confidentialité",
+            paragraphs: [
+              "Aucune exposition de code tant que l’utilisateur n’a pas cliqué « Autoriser ».",
+              "Aucun push requis à ce stade ; l’expérience reste fluide et privée.",
+              "Évolution prévue : SSE/WebSocket (CPP v1.1) pour retour instantané."
+            ]
+          },
+          {
+            subTitle: "i18n (exemples de textes)",
+            paragraphs: [
+              "FR : « Nouvel appareil détecté — Consulter » ; « Un nouvel appareil demande l’accès à votre espace. » ; « Code d’appairage actif : 482915 — expire à 04:52 »",
+              "EN : “New device detected — View” ; “A new device is requesting access to your space.” ; “Active pairing code: 482915 — expires at 04:52”",
+              "AR : « تمّ رصد جهاز جديد — عرض » ; « يوجد جهاز جديد يطلب الوصول إلى مساحتك. » ; « رمز الاقتران فعّال: 482915 — ينتهي في 04:52 »"
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "X. Vision Génération III — Mirror IA (IA↔IA)",
+        paragraphs: [
+          "O₃ étend le consentement à l’interaction entre IA personnelles, toujours sous contrôle humain explicite.",
+          "Chaque session IA↔IA est bornée par un mandat, une durée, et un compte rendu auditable."
+        ],
+        list: [
+          "Initiation : l’expéditeur saisit l’ID_UNIQ_OB (numéro E.164) du destinataire.",
+          "Bandeau chez le destinataire : « Nouvelle liaison détectée — Consulter » → détails : identité, mandat, durée.",
+          "Double consentement : le destinataire choisit [Autoriser] ou [Ignorer].",
+          "Exécution : interaction IA↔IA selon le mandat et la durée ; aucune messagerie humain↔humain.",
+          "Clôture : compte rendu (commun et/ou individuel), consultable, partageable, ou supprimable (RGPD)."
+        ],
+        subSections: [
+          {
+            subTitle: "Principes",
+            paragraphs: [
+              "Consentement humain explicite, traçabilité, révocabilité, et souveraineté des identités.",
+              "Aucune exposition publique ; aucune dépendance à un réseau social.",
+              "Fondation de l’« Internet des IA » en conformité mondiale."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "XI. Références documentaires OneBoarding AI :",
         paragraphs: [
           "Pour approfondir les fondements juridiques, techniques et éthiques qui accompagnent ce Protocole, vous pouvez consulter :"
         ]
       }
     ],
 
-    // bloc affiché en bas de page dans ProtocolClientPage
     referencesBlockTitle: "Références documentaires :",
     referencesLinks: [
       { href: "https://oneboardingai.com/legal", text: "oneboardingai.com/legal" },
@@ -427,14 +518,103 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
       },
 
       {
-        title: "VIII. OneBoarding AI — Reference pages:",
+        title: "VIII. ID_UNIQ_OB — Universal personal identifier",
+        paragraphs: [
+          "For global reach and uniqueness, OneBoarding AI assigns each member a universal identifier: ID_UNIQ_OB.",
+          "By default, ID_UNIQ_OB = phone number in E.164 format (country prefix + number).",
+          "This identifier, shared by O₂ and foundational for O₃, enables:"
+        ],
+        list: [
+          "a clear human ↔ personal-AI mapping;",
+          "inter-device pairing with explicit consent;",
+          "future IA↔IA sessions (Mirror IA) with double consent."
+        ],
+        subSections: [
+          {
+            subTitle: "Properties",
+            paragraphs: [
+              "Universality, simplicity, traceability (timestamped proof), and GDPR conformity."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "IX. Annex — Consent Pairing Protocol v1 (CPP v1)",
+        paragraphs: [
+          "CPP v1 defines how a new device pairs under explicit owner consent, with no external identity provider.",
+          "The flow is low-friction and secure, with up to three concurrent devices."
+        ],
+        list: [
+          "Server challenge states: PENDING → CONFIRMED → EXPIRED (or SLOTS_FULL on the new device).",
+          "Detection on an already authorized device: banner “New device detected — View”.",
+          "Compact panel under “My account”: “A new device is requesting access to your space.” Buttons: [Authorize] [Ignore].",
+          "6-digit code is revealed only after [Authorize], with countdown to expiration.",
+          "Bounded local micro-polling: every ~12 s for ~1 minute (no Refresh button).",
+          "Ignore closes the panel immediately (no server call required).",
+          "Auto-close on expiry with a neutral line inviting the user to check the outcome on the new device.",
+          "Slots: default 3 (MAX_DEVICES env)."
+        ],
+        subSections: [
+          {
+            subTitle: "Minimal server log",
+            paragraphs: [
+              "Timestamp, userId (ID_UNIQ_OB), calling deviceId (authorized), challengeId, status (PENDING/CONFIRMED/EXPIRED/SLOTS_FULL).",
+              "No unnecessary PII. Clean and defensible proof."
+            ]
+          },
+          {
+            subTitle: "Security & privacy",
+            paragraphs: [
+              "No code exposure until the user clicks “Authorize”.",
+              "No push required yet; experience remains private and fluid.",
+              "Planned evolution: SSE/WebSocket (CPP v1.1) for instant closure on success."
+            ]
+          },
+          {
+            subTitle: "i18n (sample strings)",
+            paragraphs: [
+              "FR: « Nouvel appareil détecté — Consulter » ; « Un nouvel appareil demande l’accès à votre espace. » ; « Code d’appairage actif : 482915 — expire à 04:52 »",
+              "EN: “New device detected — View” ; “A new device is requesting access to your space.” ; “Active pairing code: 482915 — expires at 04:52”",
+              "AR: « تمّ رصد جهاز جديد — عرض » ; « يوجد جهاز جديد يطلب الوصول إلى مساحتك. » ; « رمز الاقتران فعّال: 482915 — ينتهي في 04:52 »"
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "X. Generation III Vision — Mirror IA (AI↔AI)",
+        paragraphs: [
+          "O₃ extends consent to interactions between personal AIs, always under explicit human control.",
+          "Each IA↔IA session is bounded by a mandate, a duration, and a timestamped report."
+        ],
+        list: [
+          "Initiation: the sender enters the recipient’s ID_UNIQ_OB (E.164 phone number).",
+          "Recipient sees: “New link detected — View” → details: identity, mandate, duration.",
+          "Double consent: recipient chooses [Authorize] or [Ignore].",
+          "Execution: IA↔IA exchange according to the mandate and duration; no human↔human messaging.",
+          "Closure: report (shared and/or individual), viewable, shareable, or deletable (GDPR)."
+        ],
+        subSections: [
+          {
+            subTitle: "Principles",
+            paragraphs: [
+              "Explicit human consent, traceability, revocability, and sovereign identities.",
+              "No public exposure; no dependence on social networks.",
+              "Foundation of the “Internet of AIs” with global compliance."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "XI. OneBoarding AI — Reference pages:",
         paragraphs: [
           "To explore the legal, technical, and ethical foundations that support this Protocol, you may consult:"
         ]
       }
     ],
 
-    // bloc affiché en bas de page dans ProtocolClientPage
     referencesBlockTitle: "Reference pages :",
     referencesLinks: [
       { href: "https://oneboardingai.com/legal", text: "oneboardingai.com/legal" },
@@ -617,7 +797,7 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
           {
             subTitle: "هندسة قابلة للتوسّع دولياً",
             paragraphs: [
-              "هذا السجلّ الزمني (الخط الزمني للأحداث) مُصمَّم للتوسّع عالمياً.",
+              "هذا السجلّ الزمني مُصمَّم للتوسّع عالمياً.",
               "يبقى قابلاً للتدقيق والفهم.",
               "ويتيح لمنصّة ون بوردينغ أي آي تحمّل مسؤوليتها القانونية والأخلاقية على المدى الطويل."
             ]
@@ -640,14 +820,95 @@ export const protocolCopy: Record<Lang, ProtocolCopy> = {
       },
 
       {
-        title: "VIII. الصفحات المرجعية لمنصّة ون بوردينغ أي آي :",
+        title: "VIII. ID_UNIQ_OB — المعرّف الشخصي العالمي",
+        paragraphs: [
+          "لضمان الشمولية والفرادة، تمنح المنصّة لكل عضو معرّفاً عالمياً: ID_UNIQ_OB.",
+          "افتراضياً: ID_UNIQ_OB = رقم الهاتف بصيغة E.164 (رمز الدولة + الرقم).",
+          "هذا المعرّف، المشترك في O₂ والأساسي لـ O₃، يتيح:"
+        ],
+        list: [
+          "ربطاً واضحاً بين الإنسان وذكائه الشخصي؛",
+          "وصلات بين الأجهزة بموافقة صريحة؛",
+          "جلسات IA↔IA المستقبلية (Mirror IA) بموافقة مزدوجة."
+        ],
+        subSections: [
+          {
+            subTitle: "خصائص",
+            paragraphs: [
+              "عالمية، بساطة، تتبّع (أدلة مؤقتة بختم زمني)، امتثال للـGDPR."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "IX. الملحق — بروتوكول اقتران الموافقة v1 (CPP v1)",
+        paragraphs: [
+          "يحدّد CPP v1 آلية اقتران جهاز جديد بموافقة صريحة من صاحب المساحة، دون الحاجة لجهة تعريف خارجية.",
+          "التجربة سلسة وآمنة مع حدّ أقصى ثلاثة أجهزة بالتوازي."
+        ],
+        list: [
+          "حالات التحدّي على الخادم: PENDING → CONFIRMED → EXPIRED (أو SLOTS_FULL على الجهاز الجديد).",
+          "على جهاز موثوق مسبقاً: شريط «تمّ رصد جهاز جديد — عرض».",
+          "بطاقة صغيرة تحت «حسابي»: «يوجد جهاز جديد يطلب الوصول إلى مساحتك.» الأزرار: [السماح] [تجاهل].",
+          "يُكشف الرمز المكوّن من 6 أرقام فقط بعد الضغط على [السماح]، مع عدّ تنازلي حتى وقت الانتهاء.",
+          "استطلاع محلي محدود: كل ~12 ثانية ولمدّة ~دقيقة (بدون زر تحديث).",
+          "يُغلق التبويب عند «تجاهل» فوراً (لا حاجة لنداء خادوم).",
+          "إغلاق تلقائي عند انتهاء الصلاحية مع سطر محايد يدعو للتحقّق من النتيجة على الجهاز الجديد.",
+          "الحدّ الأقصى للأجهزة: 3 (متغير البيئة MAX_DEVICES)."
+        ],
+        subSections: [
+          {
+            subTitle: "سجلّ خادوم مصغّر",
+            paragraphs: [
+              "طابع زمني، userId (ID_UNIQ_OB)، معرّف الجهاز المُستدعي (موثوق)، challengeId، الحالة (PENDING/CONFIRMED/EXPIRED/SLOTS_FULL).",
+              "بدون بيانات شخصية غير ضرورية. دليل نظيف وقابل للدفاع."
+            ]
+          },
+          {
+            subTitle: "الأمن والخصوصية",
+            paragraphs: [
+              "لا يتمّ كشف الرمز قبل الضغط على «السماح».",
+              "لا حاجة للبث اللحظي حالياً؛ التجربة تبقى خاصة وسلسة.",
+              "تطوير مستقبلي: SSE/WebSocket (CPP v1.1) للإنهاء الفوري."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "X. رؤية الجيل الثالث — Mirror IA (IA↔IA)",
+        paragraphs: [
+          "يوسّع O₃ مفهوم الموافقة ليشمل تفاعلات بين ذكاءات شخصية، دائماً تحت سيطرة بشرية صريحة.",
+          "كل جلسة IA↔IA محدّدة بتفويض ومدّة وتقرير قابل للتتبّع."
+        ],
+        list: [
+          "البدء: يُدخل المُرسِل ID_UNIQ_OB (رقم E.164) الخاص بالمستلم.",
+          "عند المستلم: «تمّ رصد ارتباط جديد — عرض» → الهوية، التفويض، المدّة.",
+          "موافقة مزدوجة: [السماح] أو [تجاهل].",
+          "التنفيذ: تفاعل IA↔IA وفق التفويض والمدّة؛ بدون مراسلة بشرية.",
+          "الإغلاق: تقرير (مشترك و/أو فردي)، قابل للعرض والمشاركة أو الحذف وفق الـGDPR."
+        ],
+        subSections: [
+          {
+            subTitle: "مبادئ",
+            paragraphs: [
+              "موافقة بشرية صريحة، تتبّع ورجوعية، سيادة للهويات.",
+              "لا كشف علني؛ لا اعتماد على شبكات اجتماعية.",
+              "أساس «إنترنت الذكاءات» مع امتثال عالمي."
+            ]
+          }
+        ]
+      },
+
+      {
+        title: "XI. الصفحات المرجعية لمنصّة ون بوردينغ أي آي :",
         paragraphs: [
           "للاطلاع على الأسس القانونية والتقنية والأخلاقية المواكبة لهذا البروتوكول، يمكنكم الرجوع إلى الصفحات التالية:"
         ]
       }
     ],
 
-    // bloc affiché en bas de page dans ProtocolClientPage
     referencesBlockTitle: "الصفحات المرجعية :",
     referencesLinks: [
       { href: "https://oneboardingai.com/legal", text: "oneboardingai.com/legal" },
