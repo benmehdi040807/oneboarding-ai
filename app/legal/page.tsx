@@ -57,6 +57,15 @@ export default function LegalPage({
       ? "For additional information, please consult:"
       : "Pour toute information complémentaire, vous pouvez consulter:";
 
+  // Liens localisés (comme /terms)
+  const qs = lang === "fr" ? "" : `?lang=${lang}`;
+  const links = {
+    deleteHref: `/delete${qs}`,
+    termsHref: `/terms${qs}`,
+    protocolHref: `/protocol${qs}`,
+    trademarkHref: `/trademark${qs}`,
+  };
+
   return (
     <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
       {!embed && (
@@ -100,7 +109,7 @@ export default function LegalPage({
                 {s.text}
               </h2>
             );
-          if (s.kind === "p")
+        if (s.kind === "p")
             return (s as any).html ? (
               <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
             ) : (
@@ -124,17 +133,22 @@ export default function LegalPage({
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a href="https://oneboardingai.com/delete" className="underline text-blue-700 hover:text-blue-900">
+              <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a href="https://oneboardingai.com/terms" className="underline text-blue-700 hover:text-blue-900">
+              <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a href="https://oneboardingai.com/trademark" className="underline text-blue-700 hover:text-blue-900">
+              <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
+                oneboardingai.com/protocol
+              </a>
+            </li>
+            <li>
+              <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/trademark
               </a>
             </li>
@@ -174,4 +188,4 @@ export default function LegalPage({
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-}
+        }
