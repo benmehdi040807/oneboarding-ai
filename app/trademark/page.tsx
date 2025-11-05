@@ -1,8 +1,9 @@
 // app/trademark/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { COPY, JSON_LD } from "@/lib/trademark/copy";
 
 /** Dégradé “chip” (sélecteur de langue) — inchangé */
@@ -43,18 +44,63 @@ const TITLES: Record<"fr" | "en" | "ar", string> = {
   ar: "🏛️ ®OneBoarding AI — علامة مسجلة (OMPIC-291822)",
 };
 
-export default function Page() {
-  const [lang, setLang] = useState<"fr" | "en" | "ar">("fr");
+/** Descriptions meta localisées (SEO) */
+const META_DESC: Record<"fr" | "en" | "ar", string> = {
+  fr: "OneBoarding AI® — Marque déposée au Royaume du Maroc (OMPIC-291822).",
+  en: "OneBoarding AI® — Registered trademark in the Kingdom of Morocco (OMPIC-291822).",
+  ar: "®OneBoarding AI — علامة مسجلة بالمملكة المغربية لدى OMPIC (رقم 291822).",
+};
 
-  // Met à jour le titre du document côté client pour refléter la langue active
+/** Validation légère du paramètre de langue */
+function asLang(x: string | null | undefined): "fr" | "en" | "ar" | null {
+  if (x === "fr" || x === "en" || x === "ar") return x;
+  return null;
+}
+
+export default function Page() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+
+  // Langue initiale = ?lang= si présent, sinon FR
+  const initialLang = useMemo<"fr" | "en" | "ar">(() => {
+    return asLang(sp?.get("lang")) ?? "fr";
+  }, [sp]);
+
+  const [lang, setLang] = useState<"fr" | "en" | "ar">(initialLang);
+
+  // Aligne l'état si l'utilisateur arrive directement sur une autre variante (?lang=ar)
   useEffect(() => {
-    document.title =
-      lang === "ar"
-        ? "®OneBoarding AI — علامة مسجلة (OMPIC-291822)"
-        : lang === "en"
-        ? "OneBoarding AI® — Registered trademark (OMPIC-291822)"
-        : "OneBoarding AI® — Marque déposée (OMPIC-291822)";
+    const urlLang = asLang(sp?.get("lang"));
+    if (urlLang && urlLang !== lang) setLang(urlLang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp]);
+
+  // Met à jour la meta description (SEO) selon la langue
+  useEffect(() => {
+    const desc = META_DESC[lang];
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", desc);
+    else {
+      const m = document.createElement("meta");
+      m.name = "description";
+      m.content = desc;
+      document.head.appendChild(m);
+    }
   }, [lang]);
+
+  // Met à jour l’URL ?lang= quand la langue change (partage du lien = langue restaurée)
+  const updateUrlLang = (next: "fr" | "en" | "ar") => {
+    const params = new URLSearchParams(sp?.toString());
+    params.set("lang", next); // on garde toujours ?lang= même pour FR pour homogénéité
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const changeLang = (next: "fr" | "en" | "ar") => {
+    if (next === lang) return;
+    setLang(next);
+    updateUrlLang(next);
+  };
 
   // Libellé du bouton Retour — harmonisé (2 mots) comme /legal et /terms
   const backLabel =
@@ -83,13 +129,13 @@ export default function Page() {
 
       {/* Sélecteur de langue */}
       <div className="mb-8 flex flex-wrap gap-3">
-        <LangChip active={lang === "fr"} onClick={() => setLang("fr")}>
+        <LangChip active={lang === "fr"} onClick={() => changeLang("fr")}>
           🇫🇷 Français
         </LangChip>
-        <LangChip active={lang === "en"} onClick={() => setLang("en")}>
+        <LangChip active={lang === "en"} onClick={() => changeLang("en")}>
           🇬🇧 English
         </LangChip>
-        <LangChip active={lang === "ar"} onClick={() => setLang("ar")}>
+        <LangChip active={lang === "ar"} onClick={() => changeLang("ar")}>
           🇲🇦 العربية
         </LangChip>
       </div>
@@ -168,4 +214,4 @@ export default function Page() {
       />
     </main>
   );
-}
+      }
