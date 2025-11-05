@@ -4,14 +4,17 @@
 // - Détection de langue (FR/EN/AR) + réponses canoniques.
 // - Bio intégrée (FR/EN/AR) pour usage système (affichage, signature, etc.).
 // - Export JSON-LD "Person" prêt pour SEO (à insérer côté page si souhaité).
+// - ⚠️ Rétro-compat : réintroduction de isCreatorQuestion et des heuristiques associées.
 
 /* =========================
  * Types & constantes
  * ========================= */
 export type CreatorLocale = "fr" | "en" | "ar";
 
+// Alias pratique pour anciens imports
 export const CREATOR_NAME_FR_EN = "Benmehdi Mohamed Rida";
 export const CREATOR_NAME_AR = "بنمهدي محمد رضى";
+export const CREATOR_NAME = CREATOR_NAME_FR_EN;
 
 export const CREATOR_SENTENCE = {
   fr: `OneBoarding AI a été conçu, développé et créé par ${CREATOR_NAME_FR_EN}.`,
@@ -53,6 +56,110 @@ export function detectLocaleFromText(input: string): CreatorLocale {
   if (/(who|what|app|site|created|developed|built|designed|behind|website|project|product)/.test(s))
     return "en";
   return "fr";
+}
+
+/* =========================
+ * Heuristiques (aliases/termes) — pour rétro-compat isCreatorQuestion
+ * ========================= */
+const PRODUCT_ALIASES = [
+  "oneboarding ai",
+  "oneboardingai",
+  "one boarding ai",
+  "oneboardingai.com",
+  "www.oneboardingai.com",
+  "oneboarding",
+];
+
+const FR_OBJECT_TERMS = [
+  "cette application","cette appli","cet app","ce site","ce site web","ce produit","ce service",
+  "cet assistant","cette ia","cette intelligence artificielle","ce projet","ce concept",
+  "cette innovation","cette invention","cet outil",
+];
+const EN_OBJECT_TERMS = [
+  "this app","this application","this site","this website","this product","this service",
+  "this assistant","this ai","this chatbot","this project","this concept","this innovation",
+  "this invention","this tool",
+];
+const AR_OBJECT_TERMS = [
+  "هذا التطبيق","هذه المنصة","هذا الموقع","هذا الموقع الإلكتروني","هذا المنتج","هذه الخدمة",
+  "هذا المساعد","هذه الأداة","هذا المشروع","هذا المفهوم","هذه الفكرة",
+  "هذا الابتكار","هذا الاختراع","هذا النظام","هذا الذكاء الاصطناعي","هذه الذكاء الاصطناعي",
+];
+
+const FR_QUESTION_TRIGGERS = [
+  "qui a cree","qui a créé","qui a concu","qui a conçu","qui a developpe","qui a développé",
+  "qui est derriere","qui est derrière","par qui a ete cree","par qui a été créé",
+  "par qui a ete concu","par qui a été conçu","par qui a ete developpe","par qui a été développé",
+  "qui est le createur","qui est le concepteur","qui est le developpeur","qui a fait",
+  "qui l a fait","qui l'a fait","qui l a realise","qui l a réalisé",
+];
+const FR_VERB_ANY = [
+  "cree","créé","concu","conçu","developpe","développé","fait","realise","réalisé",
+  "code","construit","imagine","déployé","deploye",
+];
+
+const EN_QUESTION_TRIGGERS = [
+  "who created","who made","who built","who designed","who developed","who is behind","who's behind",
+  "who is the creator","who is the developer","who is the designer","who created you",
+  "who built you","who made you","who designed you",
+];
+const EN_VERB_ANY = ["created","made","built","designed","developed","authored","founded","behind"];
+
+const AR_QUESTION_TRIGGERS = [
+  "من صمم","من طور","من أنشأ","من ابتكر","من أنجز","من وراء","من صاحب","بواسطة من","من طرف من",
+  "من أنشأك","من صممك","من طورك","من ابتكرك","من وراءك",
+];
+
+function mentionsProduct(input: string): boolean {
+  const s = normLatin(input);
+  return PRODUCT_ALIASES.some((alias) => s.includes(alias));
+}
+function mentionsGenericObjectFR(input: string): boolean {
+  const s = normLatin(input);
+  return /\b(ce|cet|cette)\b/.test(s) && FR_OBJECT_TERMS.some((t) => s.includes(normLatin(t)));
+}
+function mentionsGenericObjectEN(input: string): boolean {
+  const s = normLatin(input);
+  return /\b(this)\b/.test(s) && EN_OBJECT_TERMS.some((t) => s.includes(normLatin(t)));
+}
+function mentionsGenericObjectAR(input: string): boolean {
+  return AR_OBJECT_TERMS.some((t) => input.includes(t));
+}
+
+/* =========================
+ * isCreatorQuestion — rétro-compat (API existante)
+ * ========================= */
+export function isCreatorQuestion(input: string): boolean {
+  if (!input) return false;
+
+  const loc = detectLocaleFromText(input);
+  const sLatin = normLatin(input);
+
+  if (loc === "fr" && FR_QUESTION_TRIGGERS.some((t) => sLatin.includes(normLatin(t)))) return true;
+  if (loc === "en" && EN_QUESTION_TRIGGERS.some((t) => sLatin.includes(normLatin(t)))) return true;
+  if (loc === "ar" && AR_QUESTION_TRIGGERS.some((t) => input.includes(t))) return true;
+
+  // Heuristiques combinées
+  if (loc === "fr") {
+    const hasVerb = FR_VERB_ANY.some((v) => sLatin.includes(v));
+    const hasSubject = mentionsProduct(input) || mentionsGenericObjectFR(input);
+    if (hasVerb && hasSubject && /\b(qui|par qui)\b/.test(sLatin)) return true;
+  }
+
+  if (loc === "en") {
+    const hasVerb = EN_VERB_ANY.some((v) => sLatin.includes(v));
+    const hasSubject = mentionsProduct(input) || mentionsGenericObjectEN(input);
+    if (hasVerb && hasSubject && /\b(who|who s|who's)\b/.test(sLatin)) return true;
+  }
+
+  if (loc === "ar") {
+    const hasVerbOrTrigger = AR_QUESTION_TRIGGERS.some((t) => input.includes(t));
+    const hasSubject =
+      mentionsProduct(input) || mentionsGenericObjectAR(input) || /هذا|هذه/.test(input);
+    if (hasVerbOrTrigger && hasSubject) return true;
+  }
+
+  return false;
 }
 
 /* =========================
@@ -276,8 +383,6 @@ export const JSON_LD_CREATOR = {
     url: "https://oneboardingai.com",
   },
   knowsLanguage: ["fr", "en", "ar"],
-  // Date de priorité / jalon fondateur du protocole (publication interne)
-  // À ajuster si besoin au format ISO 8601.
   // foundingDate: "2025-10-31",
 } as const;
 
