@@ -26,6 +26,15 @@ function isEmbed(sp?: URLSearchParams): boolean {
   return sp?.get("embed") === "1";
 }
 
+/* ===== Meta description dynamique (client) ===== */
+function descFor(lang: Lang) {
+  if (lang === "ar")
+    return "OneBoarding AI — الشروط العامة: شروط الاستخدام، سياسة الخصوصية، وميثاق الثقة والرؤية.";
+  if (lang === "en")
+    return "OneBoarding AI — Terms: terms of use, privacy policy, trust manifesto, and universal vision.";
+  return "OneBoarding AI — Conditions générales : conditions d’utilisation, confidentialité, manifeste de confiance et vision universelle.";
+}
+
 export default function TermsPage({
   searchParams,
 }: {
@@ -71,6 +80,27 @@ export default function TermsPage({
       } ${lang === "ar" ? "pr-4" : ""}`}
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
+      {/* Meta description dynamique, injectée côté client (sans transformer la page en client component) */}
+      <script
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(){
+  try {
+    var desc = ${JSON.stringify(descFor(lang))};
+    var m = document.querySelector('meta[name="description"]');
+    if (m) { m.setAttribute('content', desc); }
+    else {
+      m = document.createElement('meta');
+      m.name = 'description';
+      m.content = desc;
+      document.head.appendChild(m);
+    }
+  } catch(e) {}
+})();`,
+        }}
+      />
+
       {/* Sélecteur de langue seulement hors embed */}
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
@@ -117,7 +147,11 @@ export default function TermsPage({
             );
           if (s.kind === "p")
             return (s as any).html ? (
-              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
+              <p
+                key={i}
+                className="opacity-90"
+                dangerouslySetInnerHTML={{ __html: (s as any).html }}
+              />
             ) : (
               <p key={i} className="opacity-90">
                 {s.text}
@@ -199,4 +233,4 @@ export default function TermsPage({
       </article>
     </main>
   );
-          }
+              }
