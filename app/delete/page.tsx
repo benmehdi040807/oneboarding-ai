@@ -23,6 +23,15 @@ function pickLang(sp?: URLSearchParams): Lang {
   return "fr";
 }
 
+/* ===== Meta description dynamique (client) ===== */
+function descFor(lang: Lang) {
+  if (lang === "ar")
+    return "OneBoarding AI — تعليمات حذف بيانات المستخدم وفقاً لسياسة الخصوصية.";
+  if (lang === "en")
+    return "OneBoarding AI — Official user data deletion instructions, in line with our Privacy Policy.";
+  return "OneBoarding AI — Instructions officielles de suppression des données utilisateur, conformément à la Politique de confidentialité.";
+}
+
 export default function DeletePage({
   searchParams,
 }: {
@@ -55,7 +64,7 @@ export default function DeletePage({
         "@type": "ContactPoint",
         contactType: "Data protection officer",
         name: "Benmehdi Mohamed Rida",
-        email: "support@oneboardingai.com", // normalized lowercase
+        email: "support@oneboardingai.com",
       },
     },
     policyStatus: "Active",
@@ -66,7 +75,6 @@ export default function DeletePage({
   const backLabel =
     lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
-  // util pour paddings RTL/LTR dans les listes
   const listPad = lang === "ar" ? "pr-5" : "pl-5";
 
   return (
@@ -80,6 +88,27 @@ export default function DeletePage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* ✅ Meta description dynamique */}
+      <script
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(){
+  try {
+    var desc = ${JSON.stringify(descFor(lang))};
+    var m = document.querySelector('meta[name="description"]');
+    if (m) { m.setAttribute('content', desc); }
+    else {
+      m = document.createElement('meta');
+      m.name = 'description';
+      m.content = desc;
+      document.head.appendChild(m);
+    }
+  } catch(e) {}
+})();`,
+        }}
       />
 
       {/* Sélecteur de langue */}
@@ -163,4 +192,4 @@ export default function DeletePage({
       </article>
     </main>
   );
-}
+      }
