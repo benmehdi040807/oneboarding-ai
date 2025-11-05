@@ -4,7 +4,7 @@ import {
   isCreatorQuestion,
   creatorAutoAnswer,
   SYSTEM_PROMPT,
-} from "@/lib/creator-policy"; // ← chemin corrigé
+} from "@/lib/creator-policy";
 
 export const runtime = "edge";
 
@@ -12,7 +12,7 @@ export const runtime = "edge";
 const GROQ_BASE = "https://api.groq.com/openai/v1";
 const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
-// Petit helper JSON
+// Petit helper JSON (uniformise les retours)
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
@@ -86,17 +86,23 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return json({ ok: false, error: "GROQ_API_KEY is not set" }, 500);
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, mode }: { prompt?: string; mode?: "short" } = await req.json();
     const raw = typeof prompt === "string" ? prompt.trim() : "";
     if (!raw) return json({ ok: false, error: "Missing prompt" }, 400);
 
-    // ---------- 1) Court-circuit : questions sur le créateur ----------
-    if (isCreatorQuestion(raw)) {
-      const text = creatorAutoAnswer(raw); // FR / EN / AR
+    // 0) Optionnel : renvoi "short" immédiat (badge/infobulle)
+    if (mode === "short") {
+      const text = creatorAutoAnswer(raw, "short");
       return json({ ok: true, text, provider: "LOCAL_POLICY", model: "n/a" });
     }
 
-    // ---------- 2) Appel LLM normal avec SYSTEM_PROMPT (gouvernance) ----------
+    // 1) Court-circuit — questions sur le créateur → bio complète (FR/EN/AR)
+    if (isCreatorQuestion(raw)) {
+      const text = creatorAutoAnswer(raw, "full");
+      return json({ ok: true, text, provider: "LOCAL_POLICY", model: "n/a" });
+    }
+
+    // 2) Appel LLM normal avec SYSTEM_PROMPT
     const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
       method: "POST",
       headers: {
@@ -115,7 +121,6 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await resp.json();
-
     if (!resp.ok) {
       return json(
         {
@@ -129,18 +134,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ---------- 3) Fallback + sanitation finale ----------
-    let text: string =
+    // 3) Sortie ouverte (aucune censure, langage noble encouragé)
+    const text: string =
       data?.choices?.[0]?.message?.content?.trim() ||
       "Désolé, je n’ai pas le droit de vous fournir plus d’informations à ce sujet.";
-
-    // Retire toute mention indésirable (métiers/titres/entités pro).
-    text = text
-      .replace(/\b(Office\s+Benmehdi)\b/gi, "")
-      .replace(/\b(avocat|lawyer|docteur|doctorat|ph\.?d|phd|mba)\b/gi, "");
 
     return json({ ok: true, text, provider: "GROQ", model: MODEL });
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-}
+  }
