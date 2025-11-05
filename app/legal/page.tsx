@@ -19,6 +19,15 @@ function isEmbed(sp?: URLSearchParams): boolean {
   return sp?.get("embed") === "1";
 }
 
+/* ===== Meta description dynamique (client) ===== */
+function descFor(lang: Lang) {
+  if (lang === "ar")
+    return "OneBoarding AI — المعلومات القانونية: البيان، شروط الاستخدام، والخصوصية.";
+  if (lang === "en")
+    return "OneBoarding AI — Legal information: manifesto, terms of use, and privacy.";
+  return "OneBoarding AI — Informations légales : manifeste, conditions d’utilisation et confidentialité.";
+}
+
 export default function LegalPage({
   searchParams,
 }: {
@@ -68,6 +77,27 @@ export default function LegalPage({
 
   return (
     <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
+      {/* Meta description dynamique, injectée côté client sans transformer la page en client component */}
+      <script
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(){
+  try {
+    var desc = ${JSON.stringify(descFor(lang))};
+    var m = document.querySelector('meta[name="description"]');
+    if (m) { m.setAttribute('content', desc); }
+    else {
+      m = document.createElement('meta');
+      m.name = 'description';
+      m.content = desc;
+      document.head.appendChild(m);
+    }
+  } catch(e) {}
+})();`,
+        }}
+      />
+
       {!embed && (
         <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
           <span className="opacity-70 mr-2">{langLabel}</span>
@@ -109,9 +139,13 @@ export default function LegalPage({
                 {s.text}
               </h2>
             );
-        if (s.kind === "p")
+          if (s.kind === "p")
             return (s as any).html ? (
-              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
+              <p
+                key={i}
+                className="opacity-90"
+                dangerouslySetInnerHTML={{ __html: (s as any).html }}
+              />
             ) : (
               <p key={i} className="opacity-90">
                 {s.text}
