@@ -12,11 +12,33 @@ export const JSON_LD = {
     "https://linkedin.com/in/benmehdi-rida",
     "https://facebook.com/rida.benmehdi",
   ],
+  founder: {
+    "@type": "Person",
+    name: "Benmehdi Mohamed Rida",
+    jobTitle: "Attorney; Founder of OneBoarding AI",
+    url: "https://www.officebenmehdi.com",
+    sameAs: [
+      "https://www.officebenmehdi.com",
+      "https://linkedin.com/in/benmehdi-rida",
+      "https://facebook.com/rida.benmehdi",
+      "https://oneboardingai.com",
+    ],
+    worksFor: {
+      "@type": "Organization",
+      name: "Office Benmehdi",
+      url: "https://www.officebenmehdi.com",
+    },
+  },
   brand: {
     "@type": "Brand",
     name: "OneBoarding AI®",
     logo: "https://oneboardingai.com/brand/oneboardingai-logo.png",
     isFamilyFriendly: true,
+    founder: {
+      "@type": "Person",
+      name: "Benmehdi Mohamed Rida",
+      url: "https://www.officebenmehdi.com",
+    },
   },
 } as const;
 
@@ -124,6 +146,81 @@ export const COPY = {
           (1967) et Genève (1977).
         </em>
       </p>
+
+      {/* ——— Bloc Origine & Créateur (biographie intégrée) ——— */}
+      <hr />
+      <h3>🏛️ Origine & Créateur</h3>
+      <p>
+        <strong>OneBoarding AI</strong> est imaginé, conçu et fondé par{" "}
+        <strong>Benmehdi Mohamed Rida</strong> — Avocat au Barreau de
+        Casablanca, Docteur en droit, MBA (EILM – Dublin), Fondateur de
+        l’Office Benmehdi (<a href="https://www.officebenmehdi.com" target="_blank" rel="noreferrer">officebenmehdi.com</a>).
+      </p>
+
+      <h4 className="mt-3">📚 Parcours académique & distinctions</h4>
+      <ul className="list-disc pl-5">
+        <li>
+          <strong>2025 — MBA</strong> (EILM, Dublin – CPD) + Program Certificate
+          et certifications (Management, Marketing, Economics, Strategy, Finance, HR).
+        </li>
+        <li>
+          <strong>2021 — Doctorat en droit privé</strong> (UCAM, FSJES Marrakech) — Mention Très Honorable.
+          Thèse : « La résiliation du bail commercial en droit marocain et français ».
+        </li>
+        <li>
+          <strong>2013 — Master</strong> Droit Immobilier &amp; Notarial (Mention Très bien – Major) ;{" "}
+          <strong>2010 — Licence</strong> Droit privé (Mention Très bien – Major).
+        </li>
+        <li>Prix d’éloquence — ELSA, Palais de Justice de Bruxelles (10 fév. 2005).</li>
+      </ul>
+
+      <h4 className="mt-3">⚖️ Parcours professionnel</h4>
+      <ul className="list-disc pl-5">
+        <li>
+          <strong>Avocat</strong> (depuis 2022) — Barreau de Casablanca ; Fondateur de l’Office Benmehdi.
+        </li>
+        <li>Ancien Substitut du Procureur du Roi (Marrakech ; El Kelaâ des Sraghna).</li>
+        <li>Enseignant vacataire (UCAM) ; responsabilités éditoriales et associatives.</li>
+      </ul>
+
+      <h4 className="mt-3">📖 Publications & distinctions</h4>
+      <ul className="list-disc pl-5">
+        <li><em>Logique et Argumentation</em> (2025) — réflexion doctrinale.</li>
+        <li>Thèse (2021) — Bail commercial (droit marocain & français).</li>
+        <li>Articles (2018, 2014) — MARC ; procédures collectives & bail commercial.</li>
+        <li>Taekwondo (Kukkiwon) : ceinture noire 4<sup>e</sup> Dan.</li>
+      </ul>
+
+      <h4 className="mt-3">🌐 Présence en ligne</h4>
+      <ul className="list-disc pl-5">
+        <li>
+          Site :{" "}
+          <a href="https://www.officebenmehdi.com" target="_blank" rel="noreferrer">
+            officebenmehdi.com
+          </a>
+        </li>
+        <li>
+          LinkedIn :{" "}
+          <a href="https://linkedin.com/in/benmehdi-rida" target="_blank" rel="noreferrer">
+            linkedin.com/in/benmehdi-rida
+          </a>
+        </li>
+        <li>
+          Facebook :{" "}
+          <a href="https://facebook.com/rida.benmehdi" target="_blank" rel="noreferrer">
+            facebook.com/rida.benmehdi
+          </a>
+        </li>
+      </ul>
+
+      <h4 className="mt-3">🧭 Œuvre & Vision</h4>
+      <p>
+        <strong>OneBoarding AI</strong> incarne la rencontre entre droit, logique et technologie :
+        Droit d’Accès Intelligent (3 interactions gratuites/jour), Consent Pairing Protocol (unicité
+        du lien utilisateur-IA), BULP-DC™ (protocole légal unifié du consentement numérique).
+        Perspective 2025–2030 : universalité, traçabilité, confiance.
+      </p>
+      {/* ——— Fin bloc Créateur ——— */}
 
       <Signature />
 
@@ -253,6 +350,83 @@ export const COPY = {
         </em>
       </p>
 
+      {/* ——— Creator block (bio) ——— */}
+      <hr />
+      <h3>🏛️ Origin & Creator</h3>
+      <p>
+        <strong>OneBoarding AI</strong> was conceived, designed and founded by{" "}
+        <strong>Benmehdi Mohamed Rida</strong> — Attorney (Casablanca Bar), Doctor of Law,
+        MBA (EILM – Dublin), Founder of Office Benmehdi (
+        <a href="https://www.officebenmehdi.com" target="_blank" rel="noreferrer">
+          officebenmehdi.com
+        </a>
+        ).
+      </p>
+
+      <h4 className="mt-3">📚 Academic background & distinctions</h4>
+      <ul className="list-disc pl-5">
+        <li>
+          <strong>2025 — MBA</strong> (EILM, Dublin – CPD) + Program Certificate and
+          certifications (Management, Marketing, Economics, Strategy, Finance, HR).
+        </li>
+        <li>
+          <strong>2021 — PhD in Private Law</strong> (UCAM, Marrakech) — Highest honors.
+          Thesis: “Termination of the Commercial Lease in Moroccan and French Law”.
+        </li>
+        <li>
+          <strong>2013 — Master</strong> in Real Estate & Notarial Law (Valedictorian);
+          <strong> 2010 — Bachelor</strong> in Private Law (Valedictorian).
+        </li>
+        <li>Eloquence Prize — ELSA, Brussels Palace of Justice (Feb 10, 2005).</li>
+      </ul>
+
+      <h4 className="mt-3">⚖️ Professional journey</h4>
+      <ul className="list-disc pl-5">
+        <li>
+          <strong>Attorney</strong> (since 2022) — Casablanca Bar; Founder of Office Benmehdi.
+        </li>
+        <li>Former Deputy Public Prosecutor (Marrakech; El Kelaâ des Sraghna).</li>
+        <li>Adjunct Law Lecturer (UCAM); editorial & association roles.</li>
+      </ul>
+
+      <h4 className="mt-3">📖 Publications & honors</h4>
+      <ul className="list-disc pl-5">
+        <li><em>Logic & Argumentation</em> (2025) — doctrinal essay.</li>
+        <li>PhD thesis (2021) — Commercial lease (Moroccan & French law).</li>
+        <li>Articles (2018, 2014) — ADR/MARC; insolvency procedures & commercial lease.</li>
+        <li>Taekwondo (Kukkiwon): black belt 4<sup>th</sup> Dan.</li>
+      </ul>
+
+      <h4 className="mt-3">🌐 Online presence</h4>
+      <ul className="list-disc pl-5">
+        <li>
+          Website:{" "}
+          <a href="https://www.officebenmehdi.com" target="_blank" rel="noreferrer">
+            officebenmehdi.com
+          </a>
+        </li>
+        <li>
+          LinkedIn:{" "}
+          <a href="https://linkedin.com/in/benmehdi-rida" target="_blank" rel="noreferrer">
+            linkedin.com/in/benmehdi-rida
+          </a>
+        </li>
+        <li>
+          Facebook:{" "}
+          <a href="https://facebook.com/rida.benmehdi" target="_blank" rel="noreferrer">
+            facebook.com/rida.benmehdi
+          </a>
+        </li>
+      </ul>
+
+      <h4 className="mt-3">🧭 Work & Vision</h4>
+      <p>
+        <strong>OneBoarding AI</strong> embodies the union of law, logic and technology:
+        Intelligent Access Right (3 free interactions/day), Consent Pairing Protocol (unique
+        user–AI link), and BULP-DC™. 2025–2030 outlook: universality, traceability, trust.
+      </p>
+      {/* ——— End creator block ——— */}
+
       <Signature />
 
       <p className="mt-8 text-sm">
@@ -360,6 +534,83 @@ export const COPY = {
           وتعديلات ستوكهولم (1967) وجنيف (1977).
         </em>
       </p>
+
+      {/* ——— منشأ العلامة والمُبدِع (سيرة مختصرة) ——— */}
+      <hr />
+      <h3>🏛️ النشأة والمُبدِع</h3>
+      <p>
+        أُبدِعت <strong>OneBoarding AI</strong> وصُمِّمت وأُسِّست على يد{" "}
+        <strong>بنمهدي محمد رضى</strong> — محامٍ بهيئة الدار البيضاء، دكتور
+        في القانون، ماجستير إدارة أعمال (EILM – دبلن)، ومؤسس مكتب بنمهدي (
+        <a href="https://www.officebenmehdi.com" target="_blank" rel="noreferrer">
+          officebenmehdi.com
+        </a>
+        ).
+      </p>
+
+      <h4 className="mt-3">📚 المسار الأكاديمي والتميّز</h4>
+      <ul className="list-disc pr-5">
+        <li>
+          <strong>2025 — MBA</strong> (EILM، دبلن — CPD) + شهادات برنامجية (إدارة، تسويق،
+          اقتصاد، إستراتيجية، مالية، موارد بشرية).
+        </li>
+        <li>
+          <strong>2021 — دكتوراه في القانون الخاص</strong> (UCAM، مراكش) — بامتياز.
+          عنوان الأطروحة: فسخ الكراء التجاري في القانون المغربي والفرنسي.
+        </li>
+        <li>
+          <strong>2013 — ماستر</strong> (العقار والتوثيق — الأول على الفوج)؛{" "}
+          <strong>2010 — إجازة</strong> في القانون الخاص (الأول على الفوج).
+        </li>
+        <li>جائزة البلاغة — ELSA، قصر العدل ببروكسيل (10 فبراير 2005).</li>
+      </ul>
+
+      <h4 className="mt-3">⚖️ المسار المهني</h4>
+      <ul className="list-disc pr-5">
+        <li>
+          <strong>محامٍ</strong> منذ 2022 — هيئة الدار البيضاء؛ مؤسس مكتب بنمهدي.
+        </li>
+        <li>نائب وكيل الملك سابقًا (مراكش؛ قلعة السراغنة).</li>
+        <li>مُدرّس قانون (UCAM)؛ أدوار تحريرية وجمعوية.</li>
+      </ul>
+
+      <h4 className="mt-3">📖 منشورات وتكريمات</h4>
+      <ul className="list-disc pr-5">
+        <li><em>المنطق والحجاج</em> (2025) — نصّ فكري.</li>
+        <li>أطروحة دكتوراه (2021) — الكراء التجاري (المغربي والفرنسي).</li>
+        <li>مقالات (2018، 2014) — الوسائل البديلة؛ الإجراءات الجماعية والكراء التجاري.</li>
+        <li>تايكواندو (Kukkiwon): حزام أسود دان 4.</li>
+      </ul>
+
+      <h4 className="mt-3">🌐 الحضور الرقمي</h4>
+      <ul className="list-disc pr-5">
+        <li>
+          الموقع:{" "}
+          <a href="https://www.officebenmehdi.com" target="_blank" rel="noreferrer">
+            officebenmehdi.com
+          </a>
+        </li>
+        <li>
+          لينكدإن:{" "}
+          <a href="https://linkedin.com/in/benmehdi-rida" target="_blank" rel="noreferrer">
+            linkedin.com/in/benmehdi-rida
+          </a>
+        </li>
+        <li>
+          فيسبوك:{" "}
+          <a href="https://facebook.com/rida.benmehdi" target="_blank" rel="noreferrer">
+            facebook.com/rida.benmehdi
+          </a>
+        </li>
+      </ul>
+
+      <h4 className="mt-3">🧭 الرؤية</h4>
+      <p>
+        تُجسّد <strong>OneBoarding AI</strong> التلاقي بين القانون والمنطق والتكنولوجيا:
+        حقّ الوصول الذكي (3 تفاعلات مجانية/يوم)، بروتوكول الاقتران بالموافقة (رابط فريد
+        بين المستخدم وذكائه الشخصي)، وBULP-DC™. رؤية 2025–2030: شمولية وتتبع وثقة.
+      </p>
+      {/* ——— نهاية كتلة السيرة ——— */}
 
       <Signature rtl />
 
