@@ -1,7 +1,7 @@
 // app/trademark/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { COPY, JSON_LD } from "@/lib/trademark/copy";
 
@@ -45,6 +45,16 @@ const TITLES: Record<"fr" | "en" | "ar", string> = {
 
 export default function Page() {
   const [lang, setLang] = useState<"fr" | "en" | "ar">("fr");
+
+  // Met à jour le titre du document côté client pour refléter la langue active
+  useEffect(() => {
+    document.title =
+      lang === "ar"
+        ? "®OneBoarding AI — علامة مسجلة (OMPIC-291822)"
+        : lang === "en"
+        ? "OneBoarding AI® — Registered trademark (OMPIC-291822)"
+        : "OneBoarding AI® — Marque déposée (OMPIC-291822)";
+  }, [lang]);
 
   // Libellé du bouton Retour — harmonisé (2 mots) comme /legal et /terms
   const backLabel =
