@@ -165,14 +165,7 @@ function TrademarkContent() {
                 oneboardingai.com/protocol
               </Link>
             </p>
-            <p>
-              <Link
-                href={`/trademark?lang=${lang}`}
-                className="underline text-blue-700 hover:text-blue-900 break-all"
-              >
-                oneboardingai.com/trademark
-              </Link>
-            </p>
+            {/* auto-reference /trademark intentionally removed */}
           </div>
         </div>
       </div>
