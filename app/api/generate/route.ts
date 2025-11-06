@@ -57,14 +57,14 @@ export async function GET(req: NextRequest) {
       }),
     });
 
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       return json(
         {
           ok: false,
           status: resp.status,
           error:
-            data?.error?.message ||
+            (data as any)?.error?.message ||
             `Groq error (status ${resp.status}) — vérifie la clé / le modèle.`,
         },
         500
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     }
 
     const text =
-      data?.choices?.[0]?.message?.content?.trim() || "(réponse vide)";
+      (data as any)?.choices?.[0]?.message?.content?.trim() || "(réponse vide)";
     return json({ ok: true, text, from: "GET test", provider: "GROQ" });
   } catch (e: any) {
     return json({ ok: false, error: e?.message || "Server error" }, 500);
@@ -120,14 +120,14 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       return json(
         {
           ok: false,
           status: resp.status,
           error:
-            data?.error?.message ||
+            (data as any)?.error?.message ||
             `Groq error (status ${resp.status}) — vérifie la clé / le modèle.`,
         },
         500
@@ -136,11 +136,11 @@ export async function POST(req: NextRequest) {
 
     // 3) Sortie ouverte (aucune censure, langage noble encouragé)
     const text: string =
-      data?.choices?.[0]?.message?.content?.trim() ||
+      (data as any)?.choices?.[0]?.message?.content?.trim() ||
       "Désolé, je n’ai pas le droit de vous fournir plus d’informations à ce sujet.";
 
     return json({ ok: true, text, provider: "GROQ", model: MODEL });
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-  }
+    }
