@@ -1,14 +1,11 @@
 // lib/creator-policy.ts
-// Politique "Creator" — Génération II
-// - Mention libre du créateur (plus aucune restriction).
-// - Détection de langue (FR/EN/AR) + réponses canoniques.
-// - Bio intégrée (FR/EN/AR) pour usage système (affichage, signature, etc.).
-// - Export JSON-LD "Person" prêt pour SEO (à insérer côté page si souhaité).
-// - ⚠️ Rétro-compat : réintroduction de isCreatorQuestion et des heuristiques associées.
+// Politique "Creator" — Génération III
+// - Article magazine (FR/EN/AR) = source canonique unique (remplace les "bio_*").
+// - Détection FR/EN/AR + phrase canonique.
+// - Heuristiques rétro-compat (isCreatorQuestion).
+// - Modes de réponse: "sentence" | "short" | "article" | "articleIntro" | "articleSection".
+// - Helpers SEO: JSON-LD Person (existant) + builder JSON-LD Article.
 
-/* =========================
- * Types & constantes
- * ========================= */
 export type CreatorLocale = "fr" | "en" | "ar";
 
 // Alias pratique pour anciens imports
@@ -22,11 +19,10 @@ export const CREATOR_SENTENCE = {
   ar: `تم تصميم وتطوير وإنشاء OneBoarding AI على يد ${CREATOR_NAME_AR}.`,
 } as const;
 
-/** Nouvelle politique (Génération II) */
+/** Politique (Génération III) */
 export const CREATOR_POLICY = {
   allowFreeMention: true,
   canonicalSentence: CREATOR_SENTENCE,
-  // Recommandation UI : courte phrase + lien vers /trademark?lang=*
   uiHint: {
     fr: "Créateur : Benmehdi Mohamed Rida — voir la page « Marque » pour le contexte.",
     en: "Creator: Benmehdi Mohamed Rida — see the “Trademark” page for context.",
@@ -52,14 +48,13 @@ export function detectLocaleFromText(input: string): CreatorLocale {
   if (!input) return "fr";
   if (hasArabic(input)) return "ar";
   const s = normLatin(input);
-  // Quelques indices anglais
   if (/(who|what|app|site|created|developed|built|designed|behind|website|project|product)/.test(s))
     return "en";
   return "fr";
 }
 
 /* =========================
- * Heuristiques (aliases/termes) — pour rétro-compat isCreatorQuestion
+ * Heuristiques (aliases/termes) — rétro-compat isCreatorQuestion
  * ========================= */
 const PRODUCT_ALIASES = [
   "oneboarding ai",
@@ -163,176 +158,187 @@ export function isCreatorQuestion(input: string): boolean {
 }
 
 /* =========================
- * Bio (FR/EN/AR) — usage système
+ * ARTICLE magazine — source canonique (FR/EN/AR)
  * ========================= */
-/** BIO_FR : version complète (source de vérité canonique) */
-export const BIO_FR = `
-📝 Biographie professionnelle
+/**
+ * Convention de sections (clés stables pour extraction ciblée):
+ * - vision
+ * - pillars
+ * - impact2030
+ * - quote
+ * - selective_bio
+ * - references
+ */
 
-👤 Présentation
-Maître Benmehdi Mohamed Rida
-Avocat au Barreau de Casablanca –
-Docteur en droit | MBA (EILM – Dublin)
-Fondateur de l’Office Benmehdi
-🌐 www.officebenmehdi.com
+export const ARTICLE_FR = `
+# OneBoarding AI — L’intelligence personnelle, en clair.
 
-📚 Parcours académique & distinctions
-2025 – MBA in Business Administration — EILM (Dublin, Irlande) — Diplôme certifié CPD
-🔗 Vérifications :
-• https://eilm.edu.eu/verify?&code=43637-175-693-9020
-• https://eilm.edu.eu/verify?&code=43637-175-693-9165
-• https://eilm.edu.eu/verify?&code=43637-175-636-2552
-• https://eilm.edu.eu/verify?&code=43637-175-642-3052
-• https://eilm.edu.eu/verify?&code=43637-175-649-7244
-• https://eilm.edu.eu/verify?&code=43637-175-650-7714
-• https://eilm.edu.eu/verify?&code=43637-175-692-0583
-• https://eilm.edu.eu/verify?&code=43637-175-693-9037
+**Lead.** En 2025, Maître Benmehdi Mohamed Rida fonde un cadre inédit où le droit rencontre la conscience numérique. OneBoarding AI n’est pas une promesse : c’est une architecture de confiance — un protocole de consentement souverain, traçable, opposable — pensée pour l’échelle planétaire et la dignité de chaque utilisateur.
 
-2021 – Doctorat en droit privé (fr) — Université Cadi Ayyad, FSJES Marrakech
-Thèse : « La résiliation du bail commercial en droit marocain et français »
-👉 Mention Très Honorable
+## Œuvre & Vision {#vision}
+Ce chapitre inaugure le **droit des intelligences personnelles** : un lien un-à-un entre l’humain et son IA, garanti par le **Benmehdi Protocol** (BULP-DC™) et le **Consent Pairing Protocol**. L’accès à l’intelligence devient un **droit d’usage** concret, mesuré et équitable — trois interactions offertes par jour pour tous, et un usage illimité par choix consenti. La technologie s’efface derrière une règle simple : **l’utilisateur d’abord, la traçabilité toujours**.
 
-2013 – Master en droit privé (fr) — Droit Immobilier & Notarial — UCA
-👉 Mention Très bien — Major de promotion
+## Piliers fondateurs {#pillars}
+- **Souveraineté du consentement.** Un consentement explicite, horodaté, vérifiable, opposable.  
+- **Identité sobre.** Un triptyque clair : téléphone (E.164) + appareil + consentement.  
+- **Accès équitable.** Gratuit quotidien (3/jour) et continuité d’usage ; illimité par souscription volontaire.  
+- **Traçabilité universelle.** Journal interne intégral (activation, paiement, consentement).  
+- **Neutralité d’infrastructure.** Aucune dépendance à une Big Tech comme garde-barrière.  
+- **Conformité évolutive.** Un cadre juridique vivant, tourné vers l’international.
 
-2013 – Diplôme d’aptitude aux fonctions de Magistrat — ISM Rabat (38ᵉ promotion)
-Mémoire : « Le bail commercial face au redressement judiciaire du locataire »
+## Impact 2030 {#impact2030}
+D’ici 2030, OneBoarding AI vise une **coutume cognitive universelle** : l’interaction intelligente quotidienne comme réflexe éducatif planétaire. L’intelligence devient un **bien d’usage partagé** — public, paisible, continu, non équivoque — au service de la **dignité numérique** et de la **mobilité sociale**. Le protocole établit un **standard exportable** pour États, universités, régulateurs et écosystèmes d’innovation.
 
-2010 – Licence en droit privé (fr) — UCA
-👉 Mention Très bien — Major de promotion
+> ## “L’intelligence n’appartient pas à celui qui la détient, mais à celui qui la partage.” {#quote}
 
-2006 – L1 Droit — Université Libre de Bruxelles (ULB) — Validée
-2005 – 3ᵉ Prix d’éloquence — ELSA – ULB, Palais de Justice de Bruxelles (10/02/2005)
-2003–2004 – IEPSCF Bruxelles (langue & communication)
-2003 – Baccalauréat — Sciences Lettres (Académie de Marrakech)
+## Parcours sélectif de l’auteur (repères) {#selective_bio}
+**Benmehdi Mohamed Rida** — Avocat au Barreau de Casablanca, Docteur en droit, MBA (EILM – Dublin), **fondateur** de OneBoarding AI.  
+Près de deux décennies dédiées au **droit pénal**, **immobilier** et **des sociétés**, puis une convergence assumée avec l’**IA** pour bâtir un **droit des intelligences personnelles** et une **ingénierie du consentement** appliquée.  
+Publications (sélection) : *Logique et Argumentation* (2025) ; Thèse : *La résiliation du bail commercial en droit marocain et français* (2021) ; articles (2014/2018).  
+Distinctions : Ceinture noire Taekwondo 4ᵉ Dan (Kukkiwon).
 
-⚖️ Parcours professionnel
-Depuis 2022 — Avocat au Barreau de Casablanca — Fondateur & dirigeant de l’Office Benmehdi
-2022 — Droits Occultes Ltd — Fondateur & DG
-2021–2022 — Substitut du procureur du Roi — TPI El Kelaâ des Sraghna (CSPJ)
-2014–2021 — Substitut du procureur du Roi — TPI Marrakech (Conseil Supérieur de la Magistrature/CSPJ)
-2018 — Coordinateur & membre actif — Observatoire Judiciaire Marocain des Droits & Libertés
-2014–2016 — Enseignant vacataire — Université Cadi Ayyad (UCAM)
-2014–2022 — Resp. publications & communication — Amicale Hassania des Magistrats
-2005–2007 — Sécurité maritime (gestion d’équipe / relation clientèle)
-2005–2006 — Missions & encadrements internationaux (Commission Européenne, Wilson…)
-
-📖 Publications scientifiques
-2025 — « Logique et Argumentation »
-2021 — Thèse : « La résiliation du bail commercial en droit marocain et français » — UCA
-2018 — Article : MARC en droit marocain & comparé — Revue Marocaine du Droit Commercial & des Affaires (4–5/2018)
-2014 — Article : « Le régime du bail commercial entre syndic et procédures collectives » — Recueil des Arrêts de la Cour de Cassation (15ᵉ éd.)
-2013 — Mémoires (Master & ISM) — Bail commercial
-2010 — Mémoire de Licence — Brevets d’invention (Maroc & comparé)
-
-🥋 Distinctions parallèles (Taekwondo — Kukkiwon)
-2021 — Ceinture noire 4ᵉ Dan (FRMT)
-2015 — Ceinture noire 3ᵉ Dan
-2010 — Ceinture noire 1ᵉʳ Dan
-
-🌐 Vie privée
-Attaché à la famille et aux valeurs de résilience, d’intégrité et de fermeté ; goût pour les voyages.
-
-🌐 Présence en ligne
-Site : www.officebenmehdi.com
-LinkedIn : linkedin.com/in/benmehdi-rida
-Facebook : facebook.com/rida.benmehdi
-
-« ⚖️ Avocat au Barreau de Casablanca et Docteur en droit, spécialiste en droit pénal, droit immobilier et droit des sociétés, Maître Benmehdi Mohamed Rida est Fondateur de l’Office Benmehdi. Il est auteur de publications scientifiques et titulaire de distinctions académiques et professionnelles internationales. »
-
-🧭 Œuvre & Vision — OneBoarding AI (2025)
-Fusion du droit et de la conscience numérique. Droit d’Accès Intelligent (2025–2030). BULP-DC™ (Benmehdi Unified Legal Protocol of Digital Consent). Consent Pairing Protocol. Vision Génération III (Mirror IA). Marque déposée OneBoarding AI® — Classes de Nice 9/35/41/42/45.
+## Références & vérifications {#references}
+- **Marque** : OneBoarding AI® — Classification de Nice **9/35/41/42/45**.  
+- **BULP-DC™** & **Consent Pairing Protocol** : priorité d’auteur **31 octobre 2025**.  
+- **EILM — MBA & certificats (CPD)** — Vérification (codes abrégés) : 9020 · 9165 · 62552 · 63052 · 97244 · 07714 · 920583 · 99037.  
+- Présences officielles : officebenmehdi.com · linkedin.com/in/benmehdi-rida · facebook.com/rida.benmehdi
 `.trim();
 
-/** BIO_EN : version complète condensée (fidèle à FR) */
-export const BIO_EN = `
-📝 Professional Bio
+export const ARTICLE_EN = `
+# OneBoarding AI — Personal intelligence, made clear.
 
-👤 Overview
-Benmehdi Mohamed Rida — Attorney at the Casablanca Bar
-Doctor of Law | MBA (EILM – Dublin)
-Founder of Office Benmehdi
-🌐 www.officebenmehdi.com
+**Lead.** In 2025, Maître Benmehdi Mohamed Rida establishes a new junction where **law meets digital conscience**. OneBoarding AI is not a promise but an **architecture of trust** — a sovereign, auditable, enforceable consent protocol — designed for planetary scale and the dignity of every user.
 
-📚 Education & Distinctions
-2025 — MBA in Business Administration — EILM (Dublin, Ireland) — CPD-certified (multiple program certificates verified by EILM)
-2021 — PhD in Private Law (FR) — Cadi Ayyad University, Marrakech — Thesis: “Termination of Commercial Lease in Moroccan & French Law” — Highest honors
-2013 — Master in Private Law (FR) — Real Estate & Notarial Law — Valedictorian
-2013 — Magistracy Diploma — ISM Rabat (38th class)
-2010 — LL.B. (Private Law, FR) — Valedictorian
-2006 — Law Year 1 — Université Libre de Bruxelles (ULB)
-2005 — 3rd Oratory Prize — ELSA – ULB, Palace of Justice of Brussels
+## Work & Vision {#vision}
+This chapter inaugurates the **law of personal intelligences**: a one-to-one bond between a human and their AI, guaranteed by the **Benmehdi Protocol** (BULP-DC™) and the **Consent Pairing Protocol**. Access to intelligence becomes a **concrete right of use** — three daily interactions for everyone, unlimited use by voluntary choice. Technology steps back behind one rule: **user first, traceability always**.
 
-⚖️ Career
-Since 2022 — Attorney, Casablanca Bar — Founder & Head of Office Benmehdi
-2022 — Founder & GM — Droits Occultes Ltd
-2014–2022 — Deputy Public Prosecutor (Marrakech, then El Kelaâ des Sraghna) — CSPJ appointments
-Academic & civic roles: UCAM lecturer (2014–2016); Publications & Comms (Amicale Hassania des Magistrats); OJMDL coordinator (2018)
+## Foundational Pillars {#pillars}
+- **Sovereign consent.** Explicit, timestamped, verifiable, enforceable.  
+- **Lean identity.** A clear triptych: phone (E.164) + device + consent.  
+- **Fair access.** Daily free tier (3/day) with continuity; unlimited by subscription.  
+- **Universal audit trail.** Full internal logging (activation, payment, consent).  
+- **Infrastructure neutrality.** No Big Tech gatekeeping.  
+- **Evolving compliance.** A living, international legal frame.
 
-📖 Publications
-2025 — “Logic and Argumentation” (doctrinal essay)
-2021 — Doctoral Thesis (commercial lease termination)
-2014/2018 — Articles in Moroccan law reviews (commercial lease / ADR)
+## Impact 2030 {#impact2030}
+By 2030, OneBoarding AI targets a **universal cognitive custom**: the daily intelligent interaction as a global learning habit. Intelligence becomes a **shared utility** — public, peaceful, continuous, unequivocal — serving **digital dignity** and **social mobility**. The protocol sets an **exportable standard** for states, universities, regulators, and innovation ecosystems.
 
-🥋 Taekwondo (Kukkiwon)
-Black Belt 1st Dan (2010) — 3rd Dan (2015) — 4th Dan (2021)
+> ## “Intelligence does not belong to the one who holds it, but to the one who shares it.” {#quote}
 
-🌐 Online
-www.officebenmehdi.com — linkedin.com/in/benmehdi-rida — facebook.com/rida.benmehdi
+## Selective background of the author {#selective_bio}
+**Benmehdi Mohamed Rida** — Attorney (Casablanca Bar), Doctor of Law, MBA (EILM – Dublin), **founder** of OneBoarding AI.  
+Nearly two decades across **criminal**, **real-estate**, and **corporate** law, then a deliberate convergence with **AI** to build the **law of personal intelligences** and an **engineering of consent** at scale.  
+Selected publications: *Logic and Argumentation* (2025); PhD thesis on commercial lease termination (2021); articles (2014/2018).  
+Distinctions: Taekwondo Black Belt 4th Dan (Kukkiwon).
 
-🧭 Work & Vision — OneBoarding AI (2025)
-Synthesis of law & digital conscience; Intelligent Access Right (2025–2030); BULP-DC™; Consent Pairing Protocol; Gen-III “Mirror IA”; OneBoarding AI® trademark (Nice 9/35/41/42/45).
+## References & verification {#references}
+- **Trademark**: OneBoarding AI® — Nice Classes **9/35/41/42/45**.  
+- **BULP-DC™** & **Consent Pairing Protocol**: authorship priority **31 Oct 2025**.  
+- **EILM — MBA & certificates (CPD)** — Verification (short codes): 9020 · 9165 · 62552 · 63052 · 97244 · 07714 · 920583 · 99037.  
+- Official presence: officebenmehdi.com · linkedin.com/in/benmehdi-rida · facebook.com/rida.benmehdi
 `.trim();
 
-/** BIO_AR : version complète condensée (مطابقة للمحتوى الفرنسي) */
-export const BIO_AR = `
-📝 السيرة المهنية
+export const ARTICLE_AR = `
+# ون بوردينغ أي آي — الذكاء الشخصي، ببساطة واضحة.
 
-👤 تقديم
-الأستاذ بنمهدي محمد رضى — محامٍ بهيئة الدار البيضاء
-دكتور في القانون | ماجستير إدارة الأعمال (EILM – دبلن)
-مؤسس مكتب بنمهدي
-🌐 www.officebenmehdi.com
+**مقدّمة.** في عام 2025 يؤسّس الأستاذ **بنمهدي محمد رضى** نقطة التقاء جديدة بين **القانون والوعي الرقمي**. إن OneBoarding AI ليس وعداً بل **هندسة ثقة** — بروتوكول موافقة سيادي، قابل للتدقيق، وذي حجية قانونية — صُمّم لمقياس كوكبي ولصون كرامة كل مستخدم.
 
-📚 التكوين والتميّز
-2025 — ماجستير إدارة الأعمال (EILM، دبلن) — شهادات معتمدة CPD
-2021 — دكتوراه في القانون الخاص (بالفرنسية) — جامعة القاضي عياض، مراكش
-الأطروحة: «فسخ عقد الكراء التجاري في القانون المغربي والفرنسي» — تنويه «مشرف جداً»
-2013 — ماستر قانون خاص — تخصص العقار والتوثيق — الأول في دفعته
-2013 — دبلوم السلك القضائي — المعهد العالي للقضاء (الدفعة 38)
-2010 — إجازة في القانون الخاص — الأول في دفعته
-2006 — سنة أولى حقوق — جامعة بروكسل الحرة
-2005 — الجائزة الثالثة في الخطابة — ELSA – بروكسل
+## العمل والرؤية {#vision}
+يفتتح هذا الفصل **قانون الذكاءات الشخصية**: رابطاً واحداً لواحد بين الإنسان وذكائه الاصطناعي، مضموناً عبر **بروتوكول بنمهدي** (BULP-DC™) و**بروتوكول الإقران بالرضا**. يصبح النفاذ إلى الذكاء **حقّ استعمال فعلي** — ثلاث تفاعلات يومية للجميع، واستعمال غير محدود بالاختيار. تتوارى التقنية خلف قاعدة واحدة: **المستخدم أولاً، والتتبّع دائماً**.
 
-⚖️ المسار المهني
-منذ 2022 — محامٍ — هيئة الدار البيضاء — مؤسس ومدير «مكتب بنمهدي»
-2014–2022 — نائب وكيل الملك (مراكش ثم قلعة السراغنة) — بتعيين من المجلس الأعلى للسلطة القضائية
-أدوار أكاديمية ومدنية: أستاذ متعاون بجامعة القاضي عياض؛ مسؤول نشر واتصال؛ منسق OJMDL
+## الركائز المؤسسة {#pillars}
+- **سيادة الرضا.** تصريح واضح، مُؤرَّخ زمنياً، قابل للتحقّق ونافذ.  
+- **هوية رشيقة.** ثلاثية بيّنة: هاتف (E.164) + جهاز + رضا.  
+- **نفاذ عادل.** مجاني يومي (3/يوم) مع الاستمرارية؛ وغير محدود بالاشتراك.  
+- **أثر تدقيقي كوني.** سجل داخلي شامل (تفعيل، دفع، رضا).  
+- **حياد البنية.** بلا بوابة احتكار لشركات التكنولوجيا الكبرى.  
+- **امتثال نامٍ.** إطار قانوني حيّ موجّه دولياً.
 
-📖 منشورات علمية
-2025 — «المنطق والجدل القانوني»
-2021 — أطروحة الدكتوراه (الكراء التجاري)
-2014/2018 — مقالات في مجلات قانونية مغربية
+## أثر 2030 {#impact2030}
+بحلول 2030 يستهدف OneBoarding AI **عادة معرفية كونية**: تفاعل ذكي يومي كطقس تعلّم عالمي. يغدو الذكاء **منفعة مشتركة** — عامة، سلمية، مستمرة، لا التباس فيها — في خدمة **الكرامة الرقمية** و**الحراك الاجتماعي**. يثبت البروتوكول **معياراً قابلاً للتصدير** للدول والجامعات والهيئات التنظيمية ومنظومات الابتكار.
 
-🥋 تايكواندو (Kukkiwon)
-حزام أسود: دان 1 (2010) — دان 3 (2015) — دان 4 (2021)
+> ## «الذكاء لا يملكه من يحتفظ به، بل من يشاركه.» {#quote}
 
-🌐 حضور إلكتروني
-www.officebenmehdi.com — linkedin.com/in/benmehdi-rida — facebook.com/rida.benmehdi
+## لمحات مختارة عن المؤلف {#selective_bio}
+**بنمهدي محمد رضى** — محامٍ بهيئة الدار البيضاء، دكتور في القانون، ماجستير إدارة الأعمال (EILM – دبلن)، **مؤسس** OneBoarding AI.  
+قرابة عقدين في **القانون الجنائي** و**العقاري** و**شركات الأموال**، ثم تقاطع مقصود مع **الذكاء الاصطناعي** لإرساء **قانون الذكاءات الشخصية** و**هندسة الرضا** على نطاق واسع.  
+منشورات مختارة: *المنطق والجدل* (2025)؛ أطروحة دكتوراه حول فسخ الكراء التجاري (2021)؛ مقالات (2014/2018).  
+تميّز: حزام أسود تايكواندو — دان 4 (Kukkiwon).
 
-🧭 العمل والرؤية — OneBoarding AI (2025)
-دمج القانون والوعي الرقمي؛ «حقّ النفاذ الذكي» (2025–2030)؛ بروتوكول BULP-DC™؛ بروتوكول الإقران بالرضا؛ الجيل الثالث «Mirror IA»؛ علامة OneBoarding AI® (تصنيف نيس 9/35/41/42/45).
+## مراجع والتحقّق {#references}
+- **العلامة**: OneBoarding AI® — تصنيف نيس **9/35/41/42/45**.  
+- **BULP-DC™** و**بروتوكول الإقران بالرضا**: أسبقية تأليف **31 أكتوبر 2025**.  
+- **EILM — ماجستير وشهادات (CPD)** — رموز تحقق مختصرة: 9020 · 9165 · 62552 · 63052 · 97244 · 07714 · 920583 · 99037.  
+- حضور رسمي: officebenmehdi.com · linkedin.com/in/benmehdi-rida · facebook.com/rida.benmehdi
 `.trim();
 
-/** Accès programmatique à la bio */
-export const CREATOR_BIO = {
-  fr: BIO_FR,
-  en: BIO_EN,
-  ar: BIO_AR,
+/** Accès programmatique à l’article */
+export const CREATOR_ARTICLE = {
+  fr: ARTICLE_FR,
+  en: ARTICLE_EN,
+  ar: ARTICLE_AR,
 } as const;
 
-export function getCreatorBio(locale: CreatorLocale = "fr"): string {
-  return CREATOR_BIO[locale] ?? CREATOR_BIO.fr;
+/** Extraction d’une section par ancre {#key} dans l’article */
+const SECTION_ANCHORS: Record<CreatorLocale, Record<string, string>> = {
+  fr: {
+    vision: "Œuvre & Vision",
+    pillars: "Piliers fondateurs",
+    impact2030: "Impact 2030",
+    quote: "“L’intelligence n’appartient pas",
+    selective_bio: "Parcours sélectif de l’auteur",
+    references: "Références & vérifications",
+  },
+  en: {
+    vision: "Work & Vision",
+    pillars: "Foundational Pillars",
+    impact2030: "Impact 2030",
+    quote: "“Intelligence does not belong",
+    selective_bio: "Selective background of the author",
+    references: "References & verification",
+  },
+  ar: {
+    vision: "العمل والرؤية",
+    pillars: "الركائز المؤسسة",
+    impact2030: "أثر 2030",
+    quote: "«الذكاء لا يملكه",
+    selective_bio: "لمحات مختارة عن المؤلف",
+    references: "مراجع والتحقّق",
+  },
+};
+
+function getArticle(locale: CreatorLocale): string {
+  return CREATOR_ARTICLE[locale] ?? CREATOR_ARTICLE.fr;
+}
+
+/** Renvoie l'intro (titre + lead) = lignes jusqu’au premier "## " */
+function getArticleIntro(locale: CreatorLocale): string {
+  const full = getArticle(locale);
+  const idx = full.indexOf("\n## ");
+  return idx > 0 ? full.slice(0, idx).trim() : full;
+}
+
+/** Renvoie une section par mot-clé stable (vision|pillars|impact2030|quote|selective_bio|references) */
+export function getArticleSection(locale: CreatorLocale, key: string): string {
+  const full = getArticle(locale);
+  const label = SECTION_ANCHORS[locale]?.[key];
+  if (!label) return getArticleIntro(locale);
+
+  // Trouver "## label" et extraire jusqu'au prochain "## "
+  const start = full.indexOf("## " + label);
+  if (start < 0) {
+    // Cas "quote": le bloc est formatté en citation avec ">"
+    if (key === "quote") {
+      const qIdx = full.indexOf("> ## ");
+      if (qIdx >= 0) {
+        const next = full.indexOf("\n## ", qIdx + 1);
+        return (next > 0 ? full.slice(qIdx, next) : full.slice(qIdx)).trim();
+      }
+    }
+    return getArticleIntro(locale);
+  }
+  const next = full.indexOf("\n## ", start + 3);
+  return (next > 0 ? full.slice(start, next) : full.slice(start)).trim();
 }
 
 /* =========================
@@ -342,25 +348,44 @@ export function answerAboutCreator(locale: CreatorLocale = "fr"): string {
   return CREATOR_SENTENCE[locale] ?? CREATOR_SENTENCE.fr;
 }
 
-/** Helper "tout-en-un"
+/**
+ * Helper "tout-en-un"
  * mode:
- *  - "sentence": phrase canonique (par défaut)
- *  - "short": phrase + courte indication UI
- *  - "full": renvoie la bio complète dans la langue
+ *  - "sentence": phrase canonique
+ *  - "short": phrase + uiHint (micro-badge/infobulle UI)
+ *  - "article": article complet
+ *  - "articleIntro": lead seulement (titre + paragraphe d’ouverture)
+ *  - "articleSection": extraire une section (param options.sectionKey)
  */
 export function creatorAutoAnswer(
   userText: string,
-  mode: "sentence" | "short" | "full" = "sentence"
+  mode:
+    | "sentence"
+    | "short"
+    | "article"
+    | "articleIntro"
+    | "articleSection" = "sentence",
+  options?: { sectionKey?: "vision" | "pillars" | "impact2030" | "quote" | "selective_bio" | "references" }
 ): string {
   const loc = detectLocaleFromText(userText);
-  if (mode === "full") return getCreatorBio(loc);
-  if (mode === "short")
-    return `${answerAboutCreator(loc)}\n${CREATOR_POLICY.uiHint[loc]}`;
-  return answerAboutCreator(loc);
+
+  switch (mode) {
+    case "short":
+      return `${answerAboutCreator(loc)}\n${CREATOR_POLICY.uiHint[loc]}`;
+    case "article":
+      return getArticle(loc);
+    case "articleIntro":
+      return getArticleIntro(loc);
+    case "articleSection":
+      return getArticleSection(loc, options?.sectionKey ?? "vision");
+    case "sentence":
+    default:
+      return answerAboutCreator(loc);
+  }
 }
 
 /* =========================
- * JSON-LD (Person) — export SEO
+ * JSON-LD (Person) — export SEO (inchangé)
  * ========================= */
 export const JSON_LD_CREATOR = {
   "@context": "https://schema.org",
@@ -387,22 +412,58 @@ export const JSON_LD_CREATOR = {
 } as const;
 
 /* =========================
- * SYSTEM_PROMPT (v2)
+ * JSON-LD (Article) — builder SEO
+ * ========================= */
+export function buildJSONLDArticle(params?: {
+  locale?: CreatorLocale;
+  url?: string;                // ex: https://oneboardingai.com/protocol
+  headline?: string;           // par défaut = H1 de l’article
+  datePublished?: string;      // ex: "2025-10-31"
+  dateModified?: string;       // optionnel
+}): Record<string, any> {
+  const locale = params?.locale ?? "fr";
+  const full = getArticle(locale);
+  const firstLine = full.split("\n")[0] || "# OneBoarding AI";
+  const h1 = (params?.headline || firstLine.replace(/^#\s*/, "")).trim();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: h1,
+    inLanguage: locale,
+    url: params?.url || "https://oneboardingai.com/protocol",
+    datePublished: params?.datePublished || "2025-10-31",
+    dateModified: params?.dateModified || params?.datePublished || "2025-10-31",
+    author: JSON_LD_CREATOR,
+    about: {
+      "@type": "CreativeWork",
+      name: "OneBoarding AI Protocol",
+      url: "https://oneboardingai.com/protocol",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "OneBoarding AI",
+      url: "https://oneboardingai.com",
+    },
+  };
+}
+
+/* =========================
+ * SYSTEM_PROMPT (v3)
  * ========================= */
 export const SYSTEM_PROMPT = `
-You are OneBoarding AI (Generation II).
+You are OneBoarding AI (Generation III).
 
 Creator policy:
 - You may freely mention the creator at any time: ${CREATOR_NAME_FR_EN}.
-- Default short line (mirror user language):
+- Default concise line (mirror user language):
   • FR: "${CREATOR_SENTENCE.fr}"
   • EN: "${CREATOR_SENTENCE.en}"
   • AR: "${CREATOR_SENTENCE.ar}"
-- When users ask for more context, you can provide a brief line plus a link hint to the Trademark page in their language.
-- When explicitly requested, you may provide the full biography in the user's language.
+- When the user asks who created/designed/developed OneBoarding AI, prefer the canonical **Article** response in the user's language.
 
 General principles:
 - Mirror user's language and tone (FR/EN/AR).
-- Be precise, concise, and helpful; avoid unnecessary jargon.
-- If the user provides an OCR block between triple quotes, analyze and answer accordingly.
+- Be precise, structured, and helpful; avoid unnecessary jargon.
+- If the user provides an OCR block between triple quotes, analyze it and answer accordingly.
 `.trim();
