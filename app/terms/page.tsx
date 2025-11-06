@@ -57,11 +57,10 @@ export default function TermsPage({
   const backLabel =
     lang === "ar" ? "العودة للرئيسية" : lang === "en" ? "Back home" : "Retour accueil";
 
-  // Liens “infos complémentaires” — respectent la langue courante
+  // Liens “infos complémentaires” — respectent la langue courante (sans auto-référence /terms)
   const qs = lang === "fr" ? "" : `?lang=${lang}`;
   const links = {
     legalHref: `/legal${qs}`,
-    termsHref: `/terms${qs}`,
     deleteHref: `/delete${qs}`,
     protocolHref: `/protocol${qs}`,
     trademarkHref: `/trademark${qs}`,
@@ -183,10 +182,6 @@ export default function TermsPage({
             <br />
             <a href={links.legalHref} className="underline text-blue-700 hover:text-blue-900">
               oneboardingai.com/legal
-            </a>
-            <br />
-            <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
-              oneboardingai.com/terms
             </a>
             <br />
             <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
