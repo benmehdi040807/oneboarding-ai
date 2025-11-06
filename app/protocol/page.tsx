@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { protocolCopy } from "@/lib/protocol/copy";
 
 export const runtime = "nodejs";
+export const revalidate = 3600; // ISR: refresh metadata/HTML at most once per hour
 
 type Lang = "fr" | "en" | "ar";
 const SITE_URL = "https://oneboardingai.com";
@@ -27,6 +28,55 @@ function titleFor(lang: Lang) {
   if (lang === "en")
     return "OneBoarding AI Protocol — Sovereign Digital Consent & Secure Access";
   return "Protocole OneBoarding AI — Consentement numérique souverain & accès sécurisé";
+}
+
+/* ---------- JSON-LD (no coupling) ---------- */
+function jsonLdFor(lang: Lang) {
+  const url = `${SITE_URL}/protocol${lang === "fr" ? "" : `?lang=${lang}`}`;
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}#org`,
+        name: "OneBoarding AI",
+        url: SITE_URL,
+        logo: `${SITE_URL}/brand/oneboardingai-logo.png`,
+        sameAs: [
+          "https://www.officebenmehdi.com",
+          "https://www.linkedin.com/in/benmehdi-rida",
+          "https://www.facebook.com/rida.benmehdi",
+        ],
+        founder: {
+          "@type": "Person",
+          name: "Benmehdi Mohamed Rida",
+          url: "https://www.officebenmehdi.com",
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}#site`,
+        url: SITE_URL,
+        name: "OneBoarding AI",
+        publisher: { "@id": `${SITE_URL}#org` }
+      },
+      {
+        "@type": ["WebPage","Article"],
+        "@id": `${url}#page`,
+        url,
+        isPartOf: { "@id": `${SITE_URL}#site` },
+        headline: titleFor(lang),
+        description: descFor(lang),
+        inLanguage: lang,
+        author: {
+          "@type": "Person",
+          name: "Benmehdi Mohamed Rida",
+          url: "https://www.officebenmehdi.com"
+        },
+        mainEntityOfPage: url
+      }
+    ]
+  };
 }
 
 /* ---------- SEO dynamique par langue ---------- */
@@ -58,6 +108,13 @@ export async function generateMetadata({
       title: titleFor(lang),
       description: descFor(lang),
       siteName: "OneBoarding AI",
+      images: [{ url: "/brand/oneboardingai-logo.png" }],
+    },
+    twitter: {
+      card: "summary",
+      title: titleFor(lang),
+      description: descFor(lang),
+      images: ["/brand/oneboardingai-logo.png"],
     },
     robots: { index: true, follow: true },
   };
@@ -186,9 +243,7 @@ export default function ProtocolPage({
                         <ul className="mt-3 space-y-2 text-[15px] text-neutral-300 leading-relaxed">
                           {sub.list.map((li: string, idx5: number) => (
                             <li key={idx5} className="flex gap-2">
-                              <span className="text-neutral-500 select-none">
-                                •
-                              </span>
+                              <span className="text-neutral-500 select-none">•</span>
                               <span>{li}</span>
                             </li>
                           ))}
@@ -262,7 +317,14 @@ export default function ProtocolPage({
         <footer className="mt-8 text-[11px] text-neutral-600 text-center select-none">
           <div>OneBoarding AI · {lang.toUpperCase()} · {copy.intro.dateVersion}</div>
         </footer>
+
+        {/* JSON-LD */}
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdFor(lang)) }}
+        />
       </article>
     </main>
   );
-      }
+        }
