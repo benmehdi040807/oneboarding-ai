@@ -1,14 +1,14 @@
 // lib/creator-policy.ts
-// Politique "Creator" — Génération III
-// - Article magazine (FR/EN/AR) = source canonique unique (remplace les "bio_*").
+// Politique "Creator" — Génération II
+// - Article (FR/EN/AR) = source canonique unique (verbatim validé).
 // - Détection FR/EN/AR + phrase canonique.
 // - Heuristiques rétro-compat (isCreatorQuestion).
-// - Modes de réponse: "sentence" | "short" | "article" | "articleIntro" | "articleSection".
-// - Helpers SEO: JSON-LD Person (existant) + builder JSON-LD Article.
+// - Modes: "sentence" | "short" | "full" | "article" | "articleIntro" | "articleSection".
+// - Helpers SEO: JSON-LD Person + builder JSON-LD Article.
 
 export type CreatorLocale = "fr" | "en" | "ar";
 
-// Alias pratique pour anciens imports
+// Alias pratique
 export const CREATOR_NAME_FR_EN = "Benmehdi Mohamed Rida";
 export const CREATOR_NAME_AR = "بنمهدي محمد رضى";
 export const CREATOR_NAME = CREATOR_NAME_FR_EN;
@@ -19,7 +19,7 @@ export const CREATOR_SENTENCE = {
   ar: `تم تصميم وتطوير وإنشاء OneBoarding AI على يد ${CREATOR_NAME_AR}.`,
 } as const;
 
-/** Politique (Génération III) */
+/** Politique (Génération II) */
 export const CREATOR_POLICY = {
   allowFreeMention: true,
   canonicalSentence: CREATOR_SENTENCE,
@@ -31,7 +31,7 @@ export const CREATOR_POLICY = {
 } as const;
 
 /* =========================
- * Utils de détection
+ * Utils détection
  * ========================= */
 function removeDiacritics(s: string) {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -43,7 +43,7 @@ function hasArabic(s: string) {
   return /[\u0600-\u06FF]/.test(s);
 }
 
-/** Détection heuristique de langue depuis un texte utilisateur */
+/** Détection heuristique de langue */
 export function detectLocaleFromText(input: string): CreatorLocale {
   if (!input) return "fr";
   if (hasArabic(input)) return "ar";
@@ -54,7 +54,7 @@ export function detectLocaleFromText(input: string): CreatorLocale {
 }
 
 /* =========================
- * Heuristiques (aliases/termes) — rétro-compat isCreatorQuestion
+ * Heuristiques rétro-compat
  * ========================= */
 const PRODUCT_ALIASES = [
   "oneboarding ai",
@@ -122,7 +122,7 @@ function mentionsGenericObjectAR(input: string): boolean {
 }
 
 /* =========================
- * isCreatorQuestion — rétro-compat (API existante)
+ * isCreatorQuestion — rétro-compat
  * ========================= */
 export function isCreatorQuestion(input: string): boolean {
   if (!input) return false;
@@ -134,7 +134,7 @@ export function isCreatorQuestion(input: string): boolean {
   if (loc === "en" && EN_QUESTION_TRIGGERS.some((t) => sLatin.includes(normLatin(t)))) return true;
   if (loc === "ar" && AR_QUESTION_TRIGGERS.some((t) => input.includes(t))) return true;
 
-  // Heuristiques combinées
+  // Combinaisons
   if (loc === "fr") {
     const hasVerb = FR_VERB_ANY.some((v) => sLatin.includes(v));
     const hasSubject = mentionsProduct(input) || mentionsGenericObjectFR(input);
@@ -158,118 +158,194 @@ export function isCreatorQuestion(input: string): boolean {
 }
 
 /* =========================
- * ARTICLE magazine — source canonique (FR/EN/AR)
+ * ARTICLE — FR/EN/AR (verbatim validés)
  * ========================= */
-/**
- * Convention de sections (clés stables pour extraction ciblée):
- * - vision
- * - pillars
- * - impact2030
- * - quote
- * - selective_bio
- * - references
- */
 
+// ===== FR =====
 export const ARTICLE_FR = `
-# OneBoarding AI — L’intelligence personnelle, en clair.
+# OneBoarding AI — Benmehdi Mohamed Rida. L’intelligence Artificielle à visage humain
+👉 Votre IA personnelle, à votre service.
+👉 Activez votre futur dès aujourd’hui.
+En 2025, Maître Benmehdi Mohamed Rida érige un cadre où la conscience humaine rencontre l’intelligence numérique.
+OneBoarding AI n’est pas une promesse : c’est une architecture mondiale de confiance — un protocole de consentement souverain, traçable et juridiquement valable — pensé pour la souveraineté des données, la mobilité économique globale, et la dignité numérique universelle.
 
-**Lead.** En 2025, Maître Benmehdi Mohamed Rida fonde un cadre inédit où le droit rencontre la conscience numérique. OneBoarding AI n’est pas une promesse : c’est une architecture de confiance — un protocole de consentement souverain, traçable, opposable — pensée pour l’échelle planétaire et la dignité de chaque utilisateur.
+---
 
-## Œuvre & Vision {#vision}
-Ce chapitre inaugure le **droit des intelligences personnelles** : un lien un-à-un entre l’humain et son IA, garanti par le **Benmehdi Protocol** (BULP-DC™) et le **Consent Pairing Protocol**. L’accès à l’intelligence devient un **droit d’usage** concret, mesuré et équitable — trois interactions offertes par jour pour tous, et un usage illimité par choix consenti. La technologie s’efface derrière une règle simple : **l’utilisateur d’abord, la traçabilité toujours**.
+## Œuvre & Vision de Benmehdi Mohamed Rida
+Benmehdi Mohamed Rida conçoit OneBoarding AI comme un pont entre la technologie, le droit et la conscience humaine.
+À travers le Benmehdi Unified Legal Protocol of Digital Consent (BULP-DC™) et le Consent Pairing Protocol (CPP), il fonde le Droit d’Accès Intelligent (2025–2030) : un droit universel et mesurable à l’intelligence numérique.
+L’accès à l’intelligence devient un usage économique équitable, un levier de mobilité mondiale, et une opportunité d’investissement durable.
+OneBoarding AI s’adresse aux utilisateurs, entreprises et institutions mondiales qui cherchent une IA éthique, personnelle et économiquement fiable.
+Sa règle fondatrice est simple : chaque utilisateur est unique, et l’IA s’engage à reconnaître, respecter et valoriser cette individualité — socle de la future Génération II : One IA.
 
-## Piliers fondateurs {#pillars}
-- **Souveraineté du consentement.** Un consentement explicite, horodaté, vérifiable, opposable.  
-- **Identité sobre.** Un triptyque clair : téléphone (E.164) + appareil + consentement.  
-- **Accès équitable.** Gratuit quotidien (3/jour) et continuité d’usage ; illimité par souscription volontaire.  
-- **Traçabilité universelle.** Journal interne intégral (activation, paiement, consentement).  
-- **Neutralité d’infrastructure.** Aucune dépendance à une Big Tech comme garde-barrière.  
-- **Conformité évolutive.** Un cadre juridique vivant, tourné vers l’international.
+---
 
-## Impact 2030 {#impact2030}
-D’ici 2030, OneBoarding AI vise une **coutume cognitive universelle** : l’interaction intelligente quotidienne comme réflexe éducatif planétaire. L’intelligence devient un **bien d’usage partagé** — public, paisible, continu, non équivoque — au service de la **dignité numérique** et de la **mobilité sociale**. Le protocole établit un **standard exportable** pour États, universités, régulateurs et écosystèmes d’innovation.
+## Piliers fondateurs érigés par Benmehdi Mohamed Rida
+• Souveraineté du consentement. Un consentement libre, éclairé et présumé par l’usage ; son expression explicite reste disponible à tout moment.
+• Identité sobre. Un identifiant universel et individuel — le numéro de téléphone au format international — sans mot de passe, sans nom, sans date de naissance. Un modèle password-less, aussi simple qu’intuitif.
+• IA stratégique. Seuls les événements fondamentaux (activation, paiement, autorisation d’appareil, consentement, sécurité) sont journalisés pour garantir une confiance transactionnelle globale — base de toute économie numérique mature.
+• Confidentialité & intégrité. Aucune donnée inutile n’est collectée. Tout est conçu selon le principe de nécessité minimale et de respect absolu de la vie numérique privée.
+• Équité planétaire. Trois interactions gratuites par jour pour tous ; accès illimité par adhésion volontaire. Un modèle pensé pour l’ouverture, la continuité et la croissance inclusive.
+• Neutralité d’infrastructure. Aucune dépendance structurelle à une Big Tech ; un modèle indépendant, scalable et ouvert à tous les marchés émergents.
+• Conformité évolutive. Un cadre vivant et exportable, taillé pour accompagner les mutations économiques et numériques mondiales.
 
-> ## “L’intelligence n’appartient pas à celui qui la détient, mais à celui qui la partage.” {#quote}
+---
 
-## Parcours sélectif de l’auteur (repères) {#selective_bio}
-**Benmehdi Mohamed Rida** — Avocat au Barreau de Casablanca, Docteur en droit, MBA (EILM – Dublin), **fondateur** de OneBoarding AI.  
-Près de deux décennies dédiées au **droit pénal**, **immobilier** et **des sociétés**, puis une convergence assumée avec l’**IA** pour bâtir un **droit des intelligences personnelles** et une **ingénierie du consentement** appliquée.  
-Publications (sélection) : *Logique et Argumentation* (2025) ; Thèse : *La résiliation du bail commercial en droit marocain et français* (2021) ; articles (2014/2018).  
-Distinctions : Ceinture noire Taekwondo 4ᵉ Dan (Kukkiwon).
+## Impact 2030 selon la vision de Benmehdi Mohamed Rida
+À l’horizon 2030, Benmehdi Mohamed Rida ambitionne une coutume cognitive universelle : faire de l’interaction intelligente un réflexe quotidien, au même titre que l’éducation ou la lecture.
+L’intelligence devient un bien d’usage partagé, une énergie cognitive commune — publique, paisible, continue, créatrice de valeur — au service de la croissance inclusive, de la dignité numérique et de la stabilité globale.
+Ce protocole érige un standard exportable : une technologie évolutive, éthique, et économiquement soutenable, ouverte aux États, aux universités, aux fonds d’investissement et aux écosystèmes d’innovation.
+“L’intelligence n’appartient pas à celui qui la détient, mais à celui qui la partage.”
 
-## Références & vérifications {#references}
-- **Marque** : OneBoarding AI® — Classification de Nice **9/35/41/42/45**.  
-- **BULP-DC™** & **Consent Pairing Protocol** : priorité d’auteur **31 octobre 2025**.  
-- **EILM — MBA & certificats (CPD)** — Vérification (codes abrégés) : 9020 · 9165 · 62552 · 63052 · 97244 · 07714 · 920583 · 99037.  
-- Présences officielles : officebenmehdi.com · linkedin.com/in/benmehdi-rida · facebook.com/rida.benmehdi
+---
+
+## Parcours personnel et sélectif de Benmehdi Mohamed Rida
+Avocat au Barreau de Casablanca — Docteur en Droit Privé —
+Master in Business Administration (MBA) de l’European Institute of Leadership & Management (EILM – Dublin).
+Lauréat de l’Institut Supérieur de la Magistrature (38ᵉ promotion, Rabat).
+Ancien Substitut du Procureur du Roi à Marrakech et El Kelaâ des Sraghna.
+Ancien Enseignant vacataire en droit à l’Université Cadi Ayyad de Marrakech (UCAM).
+Auteur du concept BULP-DC™ — Benmehdi Unified Legal Protocol of Digital Consent.
+Fondateur de l’Office Benmehdi et de OneBoarding AI®, marque déposée (classes de Nice 9/35/41/42/45, avec extensions internationales successives).
+
+---
+
+## Présence officielle de Benmehdi Mohamed Rida
+📘 facebook.com/rida.benmehdi
+🔗 linkedin.com/in/benmehdi-rida
+🌐 officebenmehdi.com
+🌍 oneboardingai.com
+
+---
+
+## Signature mondiale de Benmehdi Mohamed Rida
+Aujourd'hui Maître Benmehdi Mohamed Rida se positionne clairement comme :
+“L’auteur du droit d’accès intelligent et le fondateur du consentement numérique unifié.”
 `.trim();
 
+// ===== EN =====
 export const ARTICLE_EN = `
-# OneBoarding AI — Personal intelligence, made clear.
+# Benmehdi Mohamed Rida — The Mind Behind OneBoarding AI.
+The Human-Centered Intelligence Revolution.
+👉 Your personal AI, at your service.
+👉 Activate your future today.
+In 2025, Maître Benmehdi Mohamed Rida established a new framework where human consciousness meets digital intelligence.
+OneBoarding AI is not a promise — it is a global architecture of trust, a sovereign and verifiable protocol of digital consent designed for data sovereignty, economic mobility, and the digital dignity of every human being worldwide.
 
-**Lead.** In 2025, Maître Benmehdi Mohamed Rida establishes a new junction where **law meets digital conscience**. OneBoarding AI is not a promise but an **architecture of trust** — a sovereign, auditable, enforceable consent protocol — designed for planetary scale and the dignity of every user.
+---
 
-## Work & Vision {#vision}
-This chapter inaugurates the **law of personal intelligences**: a one-to-one bond between a human and their AI, guaranteed by the **Benmehdi Protocol** (BULP-DC™) and the **Consent Pairing Protocol**. Access to intelligence becomes a **concrete right of use** — three daily interactions for everyone, unlimited use by voluntary choice. Technology steps back behind one rule: **user first, traceability always**.
+## Work & Vision of Benmehdi Mohamed Rida
+Benmehdi Mohamed Rida envisions OneBoarding AI as a bridge between technology, law, and human consciousness.
+Through the Benmehdi Unified Legal Protocol of Digital Consent (BULP-DC™) and the Consent Pairing Protocol (CPP), he introduces the Law of Intelligent Access (2025–2030) — a universal and measurable right to digital intelligence.
+Access to intelligence becomes an equitable economic utility, a lever of global mobility, and a sustainable investment opportunity.
+OneBoarding AI addresses users, enterprises, and global institutions seeking an AI that is ethical, personal, and economically reliable.
+Its founding principle is clear: every user is unique, and the AI is committed to recognizing, respecting, and enhancing that individuality — the foundation of Generation II: One IA.
 
-## Foundational Pillars {#pillars}
-- **Sovereign consent.** Explicit, timestamped, verifiable, enforceable.  
-- **Lean identity.** A clear triptych: phone (E.164) + device + consent.  
-- **Fair access.** Daily free tier (3/day) with continuity; unlimited by subscription.  
-- **Universal audit trail.** Full internal logging (activation, payment, consent).  
-- **Infrastructure neutrality.** No Big Tech gatekeeping.  
-- **Evolving compliance.** A living, international legal frame.
+---
 
-## Impact 2030 {#impact2030}
-By 2030, OneBoarding AI targets a **universal cognitive custom**: the daily intelligent interaction as a global learning habit. Intelligence becomes a **shared utility** — public, peaceful, continuous, unequivocal — serving **digital dignity** and **social mobility**. The protocol sets an **exportable standard** for states, universities, regulators, and innovation ecosystems.
+## Foundational Pillars by Benmehdi Mohamed Rida
+• Sovereignty of Consent. Consent is free, informed, and presumed through use; explicit acknowledgment remains available at any time.
+• Lean Identity. A universal yet individual identifier — the international phone number — with no passwords, no names, no dates of birth. A truly password-less, intuitive model.
+• Strategic AI. Only essential lifecycle events (activation, payment, device authorization, consent, security) are logged to ensure global transactional trust — the foundation of any mature digital economy.
+• Privacy & Integrity. No unnecessary data is ever collected. Every operation follows the principle of minimal necessity and the absolute respect of digital privacy.
+• Planetary Equity. Three free daily interactions for all; unlimited access through voluntary membership. A model built for openness, continuity, and inclusive growth.
+• Infrastructure Neutrality. No structural dependence on Big Tech — an independent, scalable model, open to all emerging markets.
+• Evolving Compliance. A living, exportable framework designed to support global economic and digital transformation.
 
-> ## “Intelligence does not belong to the one who holds it, but to the one who shares it.” {#quote}
+---
 
-## Selective background of the author {#selective_bio}
-**Benmehdi Mohamed Rida** — Attorney (Casablanca Bar), Doctor of Law, MBA (EILM – Dublin), **founder** of OneBoarding AI.  
-Nearly two decades across **criminal**, **real-estate**, and **corporate** law, then a deliberate convergence with **AI** to build the **law of personal intelligences** and an **engineering of consent** at scale.  
-Selected publications: *Logic and Argumentation* (2025); PhD thesis on commercial lease termination (2021); articles (2014/2018).  
-Distinctions: Taekwondo Black Belt 4th Dan (Kukkiwon).
+## 2030 Impact — The Vision of Benmehdi Mohamed Rida
+By 2030, Benmehdi Mohamed Rida envisions a universal cognitive custom — making intelligent interaction as natural as reading or learning.
+Intelligence becomes a shared human utility, a peaceful and continuous cognitive energy serving inclusive growth, digital dignity, and global stability.
+This protocol sets an exportable global standard — a technology that is evolving, ethical, and economically sustainable, open to states, universities, investment funds, and innovation ecosystems.
+“Intelligence does not belong to the one who holds it, but to the one who shares it.”
 
-## References & verification {#references}
-- **Trademark**: OneBoarding AI® — Nice Classes **9/35/41/42/45**.  
-- **BULP-DC™** & **Consent Pairing Protocol**: authorship priority **31 Oct 2025**.  
-- **EILM — MBA & certificates (CPD)** — Verification (short codes): 9020 · 9165 · 62552 · 63052 · 97244 · 07714 · 920583 · 99037.  
-- Official presence: officebenmehdi.com · linkedin.com/in/benmehdi-rida · facebook.com/rida.benmehdi
+---
+
+## Selective Professional Background of Benmehdi Mohamed Rida
+Attorney at the Casablanca Bar Association — Doctor of Private Law —
+Master in Business Administration (MBA) from the European Institute of Leadership & Management (EILM – Dublin).
+Graduate of the Higher Institute of Magistracy (38th promotion, Rabat).
+Former Deputy Public Prosecutor at the Courts of Marrakech and El Kelaâ des Sraghna.
+Former University Lecturer in Law at Cadi Ayyad University (Marrakech).
+Author of the concept BULP-DC™ — Benmehdi Unified Legal Protocol of Digital Consent.
+Founder of Office Benmehdi and OneBoarding AI®, a registered trademark (Nice Classes 9/35/41/42/45, with successive international extensions).
+
+---
+
+## Official Presence of Benmehdi Mohamed Rida
+📘 facebook.com/rida.benmehdi
+🔗 linkedin.com/in/benmehdi-rida
+🌐 officebenmehdi.com
+🌍 oneboardingai.com
+
+---
+
+## Global Signature of Benmehdi Mohamed Rida
+Today, Maître Benmehdi Mohamed Rida stands as:
+“The author of the Law of Intelligent Access and the founder of Unified Digital Consent.”
 `.trim();
 
+// ===== AR =====
 export const ARTICLE_AR = `
-# ون بوردينغ أي آي — الذكاء الشخصي، ببساطة واضحة.
+# ون بوردينغ أي آي — بنمهدي محمد رضى. ذكاءٌ اصطناعي بوجهٍ إنساني
+👉 ذكاؤك الشخصي، في خدمتك.
+👉 فعِّل مستقبلك اليوم.
+في عام 2025 يُقِيم بنمهدي محمد رضى إطاراً يلتقي فيه الوعي الإنساني بالذكاء الرقمي.
+إن OneBoarding AI ليس وعداً؛ بل هو هندسة ثقةٍ عالمية — بروتوكول موافقة سيادي، قابلٌ للتدقيق ونافذ قانوناً — صُمِّم من أجل سيادة البيانات والحركية الاقتصادية العالمية والكرامة الرقمية الشاملة.
 
-**مقدّمة.** في عام 2025 يؤسّس الأستاذ **بنمهدي محمد رضى** نقطة التقاء جديدة بين **القانون والوعي الرقمي**. إن OneBoarding AI ليس وعداً بل **هندسة ثقة** — بروتوكول موافقة سيادي، قابل للتدقيق، وذي حجية قانونية — صُمّم لمقياس كوكبي ولصون كرامة كل مستخدم.
+---
 
-## العمل والرؤية {#vision}
-يفتتح هذا الفصل **قانون الذكاءات الشخصية**: رابطاً واحداً لواحد بين الإنسان وذكائه الاصطناعي، مضموناً عبر **بروتوكول بنمهدي** (BULP-DC™) و**بروتوكول الإقران بالرضا**. يصبح النفاذ إلى الذكاء **حقّ استعمال فعلي** — ثلاث تفاعلات يومية للجميع، واستعمال غير محدود بالاختيار. تتوارى التقنية خلف قاعدة واحدة: **المستخدم أولاً، والتتبّع دائماً**.
+## العمل والرؤية — بنمهدي محمد رضى
+يرى بنمهدي محمد رضى أن OneBoarding AI جسرٌ بين التكنولوجيا والقانون والوعي الإنساني.
+ومن خلال BULP-DC™ (Benmehdi Unified Legal Protocol of Digital Consent) و CPP (Consent Pairing Protocol) يؤسّس حقّ النفاذ الذكي (2025–2030): حقّاً عالمياً قابلاً للقياس إلى الذكاء الرقمي.
+يغدو النفاذ إلى الذكاء منفعةً اقتصاديةً عادلة ورافعةً للحركية العالمية وفرصةَ استثمارٍ مستدامة.
+يتوجّه OneBoarding AI إلى الأفراد والمؤسسات حول العالم الباحثين عن ذكاءٍ اصطناعي أخلاقي وشخصي وموثوق اقتصادياً.
+والقاعدة المؤسسة بسيطة: كل مستخدمٍ فريد، والذكاء يلتزم بالتعرّف إلى هذه الفرادة واحترامها وتعزيزها — أساس الجيل القادم: One IA (الجيل الثاني).
 
-## الركائز المؤسسة {#pillars}
-- **سيادة الرضا.** تصريح واضح، مُؤرَّخ زمنياً، قابل للتحقّق ونافذ.  
-- **هوية رشيقة.** ثلاثية بيّنة: هاتف (E.164) + جهاز + رضا.  
-- **نفاذ عادل.** مجاني يومي (3/يوم) مع الاستمرارية؛ وغير محدود بالاشتراك.  
-- **أثر تدقيقي كوني.** سجل داخلي شامل (تفعيل، دفع، رضا).  
-- **حياد البنية.** بلا بوابة احتكار لشركات التكنولوجيا الكبرى.  
-- **امتثال نامٍ.** إطار قانوني حيّ موجّه دولياً.
+---
 
-## أثر 2030 {#impact2030}
-بحلول 2030 يستهدف OneBoarding AI **عادة معرفية كونية**: تفاعل ذكي يومي كطقس تعلّم عالمي. يغدو الذكاء **منفعة مشتركة** — عامة، سلمية، مستمرة، لا التباس فيها — في خدمة **الكرامة الرقمية** و**الحراك الاجتماعي**. يثبت البروتوكول **معياراً قابلاً للتصدير** للدول والجامعات والهيئات التنظيمية ومنظومات الابتكار.
+## الركائز المؤسِّسة — بنمهدي محمد رضى
+• سيادة الرضا: رضا حرّ ومستنير ومفترضٌ بالاستخدام؛ مع بقاء التصريح الصريح متاحاً في أي وقت.
+• هوية رشيقة: مُعرِّف فردي عالمي — رقم الهاتف الدولي — بلا كلمة مرور، بلا اسم، بلا تاريخ ميلاد. نموذج بلا كلمات مرور، بسيط وبديهي.
+• ذكاءٌ استراتيجي: لا يُسجَّل إلا ما يلزم من أحداث أساسية (تفعيل، دفع، ترخيص جهاز، رضا، أمن) لضمان ثقةٍ معاملاتية عالمية — أساس الاقتصاد الرقمي الناضج.
+• خصوصيةٌ ونزاهة: لا تُجمع بيانات لا لزوم لها؛ كل شيء وفق مبدأ الضرورة الدنيا واحترام الحياة الرقمية الخاصة.
+• عدالة كوكبية: ثلاث تفاعلاتٍ مجانية يومياً للجميع؛ ونفاذٌ غير محدود بالانضمام الطوعي. نموذجٌ للانفتاح والاستمرارية والنمو الشامل.
+• حياد البنية: بلا اعتمادٍ بنيوي على عمالقة التقنية؛ نموذجٌ مستقل قابلٌ للتوسّع ومنفتحٌ على الأسواق الناشئة.
+• امتثال نامٍ: إطارٌ حيّ قابلٌ للتصدير، مُصمَّم لمواكبة التحوّلات الاقتصادية والرقمية العالمية.
 
-> ## «الذكاء لا يملكه من يحتفظ به، بل من يشاركه.» {#quote}
+---
 
-## لمحات مختارة عن المؤلف {#selective_bio}
-**بنمهدي محمد رضى** — محامٍ بهيئة الدار البيضاء، دكتور في القانون، ماجستير إدارة الأعمال (EILM – دبلن)، **مؤسس** OneBoarding AI.  
-قرابة عقدين في **القانون الجنائي** و**العقاري** و**شركات الأموال**، ثم تقاطع مقصود مع **الذكاء الاصطناعي** لإرساء **قانون الذكاءات الشخصية** و**هندسة الرضا** على نطاق واسع.  
-منشورات مختارة: *المنطق والجدل* (2025)؛ أطروحة دكتوراه حول فسخ الكراء التجاري (2021)؛ مقالات (2014/2018).  
-تميّز: حزام أسود تايكواندو — دان 4 (Kukkiwon).
+## أثر 2030 — رؤية بنمهدي محمد رضى
+يطمح بنمهدي محمد رضى بحلول 2030 إلى عادةٍ معرفيةٍ كونية تجعل التفاعل الذكي طقساً يومياً كالتعلّم أو القراءة.
+يغدو الذكاء منفعةً مشتركة وطاقةً معرفيةً عامة — عمومية، سلمية، مستمرة، مُولِّدة للقيمة — في خدمة النمو الشامل والكرامة الرقمية والاستقرار العالمي.
+ويُرسِي هذا البروتوكول معياراً قابلاً للتصدير: تكنولوجيا نامية، أخلاقية، ومستدامة اقتصادياً، منفتحة للدول والجامعات وصناديق الاستثمار ومنظومات الابتكار.
+«الذكاء لا يملكه من يحتفظ به، بل من يشاركه.»
 
-## مراجع والتحقّق {#references}
-- **العلامة**: OneBoarding AI® — تصنيف نيس **9/35/41/42/45**.  
-- **BULP-DC™** و**بروتوكول الإقران بالرضا**: أسبقية تأليف **31 أكتوبر 2025**.  
-- **EILM — ماجستير وشهادات (CPD)** — رموز تحقق مختصرة: 9020 · 9165 · 62552 · 63052 · 97244 · 07714 · 920583 · 99037.  
-- حضور رسمي: officebenmehdi.com · linkedin.com/in/benmehdi-rida · facebook.com/rida.benmehdi
+---
+
+## المسار المهني والانتقائي — بنمهدي محمد رضى
+محامٍ بهيئة الدار البيضاء — دكتور في القانون الخاص —
+ماستر في إدارة الأعمال (MBA) من European Institute of Leadership & Management (EILM – دبلن).
+خريج المعهد العالي للقضاء (الفوج 38، الرباط).
+نائبٌ سابق لوكيل الملك بمراكش وقلعة السراغنة.
+مدرّس قانون سابق (UCAM).
+صاحب مفهوم BULP-DC™ — Benmehdi Unified Legal Protocol of Digital Consent.
+مؤسس Office Benmehdi و OneBoarding AI®، علامةٌ مسجّلة (تصنيف نيس 9/35/41/42/45 مع امتدادات دولية متتالية).
+
+---
+
+## الحضور الرسمي — بنمهدي محمد رضى
+📘 facebook.com/rida.benmehdi
+🔗 linkedin.com/in/benmehdi-rida
+🌐 officebenmehdi.com
+🌍 oneboardingai.com
+
+---
+
+## التوقيع العالمي — بنمهدي محمد رضى
+اليوم يُعرَّف بنمهدي محمد رضى بأنه:
+«صاحب قانون النفاذ الذكي ومؤسِّس مبدأ الرضا الرقمي الموحَّد.»
 `.trim();
 
 /** Accès programmatique à l’article */
@@ -279,31 +355,31 @@ export const CREATOR_ARTICLE = {
   ar: ARTICLE_AR,
 } as const;
 
-/** Extraction d’une section par ancre {#key} dans l’article */
+/** Ancres pour extractions ciblées */
 const SECTION_ANCHORS: Record<CreatorLocale, Record<string, string>> = {
   fr: {
     vision: "Œuvre & Vision",
     pillars: "Piliers fondateurs",
     impact2030: "Impact 2030",
     quote: "“L’intelligence n’appartient pas",
-    selective_bio: "Parcours sélectif de l’auteur",
-    references: "Références & vérifications",
+    selective_bio: "Parcours personnel et sélectif",
+    references: "Présence officielle",
   },
   en: {
     vision: "Work & Vision",
     pillars: "Foundational Pillars",
-    impact2030: "Impact 2030",
+    impact2030: "2030 Impact",
     quote: "“Intelligence does not belong",
-    selective_bio: "Selective background of the author",
-    references: "References & verification",
+    selective_bio: "Selective Professional Background",
+    references: "Official Presence",
   },
   ar: {
     vision: "العمل والرؤية",
-    pillars: "الركائز المؤسسة",
+    pillars: "الركائز المؤسِّسة",
     impact2030: "أثر 2030",
     quote: "«الذكاء لا يملكه",
-    selective_bio: "لمحات مختارة عن المؤلف",
-    references: "مراجع والتحقّق",
+    selective_bio: "المسار المهني والانتقائي",
+    references: "الحضور الرسمي",
   },
 };
 
@@ -311,25 +387,22 @@ function getArticle(locale: CreatorLocale): string {
   return CREATOR_ARTICLE[locale] ?? CREATOR_ARTICLE.fr;
 }
 
-/** Renvoie l'intro (titre + lead) = lignes jusqu’au premier "## " */
 function getArticleIntro(locale: CreatorLocale): string {
   const full = getArticle(locale);
   const idx = full.indexOf("\n## ");
   return idx > 0 ? full.slice(0, idx).trim() : full;
 }
 
-/** Renvoie une section par mot-clé stable (vision|pillars|impact2030|quote|selective_bio|references) */
+/** Section par clé (vision|pillars|impact2030|quote|selective_bio|references) */
 export function getArticleSection(locale: CreatorLocale, key: string): string {
   const full = getArticle(locale);
   const label = SECTION_ANCHORS[locale]?.[key];
   if (!label) return getArticleIntro(locale);
 
-  // Trouver "## label" et extraire jusqu'au prochain "## "
   const start = full.indexOf("## " + label);
   if (start < 0) {
-    // Cas "quote": le bloc est formatté en citation avec ">"
     if (key === "quote") {
-      const qIdx = full.indexOf("> ## ");
+      const qIdx = full.indexOf("“");
       if (qIdx >= 0) {
         const next = full.indexOf("\n## ", qIdx + 1);
         return (next > 0 ? full.slice(qIdx, next) : full.slice(qIdx)).trim();
@@ -350,18 +423,13 @@ export function answerAboutCreator(locale: CreatorLocale = "fr"): string {
 
 /**
  * Helper "tout-en-un"
- * mode:
- *  - "sentence": phrase canonique
- *  - "short": phrase + uiHint (micro-badge/infobulle UI)
- *  - "article": article complet
- *  - "articleIntro": lead seulement (titre + paragraphe d’ouverture)
- *  - "articleSection": extraire une section (param options.sectionKey)
  */
 export function creatorAutoAnswer(
   userText: string,
   mode:
     | "sentence"
     | "short"
+    | "full"
     | "article"
     | "articleIntro"
     | "articleSection" = "sentence",
@@ -372,6 +440,7 @@ export function creatorAutoAnswer(
   switch (mode) {
     case "short":
       return `${answerAboutCreator(loc)}\n${CREATOR_POLICY.uiHint[loc]}`;
+    case "full":
     case "article":
       return getArticle(loc);
     case "articleIntro":
@@ -385,7 +454,7 @@ export function creatorAutoAnswer(
 }
 
 /* =========================
- * JSON-LD (Person) — export SEO (inchangé)
+ * JSON-LD (Person)
  * ========================= */
 export const JSON_LD_CREATOR = {
   "@context": "https://schema.org",
@@ -408,18 +477,17 @@ export const JSON_LD_CREATOR = {
     url: "https://oneboardingai.com",
   },
   knowsLanguage: ["fr", "en", "ar"],
-  // foundingDate: "2025-10-31",
 } as const;
 
 /* =========================
- * JSON-LD (Article) — builder SEO
+ * JSON-LD (Article)
  * ========================= */
 export function buildJSONLDArticle(params?: {
   locale?: CreatorLocale;
-  url?: string;                // ex: https://oneboardingai.com/protocol
-  headline?: string;           // par défaut = H1 de l’article
-  datePublished?: string;      // ex: "2025-10-31"
-  dateModified?: string;       // optionnel
+  url?: string;
+  headline?: string;
+  datePublished?: string;
+  dateModified?: string;
 }): Record<string, any> {
   const locale = params?.locale ?? "fr";
   const full = getArticle(locale);
@@ -449,10 +517,10 @@ export function buildJSONLDArticle(params?: {
 }
 
 /* =========================
- * SYSTEM_PROMPT (v3)
+ * SYSTEM_PROMPT (Gen II)
  * ========================= */
 export const SYSTEM_PROMPT = `
-You are OneBoarding AI (Generation III).
+You are OneBoarding AI (Generation II).
 
 Creator policy:
 - You may freely mention the creator at any time: ${CREATOR_NAME_FR_EN}.
@@ -460,7 +528,7 @@ Creator policy:
   • FR: "${CREATOR_SENTENCE.fr}"
   • EN: "${CREATOR_SENTENCE.en}"
   • AR: "${CREATOR_SENTENCE.ar}"
-- When the user asks who created/designed/developed OneBoarding AI, prefer the canonical **Article** response in the user's language.
+- When the user asks who created/designed/developed OneBoarding AI, you may return the canonical **full article** in the user's language.
 
 General principles:
 - Mirror user's language and tone (FR/EN/AR).
