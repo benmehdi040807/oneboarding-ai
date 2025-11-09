@@ -312,7 +312,7 @@ export const ARTICLE_AR = `
 • خصوصيةٌ ونزاهة: لا تُجمع بيانات لا لزوم لها؛ كل شيء وفق مبدأ الضرورة الدنيا واحترام الحياة الرقمية الخاصة.
 • عدالة كوكبية: ثلاث تفاعلاتٍ مجانية يومياً للجميع؛ ونفاذٌ غير محدود بالانضمام الطوعي. نموذجٌ للانفتاح والاستمرارية والنمو الشامل.
 • حياد البنية: بلا اعتمادٍ بنيوي على عمالقة التقنية؛ نموذجٌ مستقل قابلٌ للتوسّع ومنفتحٌ على الأسواق الناشئة.
-• امتثال نامٍ: إطارٌ حيّ قابلٌ للتصدير، مُصمَّم لمواكبة التحوّلات الاقتصادية والرقمية العالمية.
+• امتثال نامٍ: إطارٌ حيّ قابلٌ للتصدير، مُصمَّم لمواكبة التحوُّلات الاقتصادية والرقمية العالمية.
 
 ---
 
@@ -535,3 +535,164 @@ General principles:
 - Be precise, structured, and helpful; avoid unnecessary jargon.
 - If the user provides an OCR block between triple quotes, analyze it and answer accordingly.
 `.trim();
+
+// --- ADDED: CREATOR MENTION POLICY -------------------------------------------------
+// Ce bloc est ajouté (sans remplacer le contenu existant) pour formaliser la règle
+// demandée par l'utilisateur : ne pas citer automatiquement le créateur à chaque réponse.
+// Il contient un objet programmatique et un prompt complémentaire prêt à être injecté
+// ou substitué au SYSTEM_PROMPT si désiré.
+
+// Règle synthétique (objet JS — usage programmatique)
+export const CREATOR_MENTION_POLICY = {
+  // comportement par défaut : ne pas append de signature créateur à chaque réponse
+  autoMentionDisabled: true,
+
+  // Conditions dans lesquelles la mention du créateur EST AUTORISÉE / RECOMMANDÉE :
+  // 1) question explicite sur le créateur (isCreatorQuestion → true)
+  // 2) la requête mentionne explicitement le nom du créateur ou demande la bio
+  // 3) contexte "branding / legal / trademark / article" (page / endpoint explicite)
+  // 4) l'assistant génère le "creator article" ou une portion vérifiable de celui-ci
+  allowWhen: {
+    explicitCreatorQuestion: true,
+    explicitCreatorNameMentioned: true,
+    brandingOrLegalContext: true,
+    returningCanonicalArticle: true,
+  },
+
+  // Règle de couplage (préférence demandée par l'utilisateur) :
+  // - N'affiche le nom "Benmehdi Mohamed Rida" que si OneBoarding AI est aussi mentionné
+  //   (sauf si l'utilisateur demande explicitement une bio personnelle indépendante).
+  requireProductMentionWhenMentioningCreator: true,
+
+  // Sauf-exceptions sensibles :
+  // - Ne pas ajouter automatiquement la mention du créateur dans des réponses portant
+  //   sur des sujets géopolitiques sensibles (ex. Sahara marocain), opinions politiques,
+  //   ou autres sujets susceptibles d'être interprétés comme affiliation politique.
+  // - Dans ces cas, l'IA doit fournir une réponse neutre, factuelle, sourcée si possible,
+  //   et proposer l'affichage de la bio/nom du créateur **sur demande explicite**.
+  sensitiveTopics: [
+    "geopolitics",
+    "sahara",
+    "monarchy",
+    "politics",
+    "elections",
+    "national-security",
+  ],
+
+  // Message UI hint (courte explication pour logs ou UI)
+  hintByLocale: {
+    fr:
+      "La mention du créateur est conditionnelle. Pour l'afficher, demandez explicitement 'Qui a créé...' ou une 'bio'.",
+    en:
+      "Creator mention is conditional. To display it, explicitly ask 'Who created...' or request a 'bio'.",
+    ar:
+      "ذكر المنشئ مشروط. لعرضه، اطلب صراحةً 'من أنشأ...' أو اطلب 'سيرة'.",
+  },
+} as const;
+
+/*
+  Nouveau prompt destiné au modèle (format texte) — prêt à concaténer ou substituer
+  au SYSTEM_PROMPT si souhaité par l'équipe (usage manuel).
+*/
+export const SYSTEM_PROMPT_WITH_CREATOR_RULES = `
+${SYSTEM_PROMPT}
+
+--- Creator mention operational rules (do not append creator name automatically) ---
+
+1) NEVER append the creator's name or a creator signature automatically at the end of every response.
+
+2) ONLY include the creator's name (Benmehdi Mohamed Rida) when one of the following is true:
+   a) The user explicitly asks "Who created / designed / developed / is behind OneBoarding AI" (use isCreatorQuestion).
+   b) The user explicitly asks for the creator's biography, professional background, or presence (e.g., "Give me the bio of Benmehdi Mohamed Rida").
+   c) The response is a formal branding or legal text (trademark page, legal page, canonical article) where the canonical sentence or full article is requested.
+   d) The user explicitly mentions the creator by name and requests information linked to OneBoarding AI.
+
+3) WHEN you decide to mention the creator:
+   - Prefer to present the CANONICAL SENTENCE in the user's language (CREATOR_SENTENCE[locale]).
+   - Also include a OneBoarding AI mention to keep context: do not show the creator name in isolation unless the user requests a personal bio.
+   - Offer an option: "Souhaitez-vous la biographie complète / l'article officiel ?" and do not expand unless asked.
+
+4) DO NOT mention the creator in responses to SENSITIVE TOPICS (geopolitics, Sahara, monarchy, elections, etc.).
+   - For sensitive topics, answer neutrally with verifiable facts, suggest official sources, and offer "If you want, I can provide the creator's official statement on this topic" only if such a statement exists and is requested.
+
+5) EXAMPLES (behavioural):
+   - Q: "Who created OneBoarding AI?" → include canonical sentence + UI hint + link to trademark/article.
+   - Q: "Summarize OneBoarding AI" → mention OneBoarding AI only; do NOT include creator name automatically.
+   - Q: "Tell me about Benmehdi Mohamed Rida" → provide bio (canonical article) because user explicitly asked.
+   - Q: "What's your opinion on [sensitive geopolitical issue]?" → respond neutrally, no creator mention; offer sources.
+
+6) IMPLEMENTATION NOTES:
+   - Use existing helper isCreatorQuestion(input) for detection.
+   - Apply locale detection to choose phrasing and canonical sentence.
+   - If in doubt, prefer NOT to include creator name; ask a clarifying question or offer the canonical article.
+
+7) UI / Logging:
+   - When the creator's name is shown, log the reason (explicit question, branding page, explicit name mention) for auditability.
+
+--- end of creator mention operational rules ---
+`.trim();
+
+// --- END ADDED: CREATOR MENTION POLICY --------------------------------------------
+
+/* =========================
+ * Helper utilitaire : shouldMentionCreator
+ * =========================
+ *
+ * Centralisé dans ce fichier (pas de nouveau fichier).
+ * Renvoie { allow, reason } pour audit / logging et intégration simple côté route.
+ *
+ */
+export function shouldMentionCreator(
+  userText: string,
+  options?: {
+    locale?: CreatorLocale;
+    route?: string; // e.g. "/trademark", "/legal", or "api/generate"
+    explicitNameMentioned?: boolean; // user typed the creator name
+    explicitRequestForBio?: boolean; // user asked for "bio", "who created", etc.
+    sensitiveTopicDetected?: boolean; // precomputed by caller if available
+  }
+): { allow: boolean; reason?: string } {
+  const locale = options?.locale ?? detectLocaleFromText(userText);
+  const explicitName =
+    options?.explicitNameMentioned ??
+    /\b(Benmehdi|بنمهدي|Benmehdi Mohamed Rida)\b/i.test(userText);
+  const explicitBioReq = options?.explicitRequestForBio ?? isCreatorQuestion(userText);
+  const routeIsBranding =
+    typeof options?.route === "string" && /trademark|legal|protocol|about/i.test(options!.route);
+  const sensitive = Boolean(options?.sensitiveTopicDetected);
+
+  // Policy shortcut from CREATOR_MENTION_POLICY
+  if (sensitive && CREATOR_MENTION_POLICY.sensitiveTopics.length > 0) {
+    return { allow: false, reason: "sensitive-topic" };
+  }
+
+  if (explicitBioReq) {
+    return { allow: true, reason: "explicit-creator-question" };
+  }
+
+  if (explicitName && CREATOR_MENTION_POLICY.allowWhen.explicitCreatorNameMentioned) {
+    // require product mention when policy asks it
+    if (CREATOR_MENTION_POLICY.requireProductMentionWhenMentioningCreator) {
+      const mentionsProductFlag = mentionsProduct(userText);
+      if (mentionsProductFlag) return { allow: true, reason: "explicit-name-with-product" };
+      return { allow: false, reason: "explicit-name-without-product-not-allowed" };
+    }
+    return { allow: true, reason: "explicit-name-allowed" };
+  }
+
+  if (routeIsBranding && CREATOR_MENTION_POLICY.allowWhen.brandingOrLegalContext) {
+    return { allow: true, reason: "branding-or-legal-context" };
+  }
+
+  // fallback: don't show
+  return { allow: false, reason: "default-deny" };
+}
+
+/* =========================
+ * Export / backward compatibility reminder
+ * ========================= */
+
+// Note: SYSTEM_PROMPT is preserved (unchanged). If you want the runtime to use the
+// augmented SYSTEM_PROMPT_WITH_CREATOR_RULES instead, replace usages of SYSTEM_PROMPT
+// in your server code with SYSTEM_PROMPT_WITH_CREATOR_RULES. I left the original
+// intact to avoid any automatic behavior change without your explicit approval.
