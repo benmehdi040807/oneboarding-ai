@@ -4,6 +4,10 @@ import {
   isCreatorQuestion,
   creatorAutoAnswer,
   SYSTEM_PROMPT,
+  SYSTEM_PROMPT_WITH_CREATOR_RULES,
+  shouldMentionCreator,
+  detectLocaleFromText,
+  CREATOR_SENTENCE,
 } from "@/lib/creator-policy";
 
 export const runtime = "edge";
@@ -102,7 +106,33 @@ export async function POST(req: NextRequest) {
       return json({ ok: true, text, provider: "LOCAL_POLICY", model: "n/a" });
     }
 
-    // 2) Appel LLM normal avec SYSTEM_PROMPT
+    // 2) Décision si on peut mentionner le créateur (audit + logique centrale)
+    //    On passe route="api/generate" pour indiquer contexte serveur
+    const mentionDecision = shouldMentionCreator(raw, {
+      route: "api/generate",
+      explicitNameMentioned: undefined,
+      explicitRequestForBio: undefined,
+    });
+
+    // Détecte la locale pour choisir éventuellement la phrase canonique
+    const locale = detectLocaleFromText(raw);
+
+    // 3) Prépare le prompt système : on utilise SYSTEM_PROMPT_WITH_CREATOR_RULES
+    //    Ce prompt contient les règles opérationnelles (ne pas append automatiquement, etc.)
+    //    Si la décision autorise la mention du créateur, on demande explicitement au modèle
+    //    d'inclure la phrase canonique (dans la langue détectée) — sinon on ne l'ajoute pas.
+    let systemContent = SYSTEM_PROMPT_WITH_CREATOR_RULES;
+
+    if (mentionDecision.allow) {
+      // si autorisé, demander explicitement d'inclure la phrase canonique (locale)
+      const canonical = (CREATOR_SENTENCE as any)[locale] ?? CREATOR_SENTENCE.fr;
+      systemContent += `\n\n// RUNTIME: include canonical creator sentence (reason=${mentionDecision.reason})\nINCLUDE_CANONICAL_SENTENCE: ${canonical}`;
+    } else {
+      // explicite : rappeler au modèle de ne pas append une signature créateur automatiquement
+      systemContent += `\n\n// RUNTIME: do NOT append creator signature automatically (reason=${mentionDecision.reason})`;
+    }
+
+    // 4) Appel LLM normal avec prompt système harmonisé
     const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
       method: "POST",
       headers: {
@@ -114,7 +144,7 @@ export async function POST(req: NextRequest) {
         temperature: 0.5,
         max_tokens: 800,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemContent },
           { role: "user", content: raw },
         ],
       }),
@@ -134,13 +164,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3) Sortie ouverte (aucune censure, langage noble encouragé)
+    // 5) Sortie ouverte (aucune censure, langage noble encouragé)
     const text: string =
       (data as any)?.choices?.[0]?.message?.content?.trim() ||
       "Désolé, je n’ai pas le droit de vous fournir plus d’informations à ce sujet.";
 
-    return json({ ok: true, text, provider: "GROQ", model: MODEL });
+    // 6) Retourne également la décision concernant la mention du créateur (pour UI / logs)
+    return json({
+      ok: true,
+      text,
+      provider: "GROQ",
+      model: MODEL,
+      creatorMention: {
+        allowed: mentionDecision.allow,
+        reason: mentionDecision.reason,
+        locale,
+      },
+    });
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-    }
+  }
