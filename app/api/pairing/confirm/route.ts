@@ -7,6 +7,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/* ====================== Helpers généraux ====================== */
+
 function getMaxDevices(): number {
   const v = process.env.MAX_DEVICES ?? process.env.NEXT_PUBLIC_MAX_DEVICES ?? "3";
   const n = parseInt(String(v), 10);
@@ -19,12 +21,19 @@ function pepper(): string {
   return p;
 }
 
-// ⚠️ Doit matcher EXACTEMENT la convention de /start
+// ⚠️ Doit matcher EXACTEMENT la convention de /pairing/start
 function hashCode(code: string, salt: string): string {
   const h = crypto.createHash("sha256");
   h.update(pepper() + "::" + salt + "::" + code);
   return h.digest("hex");
 }
+
+// Cohérence avec /api/pay/start et /api/pairing/start
+function isDeviceId(d?: string): d is string {
+  return typeof d === "string" && d.trim().length >= 8;
+}
+
+/* =========================== Types ============================ */
 
 type Req = {
   challengeId: string;
@@ -34,10 +43,23 @@ type Req = {
 };
 
 type Ok =
-  | { ok: true; authorized: true; userId: string; newDeviceId: string; revokedDeviceId?: string }
-  | { ok: true; authorized: false; error: "SLOTS_FULL" | "INVALID_CODE" | "EXPIRED" | "NO_CHALLENGE" | "REVOKE_NOT_FOUND"; attemptsLeft?: number };
+  | {
+      ok: true;
+      authorized: true;
+      userId: string;
+      newDeviceId: string;
+      revokedDeviceId?: string;
+    }
+  | {
+      ok: true;
+      authorized: false;
+      error: "SLOTS_FULL" | "INVALID_CODE" | "EXPIRED" | "NO_CHALLENGE" | "REVOKE_NOT_FOUND";
+      attemptsLeft?: number;
+    };
 
 type Err = { ok: false; error: string };
+
+/* ============================ Route =========================== */
 
 export async function POST(req: Request) {
   try {
@@ -45,12 +67,29 @@ export async function POST(req: Request) {
     const { challengeId, code, revokeDeviceId } = body;
 
     if (!challengeId || typeof code !== "string") {
-      return NextResponse.json<Err>({ ok: false, error: "BAD_REQUEST" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json<Err>(
+        { ok: false, error: "BAD_REQUEST" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    const challenge = await prisma.devicePairingChallenge.findUnique({ where: { id: challengeId } });
+    // Si un revokeDeviceId est fourni mais manifestement invalide
+    if (revokeDeviceId && !isDeviceId(revokeDeviceId)) {
+      return NextResponse.json<Ok>(
+        { ok: true, authorized: false, error: "REVOKE_NOT_FOUND" },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const challenge = await prisma.devicePairingChallenge.findUnique({
+      where: { id: challengeId },
+    });
+
     if (!challenge || challenge.status !== "PENDING") {
-      return NextResponse.json<Ok>({ ok: true, authorized: false, error: "NO_CHALLENGE" }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json<Ok>(
+        { ok: true, authorized: false, error: "NO_CHALLENGE" },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     if (challenge.expiresAt <= new Date() || challenge.attemptsLeft <= 0) {
@@ -58,22 +97,29 @@ export async function POST(req: Request) {
         where: { id: challenge.id },
         data: { status: "EXPIRED" },
       });
-      return NextResponse.json<Ok>({ ok: true, authorized: false, error: "EXPIRED" }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json<Ok>(
+        { ok: true, authorized: false, error: "EXPIRED" },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    // Vérification
+    // Vérification du code
     const computed = hashCode(code, challenge.codeSalt);
     if (computed !== challenge.codeHash) {
       const updated = await prisma.devicePairingChallenge.update({
         where: { id: challenge.id },
         data: { attemptsLeft: { decrement: 1 } },
       });
-      return NextResponse.json<Ok>({
-        ok: true,
-        authorized: false,
-        error: "INVALID_CODE",
-        attemptsLeft: Math.max(0, updated.attemptsLeft),
-      }, { headers: { "Cache-Control": "no-store" } });
+
+      return NextResponse.json<Ok>(
+        {
+          ok: true,
+          authorized: false,
+          error: "INVALID_CODE",
+          attemptsLeft: Math.max(0, updated.attemptsLeft),
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Code correct → autoriser le newDeviceId
@@ -89,25 +135,45 @@ export async function POST(req: Request) {
     // Révocation volontaire si demandée
     let revokedDeviceId: string | undefined;
     if (revokeDeviceId) {
-      const dev = await prisma.device.findFirst({ where: { userId, deviceId: revokeDeviceId, authorized: true, revokedAt: null } });
+      const dev = await prisma.device.findFirst({
+        where: { userId, deviceId: revokeDeviceId, authorized: true, revokedAt: null },
+      });
+
       if (!dev) {
-        return NextResponse.json<Ok>({ ok: true, authorized: false, error: "REVOKE_NOT_FOUND" }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json<Ok>(
+          { ok: true, authorized: false, error: "REVOKE_NOT_FOUND" },
+          { headers: { "Cache-Control": "no-store" } }
+        );
       }
+
       await prisma.device.update({
         where: { id: dev.id },
         data: { authorized: false, revokedAt: new Date() },
       });
+
       revokedDeviceId = revokeDeviceId;
     } else if (activeCount >= MAX_SLOTS) {
       // Slots pleins et aucune révocation fournie
-      return NextResponse.json<Ok>({ ok: true, authorized: false, error: "SLOTS_FULL" }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json<Ok>(
+        { ok: true, authorized: false, error: "SLOTS_FULL" },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Upsert du nouvel appareil
     await prisma.device.upsert({
       where: { userId_deviceId: { userId, deviceId: newDeviceId } },
-      update: { authorized: true, revokedAt: null, firstAuthorizedAt: { set: undefined } },
-      create: { userId, deviceId: newDeviceId, authorized: true, firstAuthorizedAt: new Date() },
+      update: {
+        authorized: true,
+        revokedAt: null,
+        // On ne touche PAS à firstAuthorizedAt ici pour garder l'historique fondateur
+      },
+      create: {
+        userId,
+        deviceId: newDeviceId,
+        authorized: true,
+        firstAuthorizedAt: new Date(),
+      },
     });
 
     // Clôture du challenge + hygiène (on supprime l’affichage chiffré)
@@ -122,15 +188,21 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json<Ok>({
-      ok: true,
-      authorized: true,
-      userId,
-      newDeviceId,
-      ...(revokedDeviceId ? { revokedDeviceId } : {}),
-    }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json<Ok>(
+      {
+        ok: true,
+        authorized: true,
+        userId,
+        newDeviceId,
+        ...(revokedDeviceId ? { revokedDeviceId } : {}),
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (e: any) {
     console.error("PAIRING_CONFIRM_ERR", e);
-    return NextResponse.json<Err>({ ok: false, error: "SERVER_ERROR" }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json<Err>(
+      { ok: false, error: "SERVER_ERROR" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
-      }
+        }
