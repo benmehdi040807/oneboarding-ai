@@ -1,6 +1,7 @@
 // components/SubscribeModal.tsx
 "use client";
 
+import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PhoneField from "./PhoneField";
 
@@ -79,6 +80,7 @@ const I18N: Record<Lang, any> = {
 /* -------------------------------------------------------------------------- */
 const LS_PHONE = "oneboarding.phoneE164";
 const LS_PENDING_PLAN = "oneboarding.pendingPlanKind";
+const DEVICE_ID_KEY = "oneboarding.deviceId";
 
 function lsSet(key: string, val: string) {
   try {
@@ -90,6 +92,36 @@ function lsGet(key: string, fallback = ""): string {
     return localStorage.getItem(key) ?? fallback;
   } catch {
     return fallback;
+  }
+}
+
+/**
+ * Génère ou récupère l'identifiant technique de l'appareil
+ * propre à OneBoarding AI (app-device-id).
+ *
+ * - Stocké dans localStorage
+ * - Stable tant que le navigateur n'est pas réinitialisé
+ * - Statistiquement unique à l'échelle mondiale (UUID v4)
+ */
+function getOrCreateDeviceId(): string | null {
+  try {
+    let existing = localStorage.getItem(DEVICE_ID_KEY);
+    if (existing && existing.trim().length >= 8) {
+      return existing;
+    }
+
+    let next: string;
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      next = crypto.randomUUID();
+    } else {
+      next = `dev_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    }
+
+    localStorage.setItem(DEVICE_ID_KEY, next);
+    return next;
+  } catch {
+    // Mode navigation très privé ou stockage désactivé
+    return null;
   }
 }
 
@@ -172,7 +204,8 @@ export default function SubscribeModal(props: ControlledProps) {
     const d = dialogRef.current;
     if (!d) return;
     const r = d.getBoundingClientRect();
-    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    const inside =
+      e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
     if (!inside) closeAll();
   };
 
@@ -205,23 +238,37 @@ export default function SubscribeModal(props: ControlledProps) {
     try {
       setLoading(true);
       const p = (e164 || "").trim();
+
       if (!validatePhone(p)) {
         setError(t.INVALID_PHONE);
         setLoading(false);
         return;
       }
+
+      const deviceId = getOrCreateDeviceId();
+      if (!deviceId) {
+        setError(
+          "Impossible d’identifier cet appareil. Vérifiez les paramètres de votre navigateur et réessayez."
+        );
+        setLoading(false);
+        return;
+      }
+
       setError(null);
       lsSet(LS_PHONE, p);
       lsSet(LS_PENDING_PLAN, plan);
+
       const res = await fetch("/api/pay/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: plan, phone: p }),
+        body: JSON.stringify({ kind: plan, phone: p, deviceId }),
       });
-      const out = await res.json().catch(() => ({}));
+
+      const out = await res.json().catch(() => ({} as any));
       if (!res.ok || !out?.ok || !out?.approvalUrl) {
         throw new Error(out?.error || `HTTP_${res.status}`);
       }
+
       window.location.href = out.approvalUrl as string;
     } catch (e: any) {
       setError(e?.message || "Impossible de démarrer le paiement.");
@@ -354,4 +401,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-}
+              }
