@@ -24,6 +24,9 @@ function addDays(base: Date, days: number): Date {
  * Upsert lors du retour d’approval (post-paiement) :
  * - garantit l’existence de l’utilisateur (par phone)
  * - attache/actualise la souscription PayPal (status + échéance)
+ *
+ * NB : on applique un fallback pour PASS1MOIS si PayPal
+ * ne fournit aucune échéance claire.
  */
 export async function linkSubscriptionToUser(opts: {
   phoneE164: string;
@@ -80,11 +83,15 @@ export async function linkSubscriptionToUser(opts: {
 /**
  * Applique un changement d’état reçu via webhook PayPal (idempotent).
  * On refetch la souscription chez PayPal pour se baser sur la vérité source.
+ *
+ * NB : ici on **n’applique pas** le fallback 30 jours.
+ * On laisse le currentPeriodEnd déjà posé par /pay/return,
+ * et on ne le modifie que si PayPal fournit une info plus précise.
  */
 export async function applyWebhookChange(evt: {
   event_type: string;
   resource: any;
-}): Promise<void> {
+}: Promise<void>) {
   const type = evt?.event_type;
   const res = evt?.resource;
   const subId: string | undefined = res?.id || res?.subscription_id;
@@ -100,13 +107,8 @@ export async function applyWebhookChange(evt: {
       ? "PASS1MOIS"
       : "CONTINU";
 
-  // Échéance (pour PASS1MOIS et/ou info PayPal côté plan)
-  let periodEnd = extractPeriodEndFromPP(pp, planGuess) ?? undefined;
-
-  // Même fallback logique que plus haut si besoin
-  if (!periodEnd && planGuess === "PASS1MOIS") {
-    periodEnd = addDays(new Date(), 30);
-  }
+  // Échéance issue DIRECTEMENT de PayPal (si fournie)
+  const periodEnd = extractPeriodEndFromPP(pp, planGuess) ?? undefined;
 
   let cancelAtPeriodEnd: boolean | undefined;
 
@@ -144,7 +146,9 @@ export async function applyWebhookChange(evt: {
 /**
  * Droit d’accès : TRUE si
  * - plan CONTINU avec status cohérent
- * - ou PASS1MOIS (même EXPIRED) mais période d’un mois non échue
+ * - ou PASS1MOIS (même EXPIRED) mais période d’un mois non échue.
+ *
+ * currentPeriodEnd = "date souveraine de fin du dernier droit d’accès payé".
  */
 export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   const sub = await prisma.subscription.findFirst({
@@ -166,6 +170,7 @@ export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
 
   // ---------- Plan CONTINU ----------
   if (sub.plan === "CONTINU") {
+    // Abonnement actif
     if (sub.status === "ACTIVE") {
       return true;
     }
@@ -183,7 +188,7 @@ export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   }
 
   // ---------- Plan PASS1MOIS ----------
-  // Échéance logique = currentPeriodEnd ou createdAt + 30 jours
+  // Échéance logique = currentPeriodEnd, sinon createdAt + 30 jours
   const logicalEnd =
     sub.currentPeriodEnd ?? addDays(sub.createdAt, 30);
 
