@@ -212,6 +212,11 @@ export async function GET(req: NextRequest) {
 
     // 6. DEVICE : autoriser tout de suite le device qui vient d'activer l'espace
     //
+    // RÈGLE isFounder :
+    //   - si aucun device n'existe encore pour ce user → isFounder = true
+    //   - sinon → isFounder = false pour les créations,
+    //     et on ne touche JAMAIS isFounder dans l'update.
+    //
     // authorized = true
     // revokedAt = null
     // lastSeenAt = now
@@ -222,6 +227,13 @@ export async function GET(req: NextRequest) {
 
     if (deviceId) {
       const ua = req.headers.get("user-agent") ?? undefined;
+
+      // Combien de devices possède déjà ce user ?
+      const existingDeviceCount = await prisma.device.count({
+        where: { userId },
+      });
+
+      const isFounder = existingDeviceCount === 0;
 
       const deviceRecord = await prisma.device.upsert({
         where: {
@@ -239,12 +251,15 @@ export async function GET(req: NextRequest) {
           authorized: true,
           revokedAt: null,
           lastSeenAt: now,
+          firstAuthorizedAt: now,
+          isFounder, // fondateur SI et seulement si 1er device de ce user
         },
         update: {
           authorized: true,
           revokedAt: null,
           lastSeenAt: now,
           userAgent: ua,
+          // ⚠️ on NE touche PAS à isFounder ici → l'historique reste intact
         },
         select: { deviceId: true },
       });
