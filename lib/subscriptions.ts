@@ -1,4 +1,5 @@
 // lib/subscriptions.ts
+
 import { prisma } from "@/lib/db";
 import { ppGetSubscription, extractPeriodEndFromPP } from "@/lib/paypal";
 
@@ -11,6 +12,13 @@ export type SubStatus =
   | "SUSPENDED"
   | "CANCELLED"
   | "EXPIRED";
+
+// Petit util pour les durées "logiques" (Pass 1 mois, etc.)
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
 /**
  * Upsert lors du retour d’approval (post-paiement) :
@@ -25,9 +33,18 @@ export async function linkSubscriptionToUser(opts: {
   const { phoneE164, plan, paypalSubId } = opts;
 
   // 1) Lecture PayPal → status + échéance
-  const ppSub = await ppGetSubscription(paypalSubId).catch(() => undefined as any);
+  const ppSub = await ppGetSubscription(paypalSubId).catch(
+    () => undefined as any
+  );
   const status = ((ppSub?.status as string) || "ACTIVE") as SubStatus;
-  const currentPeriodEnd = extractPeriodEndFromPP(ppSub, plan) ?? null;
+
+  let currentPeriodEnd = extractPeriodEndFromPP(ppSub, plan) ?? null;
+
+  // Fallback pour PASS1MOIS : si PayPal ne fournit pas d'échéance claire,
+  // on considère "date d'aujourd'hui + 30 jours"
+  if (!currentPeriodEnd && plan === "PASS1MOIS") {
+    currentPeriodEnd = addDays(new Date(), 30);
+  }
 
   // 2) User upsert
   const user = await prisma.user.upsert({
@@ -84,7 +101,12 @@ export async function applyWebhookChange(evt: {
       : "CONTINU";
 
   // Échéance (pour PASS1MOIS et/ou info PayPal côté plan)
-  const periodEnd = extractPeriodEndFromPP(pp, planGuess) ?? undefined;
+  let periodEnd = extractPeriodEndFromPP(pp, planGuess) ?? undefined;
+
+  // Même fallback logique que plus haut si besoin
+  if (!periodEnd && planGuess === "PASS1MOIS") {
+    periodEnd = addDays(new Date(), 30);
+  }
 
   let cancelAtPeriodEnd: boolean | undefined;
 
@@ -101,9 +123,10 @@ export async function applyWebhookChange(evt: {
       cancelAtPeriodEnd = true;
       break;
     case "BILLING.SUBSCRIPTION.EXPIRED":
+      // Profil terminé côté PayPal, mais on laisse l’échéance jouer
       cancelAtPeriodEnd = true;
       break;
-    // Autres types possibles (paiement échoué etc.) : on laisse le status PayPal trancher
+    // Autres types possibles : on laisse le status PayPal trancher
     default:
       break;
   }
@@ -116,30 +139,68 @@ export async function applyWebhookChange(evt: {
       cancelAtPeriodEnd,
     },
   });
-
-  // NB: Si plus tard on veut gérer l’auth device via un paiement 1 € (order/capture),
-  // on traitera ces events (ex: PAYMENT.CAPTURE.COMPLETED) ailleurs, pas ici.
 }
 
 /**
  * Droit d’accès : TRUE si
- * - ACTIVE
- * - ou CANCELLED mais pas encore arrivé à l’échéance (currentPeriodEnd future)
+ * - plan CONTINU avec status cohérent
+ * - ou PASS1MOIS (même EXPIRED) mais période d’un mois non échue
  */
 export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   const sub = await prisma.subscription.findFirst({
     where: {
       user: { phoneE164 },
-      OR: [
-        { status: "ACTIVE" },
-        {
-          status: "CANCELLED",
-          currentPeriodEnd: { gt: new Date() },
-        },
-      ],
     },
     orderBy: { updatedAt: "desc" },
-    select: { id: true },
+    select: {
+      plan: true,
+      status: true,
+      currentPeriodEnd: true,
+      createdAt: true,
+      cancelAtPeriodEnd: true,
+    },
   });
-  return !!sub;
+
+  if (!sub) return false;
+  const now = new Date();
+
+  // ---------- Plan CONTINU ----------
+  if (sub.plan === "CONTINU") {
+    if (sub.status === "ACTIVE") {
+      return true;
+    }
+
+    // CANCELLED / EXPIRED mais avec période encore en cours
+    if (
+      (sub.status === "CANCELLED" || sub.status === "EXPIRED") &&
+      sub.currentPeriodEnd &&
+      sub.currentPeriodEnd > now
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // ---------- Plan PASS1MOIS ----------
+  // Échéance logique = currentPeriodEnd ou createdAt + 30 jours
+  const logicalEnd =
+    sub.currentPeriodEnd ?? addDays(sub.createdAt, 30);
+
+  if (!logicalEnd || logicalEnd <= now) {
+    // Période terminée
+    return false;
+  }
+
+  // Pendant cette période, on considère que ces status donnent accès :
+  switch (sub.status) {
+    case "ACTIVE":
+    case "APPROVED":
+    case "APPROVAL_PENDING":
+    case "CANCELLED":
+    case "EXPIRED":
+      return true;
+    default:
+      return false;
+  }
 }
