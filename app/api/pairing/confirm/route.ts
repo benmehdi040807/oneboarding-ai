@@ -53,7 +53,12 @@ type Ok =
   | {
       ok: true;
       authorized: false;
-      error: "SLOTS_FULL" | "INVALID_CODE" | "EXPIRED" | "NO_CHALLENGE" | "REVOKE_NOT_FOUND";
+      error:
+        | "SLOTS_FULL"
+        | "INVALID_CODE"
+        | "EXPIRED"
+        | "NO_CHALLENGE"
+        | "REVOKE_NOT_FOUND";
       attemptsLeft?: number;
     };
 
@@ -136,7 +141,12 @@ export async function POST(req: Request) {
     let revokedDeviceId: string | undefined;
     if (revokeDeviceId) {
       const dev = await prisma.device.findFirst({
-        where: { userId, deviceId: revokeDeviceId, authorized: true, revokedAt: null },
+        where: {
+          userId,
+          deviceId: revokeDeviceId,
+          authorized: true,
+          revokedAt: null,
+        },
       });
 
       if (!dev) {
@@ -166,17 +176,18 @@ export async function POST(req: Request) {
       update: {
         authorized: true,
         revokedAt: null,
-        // On ne touche PAS à firstAuthorizedAt ici pour garder l'historique fondateur
+        // On ne touche PAS à firstAuthorizedAt ni isFounder ici
       },
       create: {
         userId,
         deviceId: newDeviceId,
         authorized: true,
         firstAuthorizedAt: new Date(),
+        isFounder: false, // ✅ un device de pairing n’est jamais fondateur
       },
     });
 
-    // Clôture du challenge + hygiène (on supprime l’affichage chiffré)
+    // Clôture du challenge + hygiène
     await prisma.devicePairingChallenge.update({
       where: { id: challenge.id },
       data: {
@@ -205,4 +216,4 @@ export async function POST(req: Request) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
-        }
+}
