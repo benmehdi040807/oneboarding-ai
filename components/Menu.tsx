@@ -16,7 +16,6 @@ type PendingData = {
   code: string;
   newDeviceId: string;
   expiresAt: string; // ISO
-  // attemptsLeft?: number; // non affiché côté UI (anti-spam serveur only)
 };
 
 /** ===================== Constantes ===================== */
@@ -122,7 +121,6 @@ const I18N: Record<Lang, any> = {
       SUB: "abonnement",
       ONEOFF: "accès libre",
       NONE: "—",
-      // Pairing UI
       DETECTED_BANNER: "Nouvel appareil détecté",
       VIEW: "Consulter",
       PENDING_TITLE: "Un nouvel appareil demande l’accès à votre espace.",
@@ -179,7 +177,6 @@ const I18N: Record<Lang, any> = {
       SUB: "subscription",
       ONEOFF: "one-month",
       NONE: "—",
-      // Pairing UI
       DETECTED_BANNER: "New device detected",
       VIEW: "View",
       PENDING_TITLE: "A new device is requesting access to your space.",
@@ -236,7 +233,6 @@ const I18N: Record<Lang, any> = {
       SUB: "اشتراك",
       ONEOFF: "وصول لشهر",
       NONE: "—",
-      // Pairing UI
       DETECTED_BANNER: "تم الكشف عن جهاز جديد",
       VIEW: "عرض",
       PENDING_TITLE: "يوجد جهاز جديد يطلب الوصول إلى مساحتك.",
@@ -302,11 +298,11 @@ export default function Menu() {
   const legalPushedRef = useRef(false);
 
   // Pairing (ancien appareil)
-  const [pending, setPending] = useState<PendingData | null>(null); // données préchargées (non affichées tant que pas "Autoriser")
-  const [pendingBanner, setPendingBanner] = useState(false);        // affiche le bandeau "Nouvel appareil détecté"
-  const [showPendingCard, setShowPendingCard] = useState(false);    // encart sous "Mon compte"
-  const [revealCode, setRevealCode] = useState(false);              // après clic [Autoriser]
-  const [remainingMs, setRemainingMs] = useState<number>(0);        // compte à rebours
+  const [pending, setPending] = useState<PendingData | null>(null);
+  const [pendingBanner, setPendingBanner] = useState(false);
+  const [showPendingCard, setShowPendingCard] = useState(false);
+  const [revealCode, setRevealCode] = useState(false);
+  const [remainingMs, setRemainingMs] = useState<number>(0);
 
   const pollTimerRef = useRef<number | null>(null);
   const pollTicksRef = useRef<number>(0);
@@ -331,6 +327,69 @@ export default function Menu() {
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     } catch {}
   }, []);
+
+  // 🔗 Quand le menu s’ouvre, on interroge /api/account/status (source de vérité backend)
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/account/status", {
+          method: "GET",
+          credentials: "include",
+        });
+        const data: any = await res.json();
+
+        if (cancelled) return;
+
+        const newConnected = !!data?.loggedIn;
+        const newSpaceActive = !!data?.planActive;
+
+        const rawPlan = data?.plan as "CONTINU" | "PASS1MOIS" | null | undefined;
+        const newPlan: Plan =
+          rawPlan === "CONTINU"
+            ? "subscription"
+            : rawPlan === "PASS1MOIS"
+            ? "one-month"
+            : null;
+
+        setConnected(newConnected);
+        setSpaceActive(newSpaceActive);
+        setPlan(newPlan);
+
+        // Sync douce vers localStorage pour la prochaine ouverture
+        try {
+          localStorage.setItem("ob_connected", newConnected ? "1" : "0");
+          localStorage.setItem("oneboarding.spaceActive", newSpaceActive ? "1" : "0");
+          if (newPlan) {
+            localStorage.setItem("oneboarding.plan", newPlan);
+          } else {
+            localStorage.removeItem("oneboarding.plan");
+          }
+          if (data?.phoneE164) {
+            localStorage.setItem("oneboarding.phoneE164", data.phoneE164 as string);
+          }
+          if (typeof data?.consentGiven === "boolean" && data.consentGiven) {
+            localStorage.setItem(CONSENT_KEY, "1");
+            if (!localStorage.getItem(CONSENT_AT_KEY)) {
+              localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
+            }
+            setConsented(true);
+          }
+        } catch {
+          // best-effort only
+        }
+      } catch {
+        // En cas d’erreur réseau, on garde l’état local
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // écoute cross-composants (venant des modales dédiées)
   useEffect(() => {
@@ -360,7 +419,6 @@ export default function Menu() {
     const onHistoryCleared = () => setMessages([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
-    // 🔥 Abonnement activé (retour PayPal)
     const onSubscriptionActive = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       const newPlan: Plan = d?.plan === "one-month" ? "one-month" : "subscription";
@@ -383,10 +441,8 @@ export default function Menu() {
       setPlan(newPlan);
     };
 
-    // 🔥 Appareil autorisé (événement côté nouveau device — pas attendu ici)
     const onDeviceAuthorized = () => {
-      // Pas d’action spécifique côté ancien appareil (menu) sans push/SSE.
-      // Le cycle de polling se charge de masquer l’encart si plus de PENDING.
+      // Rien de spécial ici : le polling PENDING gère déjà l’UX.
     };
 
     window.addEventListener("ob:connected-changed", onAuthChanged);
@@ -426,13 +482,12 @@ export default function Menu() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-ob-device-id": deviceId, // auth réelle côté serveur: cookie + device
+          "x-ob-device-id": deviceId,
         },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.ok) return null;
       if (data.has === false) return null;
-      // has:true
       return {
         challengeId: data.challengeId,
         code: data.code,
@@ -460,7 +515,7 @@ export default function Menu() {
     setRemainingMs(0);
   }
 
-  // Démarre micro-polling uniquement quand le Menu s’ouvre (et user connecté)
+  // Micro-polling pairing (uniquement quand Menu ouvert & connecté)
   useEffect(() => {
     if (!open || !connected) {
       clearPolling();
@@ -475,8 +530,7 @@ export default function Menu() {
 
       if (p) {
         setPending(p);
-        setPendingBanner(true); // bandeau "Nouvel appareil détecté"
-        // On ne montre PAS encore le code ni la carte; l’utilisateur cliquera "Consulter" puis "Autoriser".
+        setPendingBanner(true);
       } else {
         setPending(null);
         setPendingBanner(false);
@@ -486,7 +540,7 @@ export default function Menu() {
       }
     };
 
-    prime(); // première vérif immédiate
+    prime();
 
     clearPolling();
     pollTimerRef.current = window.setInterval(async () => {
@@ -498,12 +552,10 @@ export default function Menu() {
         setPending(p);
         setPendingBanner(true);
 
-        // Si le code est révélé, mettre à jour le TTL restant
         if (revealCode) {
           const ms = new Date(p.expiresAt).getTime() - Date.now();
           setRemainingMs(ms);
           if (ms <= 0) {
-            // Expiré: on masque encart + message
             setRevealCode(false);
             setShowPendingCard(false);
             toast(t.ACC.EXPIRED);
@@ -511,7 +563,6 @@ export default function Menu() {
           }
         }
       } else {
-        // plus de PENDING: fermeture silencieuse + ligne neutre
         if (showPendingCard || revealCode || pendingBanner) {
           setShowPendingCard(false);
           setRevealCode(false);
@@ -534,7 +585,7 @@ export default function Menu() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, connected, revealCode, pendingBanner, showPendingCard, t.ACC.DONE_NEUTRAL, t.ACC.EXPIRED]);
 
-  // Quand on révèle le code, lancer un petit timer pour le compte à rebours en direct (1 Hz).
+  // Countdown local (1 Hz) quand le code est révélé
   useEffect(() => {
     if (!revealCode || !pending?.expiresAt) {
       stopCountdown();
@@ -550,13 +601,13 @@ export default function Menu() {
         stopCountdown();
       }
     };
-    tick(); // init immédiate
+    tick();
     countdownRef.current = window.setInterval(tick, 1000);
     return () => stopCountdown();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealCode, pending?.expiresAt, t.ACC.EXPIRED]);
 
-  /** ============ Actions compte (orchestration uniquement) ============ */
+  /** ============ Actions compte ============ */
   function handleConnect() {
     window.dispatchEvent(new Event("ob:open-connect"));
   }
@@ -573,7 +624,6 @@ export default function Menu() {
     window.dispatchEvent(new Event("ob:open-activate"));
   }
   function handleDeactivate() {
-    // Espace OFF, et on nettoie proprement la clé du plan
     try {
       localStorage.setItem("oneboarding.spaceActive", "0");
       localStorage.removeItem("oneboarding.plan");
@@ -584,7 +634,7 @@ export default function Menu() {
     toast("Espace désactivé.");
   }
 
-  /** ============ Helpers Historique (footer neutre & stable) ============ */
+  /** ============ Historique (footer neutre & stable) ============ */
   function formatHistoryForText(msgs: Item[], l: Lang) {
     const body = msgs
       .slice()
@@ -608,7 +658,7 @@ export default function Menu() {
     return `${body}${footer}`;
   }
 
-  /** ============ Historique ============ */
+  /** ============ Historique actions ============ */
   async function shareHistory() {
     const msgs = readJSON<Item[]>("oneboarding.history", []);
     if (!msgs.length) {
@@ -646,24 +696,17 @@ export default function Menu() {
     toast(t.HIST.SAVED);
   }
 
-  // ⛔️ Ne supprime plus l'historique ici.
-  // On délègue le wipe final à app/page.tsx (qui possède le state history).
   function clearHistoryConfirmed() {
-    // Fermer la modale locale de confirmation
     setConfirmOpen(false);
 
-    // Déterminer la langue active au moment du clic
     let currentLang: Lang = lang;
     try {
       const lsLang = localStorage.getItem("oneboarding.lang") as Lang | null;
       if (lsLang && ["fr", "en", "ar"].includes(lsLang)) {
         currentLang = lsLang as Lang;
       }
-    } catch {
-      /* noop */
-    }
+    } catch {}
 
-    // Demander à la page d'ouvrir la confirmation finale multilingue
     window.dispatchEvent(
       new CustomEvent("ob:request-clear-history", {
         detail: { lang: currentLang },
@@ -823,14 +866,14 @@ export default function Menu() {
                   </div>
                 )}
 
-                {/* ===== Bandeau "Nouvel appareil détecté" (sous Mon compte) ===== */}
+                {/* Bandeau "Nouvel appareil détecté" */}
                 {pendingBanner && (
                   <div className="sm:col-span-2 rounded-xl border border-cyan-300/40 bg-cyan-400/15 px-3 py-2 flex items-center justify-between">
                     <span className="text-sm">{t.ACC.DETECTED_BANNER}</span>
                     <button
                       onClick={() => {
                         setShowPendingCard(true);
-                        setRevealCode(false); // on présente d'abord Autoriser/Ignorer
+                        setRevealCode(false);
                       }}
                       className="px-3 py-1.5 rounded-lg border border-cyan-300/40 bg-cyan-400/20 hover:bg-cyan-400/25 text-sm"
                     >
@@ -839,7 +882,7 @@ export default function Menu() {
                   </div>
                 )}
 
-                {/* ===== Encart de demande (affiché après "Consulter") ===== */}
+                {/* Encart de demande */}
                 {showPendingCard && (
                   <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
                     {!revealCode ? (
@@ -848,8 +891,7 @@ export default function Menu() {
                         <div className="mt-3 flex items-center justify-end gap-2">
                           <button
                             onClick={() => {
-                              setShowPendingCard(false); // "Ignorer" ferme l’encart (sans suite)
-                              // On conserve le bandeau si toujours PENDING en backend
+                              setShowPendingCard(false);
                             }}
                             className="px-3 py-2 rounded-xl border border-white/15 bg-white/8 hover:bg-white/12 text-sm"
                           >
@@ -857,7 +899,7 @@ export default function Menu() {
                           </button>
                           <button
                             onClick={() => {
-                              setRevealCode(true); // révèle le code déjà préchargé
+                              setRevealCode(true);
                             }}
                             className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 text-sm"
                           >
@@ -877,7 +919,10 @@ export default function Menu() {
                           <span className="opacity-85">
                             {t.ACC.EXPIRES_AT}{" "}
                             {pending
-                              ? new Date(pending.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                              ? new Date(pending.expiresAt).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
                               : "--:--"}
                             {remainingMs > 0 ? `  ( ${formatCountdown(remainingMs)} )` : ""}
                           </span>
@@ -947,7 +992,7 @@ export default function Menu() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setConfirmOpen(false)}
-                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+                className="px-4 py-2 rounded-xl border border-white/20 bg:white/10 bg-white/10 hover:bg-white/15 text-white"
               >
                 {t.HIST.CANCEL}
               </button>
@@ -1006,7 +1051,7 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Monter les modales ici pour garantir que les events aient des listeners */}
+      {/* Monter les modales ici */}
       <ConnectModal />
       <SubscribeModal />
 
@@ -1113,7 +1158,6 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       ? "For additional information, please consult:"
       : "Pour toute information complémentaire, vous pouvez consulter:";
 
-  // 👇 Harmonisation des liens avec /protocol et langue active
   const qs = lang === "fr" ? "" : `?lang=${lang}`;
   const links = {
     deleteHref: `/delete${qs}`,
@@ -1163,7 +1207,6 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           return null;
         })}
 
-        {/* ===== Liens complémentaires ===== */}
         <hr className="border-black/10 my-3" />
         <div className="opacity-90">
           <p className="mb-2">{linksTitle}</p>
@@ -1191,7 +1234,6 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           </ul>
         </div>
 
-        {/* ===== Version & Mises à jour ===== */}
         <hr className="border-black/10 my-3" />
         <div className="text-sm leading-5 space-y-1">
           <h3 className="font-semibold">{t.version.h}</h3>
