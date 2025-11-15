@@ -113,9 +113,7 @@ export async function GET(req: NextRequest) {
     let consentFromCustom: boolean | undefined;
 
     const rawCustom: string | undefined =
-      pp?.custom_id ||
-      pp?.subscriber?.custom_id ||
-      undefined;
+      pp?.custom_id || pp?.subscriber?.custom_id || undefined;
 
     if (rawCustom) {
       try {
@@ -160,6 +158,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Fallback souverain pour PASS1MOIS :
+    // si PayPal ne donne aucune next_billing_time claire,
+    // on fixe currentPeriodEnd à maintenant + 30 jours.
+    if (!periodEnd && planInternal === "PASS1MOIS") {
+      periodEnd = addDays(now, 30);
+    }
+
     // 4. USER : création ou récupération
     //
     // Règle :
@@ -178,9 +183,7 @@ export async function GET(req: NextRequest) {
       user = await prisma.user.create({
         data: {
           phoneE164,
-          ...(consentFromCustom === true
-            ? { consentAt: now }
-            : {}),
+          ...(consentFromCustom === true ? { consentAt: now } : {}),
         },
         select: { id: true },
       });
