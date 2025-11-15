@@ -91,7 +91,7 @@ export async function linkSubscriptionToUser(opts: {
 export async function applyWebhookChange(evt: {
   event_type: string;
   resource: any;
-}: Promise<void>) {
+}): Promise<void> {
   const type = evt?.event_type;
   const res = evt?.resource;
   const subId: string | undefined = res?.id || res?.subscription_id;
