@@ -35,12 +35,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 2) Charger la Session + relations User & Device
+    // 2) Charger la Session + relation User
     const session = await prisma.session.findUnique({
       where: { id: sessionCookie },
       include: {
         user: true,
-        device: true,
       },
     });
 
@@ -68,7 +67,34 @@ export async function GET(req: NextRequest) {
     }
 
     const user = session.user;
-    const device = session.device;
+
+    // 2 bis) Charger le device correspondant à session.deviceId (si présent)
+    let device = null as null | {
+      deviceId: string;
+      authorized: boolean;
+      revokedAt: Date | null;
+      lastSeenAt: Date | null;
+    };
+
+    if (session.deviceId) {
+      const d = await prisma.device.findUnique({
+        where: {
+          userId_deviceId: {
+            userId: session.userId,
+            deviceId: session.deviceId,
+          },
+        },
+      });
+
+      if (d) {
+        device = {
+          deviceId: d.deviceId,
+          authorized: d.authorized,
+          revokedAt: d.revokedAt,
+          lastSeenAt: d.lastSeenAt,
+        };
+      }
+    }
 
     // 3) Compter les devices du user
     const deviceCount = await prisma.device.count({
@@ -76,7 +102,8 @@ export async function GET(req: NextRequest) {
     });
 
     const hasAnyDevice = deviceCount > 0;
-    const deviceKnown = !!device && device.authorized && !device.revokedAt;
+    const deviceKnown =
+      !!device && device.authorized && !device.revokedAt;
 
     // 4) Abonnement le plus récent du user
     const sub = await prisma.subscription.findFirst({
@@ -100,10 +127,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 6) Réponse JSON
-    //
-    // Les 5 premiers champs correspondent exactement à ton type CheckState :
-    //   hasAnyDevice, deviceKnown, planActive, deviceCount, maxDevices
-    // Le reste est optionnel pour l'UX (plan, status, dates...).
+    // Les 5 premiers champs correspondent exactement à ton type CheckState
     return NextResponse.json(
       {
         loggedIn: true,
@@ -127,7 +151,9 @@ export async function GET(req: NextRequest) {
               deviceId: device.deviceId,
               authorized: device.authorized,
               revoked: !!device.revokedAt,
-              lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
+              lastSeenAt: device.lastSeenAt
+                ? device.lastSeenAt.toISOString()
+                : null,
             }
           : null,
       },
