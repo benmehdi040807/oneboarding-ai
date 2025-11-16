@@ -56,44 +56,43 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
-    const alreadyDead =
-      !!session.revokedAt ||
-      session.expiresAt.getTime() <= now.getTime();
+    const userId = session.userId;
 
     // 3. Récupérer la dernière souscription connue de cet user
-    // On coupe l'accès pour toutes les formules (CONTINU / PASS1MOIS / autre),
-    // car l'utilisateur a explicitement demandé la désactivation de son espace.
     const lastSub = await prisma.subscription.findFirst({
-      where: { userId: session.userId },
+      where: { userId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
         paypalId: true,
-        plan: true,    // "CONTINU" | "PASS1MOIS" | ...
-        status: true,  // "ACTIVE" | ...
+        plan: true,   // "CONTINU" | "PASS1MOIS" | ...
+        status: true, // "ACTIVE" | "CANCELLED" | "EXPIRED" | ...
       },
     });
 
     if (lastSub) {
-      // Si c'était un plan continu encore actif, on tente d'arrêter le billing PayPal.
-      if (
-        lastSub.plan === "CONTINU" &&
-        lastSub.status === "ACTIVE" &&
-        lastSub.paypalId
-      ) {
+      const isContinu = lastSub.plan === "CONTINU";
+      const isActive = lastSub.status === "ACTIVE";
+
+      // Si plan CONTINU encore actif → on tente d'arrêter le billing PayPal
+      if (isContinu && isActive && lastSub.paypalId) {
         await cancelSubscriptionInPaypal(lastSub.paypalId).catch(() => {
           // On ne bloque pas la volonté de l'utilisateur si PayPal ne répond pas.
         });
       }
 
-      // Quel que soit le plan, on marque la souscription comme CANCELLED.
-      // Message clair: "La relation active est suspendue ex nunc, sans hostilité."
+      // On fige l'état contractuel ex nunc :
+      // - CONTINU  → status = "CANCELLED" + currentPeriodEnd = now
+      // - PASS1MOIS → on ne touche PAS au status, on met juste currentPeriodEnd = now
+      const data: any = { currentPeriodEnd: now };
+      if (isContinu) {
+        data.status = "CANCELLED";
+      }
+
       await prisma.subscription
         .update({
           where: { id: lastSub.id },
-          data: {
-            status: "CANCELLED",
-          },
+          data,
         })
         .catch(() => {
           // Même si ça échoue ponctuellement, on poursuit.
@@ -101,12 +100,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Révoquer tous les devices actifs de cet utilisateur
-    //    => pour éviter l'ambiguïté "authorized=true mais accès coupé"
-    //    => on les gèle proprement : authorized = false, revokedAt = now()
     await prisma.device
       .updateMany({
         where: {
-          userId: session.userId,
+          userId,
           authorized: true,
           revokedAt: null,
         },
@@ -115,41 +112,32 @@ export async function POST(req: NextRequest) {
           revokedAt: now,
         },
       })
-      .catch(() => {
-        // Si ça échoue ponctuellement, ce n'est pas bloquant,
-        // mais idéalement ça passe.
-      });
+      .catch(() => {});
 
-    // 5. Révoquer la session actuelle (il est déconnecté immédiatement)
-    if (!alreadyDead) {
-      await prisma.session
-        .update({
-          where: { id: session.id },
-          data: {
-            revokedAt: now,
-          },
-        })
-        .catch(() => {
-          // idem: ne bloque pas
-        });
-    }
+    // 5. Révoquer toutes les sessions de cet utilisateur
+    await prisma.session
+      .updateMany({
+        where: {
+          userId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: now,
+        },
+      })
+      .catch(() => {});
 
-    // NOTE IMPORTANTE :
+    // NOTE :
     // - On ne supprime pas l'utilisateur.
-    // - On ne supprime pas l'historique (History).
-    // - On ne supprime pas les consentements enregistrés (consentAt reste comme preuve si elle existe).
-    // - On garde tout l'ADN probatoire du Benmehdi Protocol.
-    //
-    // Ce que l'utilisateur a demandé est exécuté :
-    // "Je mets fin à la relation active. Stoppez l'abonnement.
-    //  Coupez l'accès. Sans hostilité."
+    // - On ne supprime pas l'historique.
+    // - On ne touche pas aux preuves (consentAt, etc.).
 
     // 6. Réponse + suppression du cookie ob_session côté navigateur
     const res = NextResponse.json<Ok>(
       {
         ok: true,
         message:
-          "Espace désactivé. L'abonnement en cours est résilié. Tous les appareils ont été révoqués. Vous êtes maintenant déconnecté.",
+          "Espace désactivé. Votre abonnement a pris fin et tous les appareils ont été révoqués.",
       },
       {
         status: 200,
@@ -162,7 +150,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       sameSite: "lax",
       secure: true,
-      maxAge: 0, // expire tout de suite
+      maxAge: 0,
     });
 
     return res;
@@ -172,4 +160,4 @@ export async function POST(req: NextRequest) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
-             }
+}
