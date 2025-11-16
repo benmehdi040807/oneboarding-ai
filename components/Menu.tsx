@@ -2,7 +2,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { legalCopyFor, type Lang as LegalLang, type Section as LegalSection } from "@/lib/legal/copy";
+import {
+  legalCopyFor,
+  type Lang as LegalLang,
+  type Section as LegalSection,
+} from "@/lib/legal/copy";
 import ConnectModal from "./ConnectModal";
 import SubscribeModal from "./SubscribeModal";
 
@@ -24,7 +28,7 @@ const CONSENT_AT_KEY = "oneboarding.legalConsentAt";
 const DEVICE_ID_KEY = "oneboarding.deviceId";
 
 const POLL_INTERVAL_MS = 12000; // ~12s
-const POLL_MAX_TICKS = 5;       // ~1 min
+const POLL_MAX_TICKS = 5; // ~1 min
 
 /** ===================== Utils ===================== */
 async function copy(text: string) {
@@ -103,7 +107,12 @@ function formatCountdown(ms: number) {
 const I18N: Record<Lang, any> = {
   fr: {
     MENU: "Menu",
-    SECTIONS: { ACC: "Mon compte", HIST: "Mon historique", LANG: "Ma langue", LEGAL: "CGU / Privacy" },
+    SECTIONS: {
+      ACC: "Mon compte",
+      HIST: "Mon historique",
+      LANG: "Ma langue",
+      LEGAL: "CGU / Privacy",
+    },
     ACC: {
       CONNECT: "Se connecter",
       DISCONNECT: "Se déconnecter",
@@ -131,6 +140,17 @@ const I18N: Record<Lang, any> = {
       CLOSE: "Fermer",
       EXPIRED: "Code expiré. Relancez depuis le nouvel appareil.",
       DONE_NEUTRAL: "Demande terminée. Merci de vérifier le nouvel appareil.",
+      // Désactivation (double confirmation)
+      DEACT_STEP1_TITLE: "Désactiver mon espace ?",
+      DEACT_STEP1_MSG:
+        "Souhaitez-vous vraiment désactiver votre espace ?\nMerci de confirmer.",
+      DEACT_STEP2_TITLE: "Fin de l’espace actif",
+      DEACT_STEP2_MSG:
+        "En désactivant votre espace, votre abonnement prendra fin\net vos accès seront restreints.",
+      DEACT_CANCEL: "Annuler",
+      DEACT_CONFIRM: "Confirmer",
+      DEACT_DONE: "Espace désactivé.",
+      DEACT_ERROR: "Erreur lors de la désactivation. Merci de réessayer.",
     },
     HIST: {
       SHARE: "Partager mon historique",
@@ -159,7 +179,12 @@ const I18N: Record<Lang, any> = {
   },
   en: {
     MENU: "Menu",
-    SECTIONS: { ACC: "My account", HIST: "My history", LANG: "My language", LEGAL: "TOS / Privacy" },
+    SECTIONS: {
+      ACC: "My account",
+      HIST: "My history",
+      LANG: "My language",
+      LEGAL: "TOS / Privacy",
+    },
     ACC: {
       CONNECT: "Sign in",
       DISCONNECT: "Sign out",
@@ -187,6 +212,17 @@ const I18N: Record<Lang, any> = {
       CLOSE: "Close",
       EXPIRED: "Code expired. Please restart from the new device.",
       DONE_NEUTRAL: "Request finished. Please check the new device.",
+      // Deactivation (double confirm)
+      DEACT_STEP1_TITLE: "Deactivate my space?",
+      DEACT_STEP1_MSG:
+        "Do you really want to deactivate your space?\nPlease confirm.",
+      DEACT_STEP2_TITLE: "End of active space",
+      DEACT_STEP2_MSG:
+        "By deactivating your space, your subscription will end\nand your access will be restricted.",
+      DEACT_CANCEL: "Cancel",
+      DEACT_CONFIRM: "Confirm",
+      DEACT_DONE: "Space deactivated.",
+      DEACT_ERROR: "Error while deactivating. Please try again.",
     },
     HIST: {
       SHARE: "Share my history",
@@ -215,7 +251,12 @@ const I18N: Record<Lang, any> = {
   },
   ar: {
     MENU: "القائمة",
-    SECTIONS: { ACC: "حسابي", HIST: "سِجِلّي", LANG: "لغتي", LEGAL: "الشروط / الخصوصية" },
+    SECTIONS: {
+      ACC: "حسابي",
+      HIST: "سِجِلّي",
+      LANG: "لغتي",
+      LEGAL: "الشروط / الخصوصية",
+    },
     ACC: {
       CONNECT: "تسجيل الدخول",
       DISCONNECT: "تسجيل الخروج",
@@ -243,6 +284,17 @@ const I18N: Record<Lang, any> = {
       CLOSE: "إغلاق",
       EXPIRED: "انتهت صلاحية الرمز. يُرجى إعادة البدء من الجهاز الجديد.",
       DONE_NEUTRAL: "انتهى الطلب. يُرجى التحقق من الجهاز الجديد.",
+      // Deactivation (double confirm)
+      DEACT_STEP1_TITLE: "إيقاف مساحتي؟",
+      DEACT_STEP1_MSG:
+        "هل ترغب حقاً في إيقاف مساحتك؟\nيُرجى التأكيد.",
+      DEACT_STEP2_TITLE: "نهاية المساحة النشطة",
+      DEACT_STEP2_MSG:
+        "بإيقاف مساحتك، سينتهي اشتراكك\nوسيتم تقييد وصولك.",
+      DEACT_CANCEL: "إلغاء",
+      DEACT_CONFIRM: "تأكيد",
+      DEACT_DONE: "تم إيقاف المساحة.",
+      DEACT_ERROR: "حدث خطأ أثناء الإيقاف. يُرجى المحاولة من جديد.",
     },
     HIST: {
       SHARE: "مشاركة السجل",
@@ -297,6 +349,10 @@ export default function Menu() {
   const menuPushedRef = useRef(false);
   const legalPushedRef = useRef(false);
 
+  // Désactivation espace : double confirmation
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [deactivateStep, setDeactivateStep] = useState<1 | 2>(1);
+
   // Pairing (ancien appareil)
   const [pending, setPending] = useState<PendingData | null>(null);
   const [pendingBanner, setPendingBanner] = useState(false);
@@ -347,7 +403,11 @@ export default function Menu() {
         const newConnected = !!data?.loggedIn;
         const newSpaceActive = !!data?.planActive;
 
-        const rawPlan = data?.plan as "CONTINU" | "PASS1MOIS" | null | undefined;
+        const rawPlan = data?.plan as
+          | "CONTINU"
+          | "PASS1MOIS"
+          | null
+          | undefined;
         const newPlan: Plan =
           rawPlan === "CONTINU"
             ? "subscription"
@@ -362,14 +422,20 @@ export default function Menu() {
         // Sync douce vers localStorage pour la prochaine ouverture
         try {
           localStorage.setItem("ob_connected", newConnected ? "1" : "0");
-          localStorage.setItem("oneboarding.spaceActive", newSpaceActive ? "1" : "0");
+          localStorage.setItem(
+            "oneboarding.spaceActive",
+            newSpaceActive ? "1" : "0"
+          );
           if (newPlan) {
             localStorage.setItem("oneboarding.plan", newPlan);
           } else {
             localStorage.removeItem("oneboarding.plan");
           }
           if (data?.phoneE164) {
-            localStorage.setItem("oneboarding.phoneE164", data.phoneE164 as string);
+            localStorage.setItem(
+              "oneboarding.phoneE164",
+              data.phoneE164 as string
+            );
           }
           if (typeof data?.consentGiven === "boolean" && data.consentGiven) {
             localStorage.setItem(CONSENT_KEY, "1");
@@ -393,7 +459,8 @@ export default function Menu() {
 
   // écoute cross-composants (venant des modales dédiées)
   useEffect(() => {
-    const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
+    const onAuthChanged = () =>
+      setConnected(localStorage.getItem("ob_connected") === "1");
 
     const onSetConnected = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
@@ -417,11 +484,13 @@ export default function Menu() {
     };
 
     const onHistoryCleared = () => setMessages([]);
-    const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
+    const onConsentUpdated = () =>
+      setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
     const onSubscriptionActive = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
-      const newPlan: Plan = d?.plan === "one-month" ? "one-month" : "subscription";
+      const newPlan: Plan =
+        d?.plan === "one-month" ? "one-month" : "subscription";
 
       try {
         localStorage.setItem("ob_connected", "1");
@@ -452,19 +521,31 @@ export default function Menu() {
     window.addEventListener("ob:history-cleared", onHistoryCleared);
     window.addEventListener("ob:consent-updated", onConsentUpdated);
 
-    window.addEventListener("ob:subscription-active", onSubscriptionActive as EventListener);
+    window.addEventListener(
+      "ob:subscription-active",
+      onSubscriptionActive as EventListener
+    );
     window.addEventListener("ob:device-authorized", onDeviceAuthorized as EventListener);
 
     return () => {
       window.removeEventListener("ob:connected-changed", onAuthChanged);
-      window.removeEventListener("ob:set-connected", onSetConnected as EventListener);
+      window.removeEventListener(
+        "ob:set-connected",
+        onSetConnected as EventListener
+      );
       window.removeEventListener("ob:space-activated", onSpaceActivated);
       window.removeEventListener("ob:plan-changed", onPlanChanged);
       window.removeEventListener("ob:history-cleared", onHistoryCleared);
       window.removeEventListener("ob:consent-updated", onConsentUpdated);
 
-      window.removeEventListener("ob:subscription-active", onSubscriptionActive as EventListener);
-      window.removeEventListener("ob:device-authorized", onDeviceAuthorized as EventListener);
+      window.removeEventListener(
+        "ob:subscription-active",
+        onSubscriptionActive as EventListener
+      );
+      window.removeEventListener(
+        "ob:device-authorized",
+        onDeviceAuthorized as EventListener
+      );
     };
   }, []);
 
@@ -583,7 +664,15 @@ export default function Menu() {
       clearPolling();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, connected, revealCode, pendingBanner, showPendingCard, t.ACC.DONE_NEUTRAL, t.ACC.EXPIRED]);
+  }, [
+    open,
+    connected,
+    revealCode,
+    pendingBanner,
+    showPendingCard,
+    t.ACC.DONE_NEUTRAL,
+    t.ACC.EXPIRED,
+  ]);
 
   // Countdown local (1 Hz) quand le code est révélé
   useEffect(() => {
@@ -623,15 +712,46 @@ export default function Menu() {
   function handleActivate() {
     window.dispatchEvent(new Event("ob:open-activate"));
   }
-  function handleDeactivate() {
+
+  function openDeactivateConfirm() {
+    setDeactivateStep(1);
+    setDeactivateOpen(true);
+  }
+
+  async function performDeactivate() {
     try {
-      localStorage.setItem("oneboarding.spaceActive", "0");
-      localStorage.removeItem("oneboarding.plan");
-    } catch {}
-    setSpaceActive(false);
-    setPlan(null);
-    emit("ob:space-deactivated");
-    toast("Espace désactivé.");
+      const res = await fetch("/api/account/deactivate", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data: any = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        throw new Error("DEACTIVATE_FAILED");
+      }
+
+      // Nettoyage local cohérent avec l’état backend
+      try {
+        localStorage.setItem("ob_connected", "0");
+        localStorage.setItem("oneboarding.spaceActive", "0");
+        localStorage.removeItem("oneboarding.plan");
+        localStorage.removeItem("oneboarding.phoneE164");
+      } catch {}
+
+      setConnected(false);
+      setSpaceActive(false);
+      setPlan(null);
+
+      emit("ob:connected-changed");
+      emit("ob:space-deactivated");
+      emit("ob:plan-changed");
+
+      toast(t.ACC.DEACT_DONE);
+    } catch {
+      toast(t.ACC.DEACT_ERROR);
+    } finally {
+      setDeactivateOpen(false);
+      setDeactivateStep(1);
+    }
   }
 
   /** ============ Historique (footer neutre & stable) ============ */
@@ -642,10 +762,22 @@ export default function Menu() {
       .map((m) => {
         const who =
           m.role === "user"
-            ? (l === "en" ? "You" : l === "ar" ? "أنت" : "Vous")
+            ? l === "en"
+              ? "You"
+              : l === "ar"
+              ? "أنت"
+              : "Vous"
             : m.role === "assistant"
-            ? (l === "en" ? "AI" : l === "ar" ? "الذكاء الاصطناعي" : "IA")
-            : (l === "en" ? "Error" : l === "ar" ? "خطأ" : "Erreur");
+            ? l === "en"
+              ? "AI"
+              : l === "ar"
+              ? "الذكاء الاصطناعي"
+              : "IA"
+            : l === "en"
+            ? "Error"
+            : l === "ar"
+            ? "خطأ"
+            : "Erreur";
         return `${who} • ${new Date(m.time).toLocaleString()}\n${m.text}`;
       })
       .join("\n\n— — —\n\n");
@@ -688,7 +820,9 @@ export default function Menu() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `oneboarding-history-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+    a.download = `oneboarding-history-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -741,7 +875,8 @@ export default function Menu() {
 
   /** ============ Navigation native (history) ============ */
   function pushHistoryFor(kind: "menu" | "legal") {
-    const href = typeof window !== "undefined" ? window.location.href : undefined;
+    const href =
+      typeof window !== "undefined" ? window.location.href : undefined;
     if (kind === "menu" && !menuPushedRef.current) {
       window.history.pushState({ obPane: "menu" }, "", href);
       menuPushedRef.current = true;
@@ -811,8 +946,15 @@ export default function Menu() {
 
       {/* Panneau Menu */}
       {open && (
-        <div className="fixed inset-0 z-[80] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeMenu} />
+        <div
+          className="fixed inset-0 z-[80] grid place-items-center"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={closeMenu}
+          />
           <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-3">
@@ -827,7 +969,11 @@ export default function Menu() {
             </div>
 
             {/* Sections */}
-            <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.ACC}
+              open={showAcc}
+              onToggle={() => setShowAcc((v) => !v)}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!connected ? (
                   <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
@@ -835,11 +981,18 @@ export default function Menu() {
                   <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
                 )}
                 {!spaceActive ? (
-                  <Btn accent onClick={handleActivate}>{t.ACC.ACTIVATE}</Btn>
+                  <Btn accent onClick={handleActivate}>
+                    {t.ACC.ACTIVATE}
+                  </Btn>
                 ) : (
-                  <Btn danger onClick={handleDeactivate}>{t.ACC.DEACTIVATE}</Btn>
+                  <Btn danger onClick={openDeactivateConfirm}>
+                    {t.ACC.DEACTIVATE}
+                  </Btn>
                 )}
-                <Btn className="sm:col-span-2" onClick={() => setShowStatus((v) => !v)}>
+                <Btn
+                  className="sm:col-span-2"
+                  onClick={() => setShowStatus((v) => !v)}
+                >
                   {t.ACC.STATUS_BTN} {showStatus ? "—" : "+"}
                 </Btn>
                 {showStatus && (
@@ -847,10 +1000,12 @@ export default function Menu() {
                     <p className="text-sm font-medium mb-1">{t.ACC.STATUS}</p>
                     <div className="text-xs opacity-90 leading-6">
                       <div>
-                        {t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
+                        {t.ACC.SPACE}:{" "}
+                        <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
                       </div>
                       <div>
-                        {t.ACC.CONN}: <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
+                        {t.ACC.CONN}:{" "}
+                        <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
                       </div>
                       <div>
                         {t.ACC.PLAN}:{" "}
@@ -887,7 +1042,9 @@ export default function Menu() {
                   <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
                     {!revealCode ? (
                       <>
-                        <p className="text-sm opacity-90">{t.ACC.PENDING_TITLE}</p>
+                        <p className="text-sm opacity-90">
+                          {t.ACC.PENDING_TITLE}
+                        </p>
                         <div className="mt-3 flex items-center justify-end gap-2">
                           <button
                             onClick={() => {
@@ -910,7 +1067,9 @@ export default function Menu() {
                     ) : (
                       <>
                         <p className="text-sm opacity-90">
-                          <span className="font-medium">{t.ACC.CODE_LIVE}</span>
+                          <span className="font-medium">
+                            {t.ACC.CODE_LIVE}
+                          </span>
                           {": "}
                           <span className="font-mono tracking-wider text-base">
                             {pending?.code || "••••••"}
@@ -919,12 +1078,16 @@ export default function Menu() {
                           <span className="opacity-85">
                             {t.ACC.EXPIRES_AT}{" "}
                             {pending
-                              ? new Date(pending.expiresAt).toLocaleTimeString([], {
+                              ? new Date(
+                                  pending.expiresAt
+                                ).toLocaleTimeString([], {
                                   hour: "2-digit",
                                   minute: "2-digit",
                                 })
                               : "--:--"}
-                            {remainingMs > 0 ? `  ( ${formatCountdown(remainingMs)} )` : ""}
+                            {remainingMs > 0
+                              ? `  ( ${formatCountdown(remainingMs)} )`
+                              : ""}
                           </span>
                         </p>
                         <div className="mt-3 flex items-center justify-end">
@@ -945,49 +1108,87 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.HIST}
+              open={showHist}
+              onToggle={() => setShowHist((v) => !v)}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
                 <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
-                <Btn danger onClick={() => setConfirmOpen(true)} className="sm:col-span-2">
+                <Btn
+                  danger
+                  onClick={() => setConfirmOpen(true)}
+                  className="sm:col-span-2"
+                >
                   {t.HIST.CLEAR}
                 </Btn>
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.LANG}
+              open={showLang}
+              onToggle={() => setShowLang((v) => !v)}
+            >
               <div className="grid grid-cols-3 gap-2">
-                <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>
+                <Toggle
+                  active={lang === "fr"}
+                  onClick={() => setLangAndPersist("fr")}
+                >
                   {I18N.fr.LANG.FR}
                 </Toggle>
-                <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>
+                <Toggle
+                  active={lang === "en"}
+                  onClick={() => setLangAndPersist("en")}
+                >
                   {I18N.en.LANG.EN}
                 </Toggle>
-                <Toggle active={lang === "ar"} onClick={() => setLangAndPersist("ar")}>
+                <Toggle
+                  active={lang === "ar"}
+                  onClick={() => setLangAndPersist("ar")}
+                >
                   {I18N.ar.LANG.AR}
                 </Toggle>
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.LEGAL}
+              open={showLegal}
+              onToggle={() => setShowLegal((v) => !v)}
+            >
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
-              {!consented && <p className="text-xs opacity-80 mt-3">{t.LEGAL.CONSENT_NOTE}</p>}
+              {!consented && (
+                <p className="text-xs opacity-80 mt-3">
+                  {t.LEGAL.CONSENT_NOTE}
+                </p>
+              )}
             </Accordion>
           </div>
         </div>
       )}
 
-      {/* Modal de confirmation (interne au Menu) */}
+      {/* Modal de confirmation (historique) */}
       {confirmOpen && (
-        <div className="fixed inset-0 z-[100] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setConfirmOpen(false)} />
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setConfirmOpen(false)}
+          />
           <div
             ref={confirmRef}
             className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
           >
-            <h2 className="text-lg font-semibold mb-2">{t.HIST.CONFIRM_TITLE}</h2>
+            <h2 className="text-lg font-semibold mb-2">
+              {t.HIST.CONFIRM_TITLE}
+            </h2>
             <p className="text-sm opacity-90 mb-4">{t.HIST.CONFIRM_MSG}</p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -1007,10 +1208,69 @@ export default function Menu() {
         </div>
       )}
 
+      {/* Modal de désactivation espace (double confirmation) */}
+      {deactivateOpen && (
+        <div
+          className="fixed inset-0 z-[105] grid place-items-center"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => {
+              setDeactivateOpen(false);
+              setDeactivateStep(1);
+            }}
+          />
+          <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
+            <h2 className="text-lg font-semibold mb-2">
+              {deactivateStep === 1
+                ? t.ACC.DEACT_STEP1_TITLE
+                : t.ACC.DEACT_STEP2_TITLE}
+            </h2>
+            <p className="text-sm whitespace-pre-line opacity-90 mb-4">
+              {deactivateStep === 1
+                ? t.ACC.DEACT_STEP1_MSG
+                : t.ACC.DEACT_STEP2_MSG}
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setDeactivateOpen(false);
+                  setDeactivateStep(1);
+                }}
+                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+              >
+                {t.ACC.DEACT_CANCEL}
+              </button>
+              <button
+                onClick={
+                  deactivateStep === 1
+                    ? () => setDeactivateStep(2)
+                    : () => {
+                        void performDeactivate();
+                      }
+                }
+                className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
+              >
+                {t.ACC.DEACT_CONFIRM}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TOS/Privacy (inline) */}
       {legalOpen && (
-        <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeLegalModal} />
+        <div
+          className="fixed inset-0 z-[110] grid place-items-center"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={closeLegalModal}
+          />
           <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
@@ -1023,7 +1283,10 @@ export default function Menu() {
               </button>
             </div>
 
-            <div className="rounded-lg overflow-auto border border-black/10" style={{ maxHeight: "70vh" }}>
+            <div
+              className="rounded-lg overflow-auto border border-black/10"
+              style={{ maxHeight: "70vh" }}
+            >
               <LegalDoc lang={lang as LegalLang} />
             </div>
 
@@ -1058,9 +1321,15 @@ export default function Menu() {
       {/* styles locaux */}
       <style jsx global>{`
         @keyframes ob-float {
-          0% { transform: translateY(0); }
-          50% { transform: translateY(-2px); }
-          100% { transform: translateY(0); }
+          0% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-2px);
+          }
+          100% {
+            transform: translateY(0);
+          }
         }
         .menu-float:focus-visible {
           animation: ob-float 0.9s ease-in-out;
@@ -1085,7 +1354,8 @@ function Btn({
   accent?: boolean;
   danger?: boolean;
 }) {
-  const base = "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
+  const base =
+    "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
   const tone = danger
     ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/22"
     : accent
@@ -1170,7 +1440,10 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
     <main className="p-4">
       <h1 className="text-xl font-semibold mb-3">{t.title}</h1>
 
-      <article dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-4 leading-6">
+      <article
+        dir={lang === "ar" ? "rtl" : "ltr"}
+        className="space-y-4 leading-6"
+      >
         {t.sections.map((s: LegalSection, i: number) => {
           if (s.kind === "hr") {
             return <hr key={i} className="border-black/10 my-3" />;
@@ -1212,22 +1485,34 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.deleteHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.termsHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.protocolHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/protocol
               </a>
             </li>
             <li>
-              <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.trademarkHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/trademark
               </a>
             </li>
