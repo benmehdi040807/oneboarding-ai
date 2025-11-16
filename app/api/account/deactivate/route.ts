@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
 
     if (lastSub) {
       const isContinu = lastSub.plan === "CONTINU";
+      const isPass1Mois = lastSub.plan === "PASS1MOIS";
       const isActive = lastSub.status === "ACTIVE";
 
       // Si plan CONTINU encore actif → on tente d'arrêter le billing PayPal
@@ -82,10 +83,12 @@ export async function POST(req: NextRequest) {
       }
 
       // On fige l'état contractuel ex nunc :
-      // - CONTINU  → status = "CANCELLED" + currentPeriodEnd = now
-      // - PASS1MOIS → on ne touche PAS au status, on met juste currentPeriodEnd = now
+      // - CONTINU    → status = "CANCELLED" + currentPeriodEnd = now
+      // - PASS1MOIS  → status = "CANCELLED" + currentPeriodEnd = now
+      //   (désactivation volontaire = décision humaine, jamais "EXPIRED")
       const data: any = { currentPeriodEnd: now };
-      if (isContinu) {
+
+      if (isContinu || isPass1Mois) {
         data.status = "CANCELLED";
       }
 
