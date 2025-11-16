@@ -11,8 +11,16 @@ import ChatPanel from "@/components/ChatPanel";
 // 🧠 Réponses premium (texte/audio/ocr) — moteur universel
 import { formatResponse } from "@/lib/txtPhrases";
 
+// 🔐 Accès / quota / membres
+import { useAccessControl } from "@/lib/useAccessControl";
+import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
+import MemberLimitDialog from "@/components/MemberLimitDialog";
+
 // Boutons (➕ / 🔑) à droite
-const RightAuthButtons = dynamic(() => import("@/components/RightAuthButtons"), { ssr: false });
+const RightAuthButtons = dynamic(
+  () => import("@/components/RightAuthButtons"),
+  { ssr: false }
+);
 
 /* =================== Const =================== */
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
@@ -20,8 +28,8 @@ const PLAN_KEY = "oneboarding.plan"; // null (non-membre) | "subscription" | "on
 
 // Bridges: clés utilisées pour l’auto-connect après retour PayPal
 const PHONE_KEY = "oneboarding.phoneE164";
-const PENDING_PLAN_KEY_A = "oneboarding.pendingPlanKind";   // ancien nom
-const PENDING_PLAN_KEY_B = "oneboarding.planCandidate";     // autre alias
+const PENDING_PLAN_KEY_A = "oneboarding.pendingPlanKind"; // ancien nom
+const PENDING_PLAN_KEY_B = "oneboarding.planCandidate"; // autre alias
 const DEVICE_ID_KEY = "oneboarding.deviceId";
 
 /* =================== Modal confirmation générique =================== */
@@ -360,9 +368,13 @@ function AuthorizeReturnBridge() {
       );
       // nettoie QS
       if (url) {
-        ["device_authorized", "phone", "device", "payref", "device_error"].forEach(
-          (k) => url!.searchParams.delete(k)
-        );
+        [
+          "device_authorized",
+          "phone",
+          "device",
+          "payref",
+          "device_error",
+        ].forEach((k) => url!.searchParams.delete(k));
         window.history.replaceState({}, "", url.toString());
       }
     };
@@ -384,9 +396,13 @@ function AuthorizeReturnBridge() {
     if (err) {
       // Erreur → juste nettoyer l’URL
       if (url) {
-        ["device_authorized", "phone", "device", "payref", "device_error"].forEach(
-          (k) => url!.searchParams.delete(k)
-        );
+        [
+          "device_authorized",
+          "phone",
+          "device",
+          "payref",
+          "device_error",
+        ].forEach((k) => url!.searchParams.delete(k));
         window.history.replaceState({}, "", url.toString());
       }
       return;
@@ -492,6 +508,11 @@ export default function Page() {
   const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
   const recogRef = useRef<any>(null); // utilisé par la reco pour set .lang live
 
+  // 🔐 Accès / quota (Benmehdi Protocol)
+  const { snapshot: access, checkAndConsume } = useAccessControl();
+  const [welcomeLimitOpen, setWelcomeLimitOpen] = useState(false);
+  const [memberLimitOpen, setMemberLimitOpen] = useState(false);
+
   useEffect(() => {
     const onLangChanged = () => {
       const next = readLangLS();
@@ -577,7 +598,9 @@ export default function Page() {
       const e = evt as CustomEvent<{ lang?: "fr" | "en" | "ar" }>;
       // on capture la langue fournie par le Menu au moment du clic
       const requestedLang =
-        e.detail?.lang === "en" || e.detail?.lang === "ar" ? e.detail.lang : "fr";
+        e.detail?.lang === "en" || e.detail?.lang === "ar"
+          ? e.detail.lang
+          : "fr";
 
       setClearLang(requestedLang);
       setShowClearModal(true);
@@ -608,8 +631,7 @@ export default function Page() {
 
   useEffect(() => {
     const SR: any =
-      (typeof window !== "undefined" &&
-        (window as any).SpeechRecognition) ||
+      (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
       (typeof window !== "undefined" &&
         (window as any).webkitSpeechRecognition);
     if (!SR) {
@@ -619,8 +641,7 @@ export default function Page() {
     setSpeechSupported(true);
 
     const r = new SR();
-    r.lang =
-      lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR";
+    r.lang = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR";
     r.continuous = true;
     r.interimResults = false;
     r.maxAlternatives = 1;
@@ -657,7 +678,12 @@ export default function Page() {
     };
 
     const stopUI = () => setListening(false);
-    r.onend = r.onspeechend = r.onaudioend = r.onnomatch = r.onerror = stopUI;
+    r.onend =
+      r.onspeechend =
+      r.onaudioend =
+      r.onnomatch =
+      r.onerror =
+        stopUI;
 
     recogRef.current = r;
   }, [lang]);
@@ -682,9 +708,7 @@ export default function Page() {
 
   // === Pipeline “event bridge” : reçoit le texte (ChatPanel → génération)
   useEffect(() => {
-    const onSubmit = async (
-      evt: Event
-    ) => {
+    const onSubmit = async (evt: Event) => {
       const e = evt as CustomEvent<{
         text?: string;
         lang?: "fr" | "en" | "ar";
@@ -693,7 +717,20 @@ export default function Page() {
       const L = (e.detail?.lang as "fr" | "en" | "ar") || lang;
       if (!text || loading) return;
 
-      // Push user
+      // 1) Vérifier les droits d’accès (quota + état membre)
+      const res = await checkAndConsume();
+      if (!res.allowed) {
+        if (res.reason === "NEED_SUB") {
+          // plan inactif → offre de souscription
+          setWelcomeLimitOpen(true);
+        } else if (res.reason === "NEED_CONNECT") {
+          // plan actif non connecté → info membre
+          setMemberLimitOpen(true);
+        }
+        return;
+      }
+
+      // 2) Interaction autorisée → on continue
       const now = new Date().toISOString();
       const hasOcr = Boolean(ocrText.trim());
       const shown =
@@ -702,15 +739,14 @@ export default function Page() {
           ? "(Question vide — envoi du texte OCR uniquement)"
           : "");
       if (shown)
-        setHistory((h) => [
-          { role: "user", text: shown, time: now },
-          ...h,
-        ]);
+        setHistory((h) => [{ role: "user", text: shown, time: now }, ...h]);
 
       setLoading(true);
 
       const composedPrompt = hasOcr
-        ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${text || "(aucune)"}\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+        ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+            text || "(aucune)"
+          }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
         : text;
 
       try {
@@ -772,16 +808,10 @@ export default function Page() {
       }
     };
 
-    window.addEventListener(
-      "ob:chat-submit",
-      onSubmit as EventListener
-    );
+    window.addEventListener("ob:chat-submit", onSubmit as EventListener);
     return () =>
-      window.removeEventListener(
-        "ob:chat-submit",
-        onSubmit as EventListener
-      );
-  }, [lang, ocrText, loading]);
+      window.removeEventListener("ob:chat-submit", onSubmit as EventListener);
+  }, [lang, ocrText, loading, checkAndConsume]);
 
   // Déclenche file input d’OcrUploader
   function triggerHiddenFileInput() {
@@ -949,7 +979,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* ChatPanel (gère input + quota + Welcome dialog) */}
+      {/* ChatPanel (gère input, micro & event submit) */}
       <div className="w-full max-w-3xl">
         <ChatPanel />
       </div>
@@ -992,11 +1022,7 @@ export default function Page() {
                 }}
                 className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] border border-[var(--border)]"
               >
-                {lang === "ar"
-                  ? "نسخ"
-                  : lang === "en"
-                  ? "Copy"
-                  : "Copier"}
+                {lang === "ar" ? "نسخ" : lang === "en" ? "Copy" : "Copier"}
               </button>
             )}
 
@@ -1012,7 +1038,7 @@ export default function Page() {
         ))}
       </div>
 
-      {/* Modals utilitaires */}
+      {/* Modales utilitaires */}
       <ConfirmDialog
         open={showClearModal}
         title={modalCopy.title}
@@ -1025,6 +1051,18 @@ export default function Page() {
       <CguPrivacyModal
         open={showLegal}
         onRequestClose={() => setShowLegal(false)}
+      />
+
+      {/* Modales quota / accès */}
+      <WelcomeLimitDialog
+        open={welcomeLimitOpen}
+        onClose={() => setWelcomeLimitOpen(false)}
+        lang={lang}
+      />
+      <MemberLimitDialog
+        open={memberLimitOpen}
+        onClose={() => setMemberLimitOpen(false)}
+        lang={lang}
       />
 
       {/* Bouton Menu flottant + modales natives gérées à l’intérieur */}
@@ -1201,4 +1239,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-        }
+      }
