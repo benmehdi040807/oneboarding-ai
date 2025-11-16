@@ -145,8 +145,19 @@ export async function GET(req: NextRequest) {
     // Plan interne
     const planInternal = resolvePlanFrom(pp?.plan_id, kindFromCustom);
 
-    // Statut PayPal brut
-    const subStatus = pp?.status ?? "ACTIVE";
+    // ------------------------------
+    // Statut PayPal brut + normalisation souveraine
+    // ------------------------------
+    const rawStatus = pp?.status ?? "ACTIVE";
+    let subStatus = rawStatus;
+
+    // PASS1MOIS : même si PayPal renvoie EXPIRED dès le départ,
+    // on force ACTIVE. L'expiration relève du Benmehdi Protocol
+    // via currentPeriodEnd (et non de l'humeur de PayPal).
+    if (planInternal === "PASS1MOIS" && rawStatus === "EXPIRED") {
+      subStatus = "ACTIVE";
+    }
+    // ------------------------------
 
     // Fin de période (prochaine échéance facturation PayPal)
     let periodEnd: Date | null = null;
@@ -310,4 +321,4 @@ export async function GET(req: NextRequest) {
       302
     );
   }
-          }
+      }
