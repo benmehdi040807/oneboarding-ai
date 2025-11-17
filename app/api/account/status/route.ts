@@ -25,11 +25,16 @@ export async function GET(req: NextRequest) {
           hasAnyDevice: false,
           deviceKnown: false,
           planActive: false,
+          spaceActive: false,
           deviceCount: 0,
           maxDevices: MAX_DEVICES_DEFAULT,
           plan: null,
           subscriptionStatus: null,
+          effectiveStatus: "NONE" as const,
           currentPeriodEnd: null,
+          phoneE164: null,
+          consentGiven: false,
+          device: null,
         },
         { status: 200 }
       );
@@ -56,11 +61,16 @@ export async function GET(req: NextRequest) {
           hasAnyDevice: false,
           deviceKnown: false,
           planActive: false,
+          spaceActive: false,
           deviceCount: 0,
           maxDevices: MAX_DEVICES_DEFAULT,
           plan: null,
           subscriptionStatus: null,
+          effectiveStatus: "NONE" as const,
           currentPeriodEnd: null,
+          phoneE164: null,
+          consentGiven: false,
+          device: null,
         },
         { status: 200 }
       );
@@ -69,12 +79,12 @@ export async function GET(req: NextRequest) {
     const user = session.user;
 
     // 2 bis) Charger le device correspondant à session.deviceId (si présent)
-    let device = null as null | {
+    let device: null | {
       deviceId: string;
       authorized: boolean;
       revokedAt: Date | null;
       lastSeenAt: Date | null;
-    };
+    } = null;
 
     if (session.deviceId) {
       const d = await prisma.device.findUnique({
@@ -96,14 +106,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3) Compter les devices du user
+    // 3) Compter UNIQUEMENT les devices autorisés du user
     const deviceCount = await prisma.device.count({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        authorized: true,
+        revokedAt: null,
+      },
     });
 
     const hasAnyDevice = deviceCount > 0;
-    const deviceKnown =
-      !!device && device.authorized && !device.revokedAt;
+    const deviceKnown = !!device && device.authorized && !device.revokedAt;
 
     // 4) Abonnement le plus récent du user
     const sub = await prisma.subscription.findFirst({
@@ -115,10 +128,16 @@ export async function GET(req: NextRequest) {
     const rawStatus = sub?.status ?? null;
     const currentPeriodEnd = sub?.currentPeriodEnd ?? null;
 
-    // 5) Droit d'accès effectif (notre logique métier)
+    // 5) Droit d'accès effectif (notre logique métier globale, par USER)
+    //    → indépendant du device (pairing, navigateur, etc.)
     const planActive = await userHasPaidAccess(user.phoneE164);
 
-    // Statut "logique" pour l'UX (tu peux l'utiliser côté front si tu veux)
+    // 5 bis) Espace actif = droit d'accès + consentement (si tu veux le coupler)
+    // Si tu n'as pas de logique plus fine de "désactivation", tu peux simplement
+    // faire: const spaceActive = planActive;
+    const spaceActive = planActive && !!user.consentAt;
+
+    // Statut "logique" pour l'UX
     let effectiveStatus: "NONE" | "ACTIVE" | "EXPIRED" = "NONE";
     if (planActive) {
       effectiveStatus = "ACTIVE";
@@ -127,13 +146,14 @@ export async function GET(req: NextRequest) {
     }
 
     // 6) Réponse JSON
-    // Les 5 premiers champs correspondent exactement à ton type CheckState
+    // 🔹 Les 6 premiers champs peuvent servir de base à CheckState
     return NextResponse.json(
       {
         loggedIn: true,
         hasAnyDevice,
         deviceKnown,
         planActive,
+        spaceActive,
         deviceCount,
         maxDevices: MAX_DEVICES_DEFAULT,
 
@@ -168,11 +188,16 @@ export async function GET(req: NextRequest) {
         hasAnyDevice: false,
         deviceKnown: false,
         planActive: false,
+        spaceActive: false,
         deviceCount: 0,
         maxDevices: MAX_DEVICES_DEFAULT,
         plan: null,
         subscriptionStatus: null,
+        effectiveStatus: "NONE" as const,
         currentPeriodEnd: null,
+        phoneE164: null,
+        consentGiven: false,
+        device: null,
       },
       { status: 200 }
     );
