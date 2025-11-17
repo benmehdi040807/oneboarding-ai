@@ -366,6 +366,78 @@ export default function Menu() {
 
   const t = useMemo(() => I18N[lang], [lang]);
 
+  // ===================== Sync backend -> état local =====================
+
+  async function refreshAccountStatusFromServer() {
+    try {
+      const res = await fetch("/api/account/status", {
+        method: "GET",
+        credentials: "include",
+      });
+      const data: any = await res.json().catch(() => ({}));
+
+      // 1) connexion
+      const newConnected = !!data?.loggedIn;
+
+      // 2) espace actif : priorité à spaceActive, sinon planActive
+      const newSpaceActive =
+        typeof data?.spaceActive === "boolean"
+          ? !!data.spaceActive
+          : !!data?.planActive;
+
+      // 3) plan : on tolère CONTINU / PASS1MOIS ou déjà normalisé
+      const rawPlan = data?.plan as
+        | "CONTINU"
+        | "PASS1MOIS"
+        | "subscription"
+        | "one-month"
+        | null
+        | undefined;
+
+      let newPlan: Plan = null;
+      if (rawPlan === "CONTINU" || rawPlan === "subscription") {
+        newPlan = "subscription";
+      } else if (rawPlan === "PASS1MOIS" || rawPlan === "one-month") {
+        newPlan = "one-month";
+      }
+
+      setConnected(newConnected);
+      setSpaceActive(newSpaceActive);
+      setPlan(newPlan);
+
+      // 4) Sync douce vers localStorage (utile pour WelcomeLimitDialog & co)
+      try {
+        localStorage.setItem("ob_connected", newConnected ? "1" : "0");
+        localStorage.setItem(
+          "oneboarding.spaceActive",
+          newSpaceActive ? "1" : "0"
+        );
+        if (newPlan) {
+          localStorage.setItem("oneboarding.plan", newPlan);
+        } else {
+          localStorage.removeItem("oneboarding.plan");
+        }
+        if (data?.phoneE164) {
+          localStorage.setItem(
+            "oneboarding.phoneE164",
+            data.phoneE164 as string
+          );
+        }
+        if (typeof data?.consentGiven === "boolean" && data.consentGiven) {
+          localStorage.setItem(CONSENT_KEY, "1");
+          if (!localStorage.getItem(CONSENT_AT_KEY)) {
+            localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
+          }
+          setConsented(true);
+        }
+      } catch {
+        // best-effort
+      }
+    } catch {
+      // en cas d’erreur réseau, on garde l’état local
+    }
+  }
+
   // init lecture locale (avec normalisation du plan)
   useEffect(() => {
     try {
@@ -384,77 +456,15 @@ export default function Menu() {
     } catch {}
   }, []);
 
-  // 🔗 Quand le menu s’ouvre, on interroge /api/account/status (source de vérité backend)
+  // Au montage, on essaie déjà de resynchroniser avec le backend
+  useEffect(() => {
+    void refreshAccountStatusFromServer();
+  }, []);
+
+  // Quand le menu s’ouvre, on rafraîchit aussi l’état depuis le backend
   useEffect(() => {
     if (!open) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetch("/api/account/status", {
-          method: "GET",
-          credentials: "include",
-        });
-        const data: any = await res.json();
-
-        if (cancelled) return;
-
-        const newConnected = !!data?.loggedIn;
-        const newSpaceActive = !!data?.planActive;
-
-        const rawPlan = data?.plan as
-          | "CONTINU"
-          | "PASS1MOIS"
-          | null
-          | undefined;
-        const newPlan: Plan =
-          rawPlan === "CONTINU"
-            ? "subscription"
-            : rawPlan === "PASS1MOIS"
-            ? "one-month"
-            : null;
-
-        setConnected(newConnected);
-        setSpaceActive(newSpaceActive);
-        setPlan(newPlan);
-
-        // Sync douce vers localStorage pour la prochaine ouverture
-        try {
-          localStorage.setItem("ob_connected", newConnected ? "1" : "0");
-          localStorage.setItem(
-            "oneboarding.spaceActive",
-            newSpaceActive ? "1" : "0"
-          );
-          if (newPlan) {
-            localStorage.setItem("oneboarding.plan", newPlan);
-          } else {
-            localStorage.removeItem("oneboarding.plan");
-          }
-          if (data?.phoneE164) {
-            localStorage.setItem(
-              "oneboarding.phoneE164",
-              data.phoneE164 as string
-            );
-          }
-          if (typeof data?.consentGiven === "boolean" && data.consentGiven) {
-            localStorage.setItem(CONSENT_KEY, "1");
-            if (!localStorage.getItem(CONSENT_AT_KEY)) {
-              localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
-            }
-            setConsented(true);
-          }
-        } catch {
-          // best-effort only
-        }
-      } catch {
-        // En cas d’erreur réseau, on garde l’état local
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    void refreshAccountStatusFromServer();
   }, [open]);
 
   // écoute cross-composants (venant des modales dédiées)
@@ -511,7 +521,8 @@ export default function Menu() {
     };
 
     const onDeviceAuthorized = () => {
-      // Rien de spécial ici : le polling PENDING gère déjà l’UX.
+      // Un nouveau device vient d'être autorisé : on resynchronise l’état global
+      void refreshAccountStatusFromServer();
     };
 
     window.addEventListener("ob:connected-changed", onAuthChanged);
@@ -525,7 +536,10 @@ export default function Menu() {
       "ob:subscription-active",
       onSubscriptionActive as EventListener
     );
-    window.addEventListener("ob:device-authorized", onDeviceAuthorized as EventListener);
+    window.addEventListener(
+      "ob:device-authorized",
+      onDeviceAuthorized as EventListener
+    );
 
     return () => {
       window.removeEventListener("ob:connected-changed", onAuthChanged);
@@ -1050,7 +1064,7 @@ export default function Menu() {
                             onClick={() => {
                               setShowPendingCard(false);
                             }}
-                            className="px-3 py-2 rounded-xl border border-white/15 bg-white/8 hover:bg-white/12 text-sm"
+                            className="px-3 py-2 rounded-xl border border-white/15 bg:white/10 bg-white/10 hover:bg-white/12 text-sm"
                           >
                             {t.ACC.IGNORE}
                           </button>
@@ -1528,4 +1542,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-      }
+    }
