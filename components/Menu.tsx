@@ -379,11 +379,8 @@ export default function Menu() {
       // 1) connexion
       const newConnected = !!data?.loggedIn;
 
-      // 2) espace actif : priorité à spaceActive, sinon planActive
-      const newSpaceActive =
-        typeof data?.spaceActive === "boolean"
-          ? !!data.spaceActive
-          : !!data?.planActive;
+      // 2) espace actif : aligné sur le plan payé (source de vérité actuelle)
+      const newSpaceActive = !!data?.planActive;
 
       // 3) plan : on tolère CONTINU / PASS1MOIS ou déjà normalisé
       const rawPlan = data?.plan as
@@ -1542,4 +1539,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-    }
+      }
