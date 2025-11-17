@@ -377,65 +377,82 @@ export default function ConnectModal() {
 
   /* --------------------------------- Flow UI --------------------------------- */
   async function onContinue() {
-    try {
-      setChecking(true);
-      setError(null);
+  try {
+    setChecking(true);
+    setError(null);
+    setShowNonMember(false);
 
-      const p = (phone || "").trim();
-      // On garde la vérif téléphone (utilisé par /pairing/start)
-      if (!p || !p.startsWith("+") || p.length < 10) {
-        setError(t.INVALID_PHONE);
-        inputRef.current?.focus();
-        setChecking(false);
+    const p = (phone || "").trim();
+
+    // 1) Vérif locale du téléphone
+    if (!p || !p.startsWith("+") || p.length < 10) {
+      setError(t.INVALID_PHONE);
+      inputRef.current?.focus();
+      setChecking(false);
+      return;
+    }
+
+    try {
+      localStorage.setItem("oneboarding.phoneE164", p);
+    } catch {}
+
+    // 2) Cas simple : appareil déjà connu avec session valide
+    let chk: CheckReply | null = null;
+    try {
+      chk = await apiCheck();
+    } catch {
+      chk = null;
+    }
+
+    const hasSession = !!chk && chk.ok;
+    const deviceKnown = !!chk?.devices?.deviceKnown;
+
+    if (hasSession && deviceKnown) {
+      await connectKnown();
+      return;
+    }
+
+    // 3) Tous les autres cas → Pairing Protocol basé sur le téléphone
+    try {
+      const started = await startPairing(p);
+      setPairingActive(true);
+      setChallengeId(started.challengeId);
+      setAttemptsLeft(started.attemptsLeft ?? 5);
+      setExpiresAt(started.expiresAt);
+      setTimeout(() => codeInputRef.current?.focus(), 60);
+      return;
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+
+      if (msg === "NO_USER" || msg === "BAD_PHONE" || msg === "NO_ACTIVE_PLAN") {
+        setShowNonMember(true);
+        clearTimer();
+        redirectTimerRef.current = window.setTimeout(() => {
+          setShowNonMember(false);
+          window.dispatchEvent(new Event("ob:open-activate"));
+          handleClose();
+        }, 2600);
         return;
       }
-      try {
-        localStorage.setItem("oneboarding.phoneE164", p);
-      } catch {}
 
-      // 1) Vérification côté serveur (session+cookie, device via header)
-      const chk = await apiCheck(); // ⬅️ plus de paramètre ici
-      const deviceKnown = !!chk.devices?.deviceKnown;
-      const planActive = !!chk.planActive;
+      if (msg === "SLOTS_FULL") {
+        setError(t.SLOTS_FULL);
+        return;
+      }
 
-      // a) Membre + appareil connu → connexion directe
-      if (chk.ok && deviceKnown) {
+      if (msg === "DEVICE_ALREADY_AUTHORIZED") {
         await connectKnown();
         return;
       }
 
-      // b) Membre + nouvel appareil → Pairing v2
-      if (chk.ok && planActive && !deviceKnown) {
-        try {
-          const started = await startPairing(p);
-          setPairingActive(true);
-          setChallengeId(started.challengeId);
-          setAttemptsLeft(started.attemptsLeft ?? 5);
-          setExpiresAt(started.expiresAt);
-          setTimeout(() => codeInputRef.current?.focus(), 60);
-          return;
-        } catch (e: any) {
-          const msg = String(e?.message || "");
-          if (msg === "SLOTS_FULL") setError(t.SLOTS_FULL);
-          else if (msg === "DEVICE_ALREADY_AUTHORIZED") setError(t.DEVICE_ALREADY_AUTHORIZED);
-          else setError(t.START_FAIL);
-          return;
-        }
-      }
-
-      // c) NO_USER / non-membre → afficher bandeau puis basculer
-      setShowNonMember(true);
-      clearTimer();
-      redirectTimerRef.current = window.setTimeout(() => {
-        setShowNonMember(false);
-        window.dispatchEvent(new Event("ob:open-activate"));
-        handleClose();
-      }, 2600);
-    } catch {
-      toast(t.ERROR);
-    } finally {
-      setChecking(false);
+      setError(t.START_FAIL);
+      return;
     }
+  } catch {
+    toast(t.ERROR);
+  } finally {
+    setChecking(false);
+  }
   }
 
   async function onSubmitCode(e: React.FormEvent) {
