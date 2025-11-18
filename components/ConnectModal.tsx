@@ -1,6 +1,7 @@
 // components/ConnectModal.tsx
 "use client";
 
+import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /* ----------------------------- Types & helpers ---------------------------- */
@@ -34,7 +35,9 @@ function uuid4() {
     return v.toString(16);
   });
 }
+
 const DEVICE_ID_KEY = "oneboarding.deviceId";
+
 function getOrCreateDeviceId(): string {
   try {
     const cur = localStorage.getItem(DEVICE_ID_KEY);
@@ -46,6 +49,7 @@ function getOrCreateDeviceId(): string {
     return "device-fallback";
   }
 }
+
 function toast(msg: string) {
   const el = document.createElement("div");
   el.textContent = msg;
@@ -191,7 +195,11 @@ export default function ConnectModal() {
       setTimeout(() => inputRef.current?.focus(), 100);
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
-    return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
+    return () =>
+      window.removeEventListener(
+        "ob:lang-changed",
+        onLang as EventListener,
+      );
   }, []);
 
   /* ----------------------- Ouverture via événement global ----------------------- */
@@ -209,7 +217,10 @@ export default function ConnectModal() {
 
       try {
         localStorage.setItem("ob_connected", "1");
-        localStorage.setItem("oneboarding.phoneE164", detail.phoneE164 || phone);
+        localStorage.setItem(
+          "oneboarding.phoneE164",
+          detail.phoneE164 || phone,
+        );
       } catch {}
 
       window.dispatchEvent(
@@ -221,15 +232,22 @@ export default function ConnectModal() {
             paymentRef: detail.paymentRef,
             source: detail.source || "ConnectModal",
           },
-        })
+        }),
       );
 
       toast(t.WELCOME_OK);
       handleClose();
     };
 
-    window.addEventListener("ob:device-authorized", onAuthorized as EventListener);
-    return () => window.removeEventListener("ob:device-authorized", onAuthorized as EventListener);
+    window.addEventListener(
+      "ob:device-authorized",
+      onAuthorized as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "ob:device-authorized",
+        onAuthorized as EventListener,
+      );
   }, [phone, t.WELCOME_OK]);
 
   /* --------------------------- Sync <dialog> natif --------------------------- */
@@ -242,7 +260,15 @@ export default function ConnectModal() {
 
   // Autofocus à l’ouverture de la modale
   useEffect(() => {
-    if (open) setTimeout(() => (pairingActive ? codeInputRef.current?.focus() : inputRef.current?.focus()), 60);
+    if (open)
+      setTimeout(
+        () =>
+          (pairingActive
+            ? codeInputRef.current
+            : inputRef.current
+          )?.focus(),
+        60,
+      );
   }, [open, pairingActive]);
 
   useEffect(() => {
@@ -267,7 +293,11 @@ export default function ConnectModal() {
     const d = dialogRef.current;
     if (!d) return;
     const r = d.getBoundingClientRect();
-    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    const inside =
+      e.clientX >= r.left &&
+      e.clientX <= r.right &&
+      e.clientY >= r.top &&
+      e.clientY <= r.bottom;
     if (!inside) handleClose();
   };
 
@@ -286,7 +316,7 @@ export default function ConnectModal() {
   }
 
   /* --------------------------------- API calls -------------------------------- */
-  // ⬇️ PATCH: utilise GET + cookie de session + header x-ob-device-id, et mappe spaceActive -> planActive
+  // ⬇️ utilise GET + cookie de session + header x-ob-device-id, et mappe spaceActive -> planActive
   async function apiCheck(): Promise<CheckReply> {
     try {
       const deviceId = getOrCreateDeviceId();
@@ -323,6 +353,7 @@ export default function ConnectModal() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
+      credentials: "include",
       body: JSON.stringify({ phoneE164, newDeviceId }),
     });
     const data = await res.json().catch(() => ({}));
@@ -346,6 +377,7 @@ export default function ConnectModal() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
+      credentials: "include", // ✅ pour bien recevoir/propager le cookie de session
       body: JSON.stringify({ challengeId, code: code6 }),
     });
     const data = await res.json().catch(() => ({}));
@@ -369,7 +401,9 @@ export default function ConnectModal() {
     } catch {}
     window.dispatchEvent(new Event("ob:connected-changed"));
     window.dispatchEvent(
-      new CustomEvent("ob:set-connected", { detail: { phoneE164: phone, source: "ConnectModal" } })
+      new CustomEvent("ob:set-connected", {
+        detail: { phoneE164: phone, source: "ConnectModal" },
+      }),
     );
     toast(t.WELCOME_OK);
     handleClose();
@@ -377,82 +411,86 @@ export default function ConnectModal() {
 
   /* --------------------------------- Flow UI --------------------------------- */
   async function onContinue() {
-  try {
-    setChecking(true);
-    setError(null);
-    setShowNonMember(false);
-
-    const p = (phone || "").trim();
-
-    // 1) Vérif locale du téléphone
-    if (!p || !p.startsWith("+") || p.length < 10) {
-      setError(t.INVALID_PHONE);
-      inputRef.current?.focus();
-      setChecking(false);
-      return;
-    }
-
     try {
-      localStorage.setItem("oneboarding.phoneE164", p);
-    } catch {}
+      setChecking(true);
+      setError(null);
+      setShowNonMember(false);
 
-    // 2) Cas simple : appareil déjà connu avec session valide
-    let chk: CheckReply | null = null;
-    try {
-      chk = await apiCheck();
-    } catch {
-      chk = null;
-    }
+      const p = (phone || "").trim();
 
-    const hasSession = !!chk && chk.ok;
-    const deviceKnown = !!chk?.devices?.deviceKnown;
-
-    if (hasSession && deviceKnown) {
-      await connectKnown();
-      return;
-    }
-
-    // 3) Tous les autres cas → Pairing Protocol basé sur le téléphone
-    try {
-      const started = await startPairing(p);
-      setPairingActive(true);
-      setChallengeId(started.challengeId);
-      setAttemptsLeft(started.attemptsLeft ?? 5);
-      setExpiresAt(started.expiresAt);
-      setTimeout(() => codeInputRef.current?.focus(), 60);
-      return;
-    } catch (e: any) {
-      const msg = String(e?.message || "");
-
-      if (msg === "NO_USER" || msg === "BAD_PHONE" || msg === "NO_ACTIVE_PLAN") {
-        setShowNonMember(true);
-        clearTimer();
-        redirectTimerRef.current = window.setTimeout(() => {
-          setShowNonMember(false);
-          window.dispatchEvent(new Event("ob:open-activate"));
-          handleClose();
-        }, 2600);
+      // 1) Vérif locale du téléphone
+      if (!p || !p.startsWith("+") || p.length < 10) {
+        setError(t.INVALID_PHONE);
+        inputRef.current?.focus();
+        setChecking(false);
         return;
       }
 
-      if (msg === "SLOTS_FULL") {
-        setError(t.SLOTS_FULL);
-        return;
+      try {
+        localStorage.setItem("oneboarding.phoneE164", p);
+      } catch {}
+
+      // 2) Cas simple : appareil déjà connu avec session valide
+      let chk: CheckReply | null = null;
+      try {
+        chk = await apiCheck();
+      } catch {
+        chk = null;
       }
 
-      if (msg === "DEVICE_ALREADY_AUTHORIZED") {
+      const hasSession = !!chk && chk.ok;
+      const deviceKnown = !!chk?.devices?.deviceKnown;
+
+      if (hasSession && deviceKnown) {
         await connectKnown();
         return;
       }
 
-      setError(t.START_FAIL);
-      return;
+      // 3) Tous les autres cas → Pairing Protocol basé sur le téléphone
+      try {
+        const started = await startPairing(p);
+        setPairingActive(true);
+        setChallengeId(started.challengeId);
+        setAttemptsLeft(started.attemptsLeft ?? 5);
+        setExpiresAt(started.expiresAt);
+        setTimeout(() => codeInputRef.current?.focus(), 60);
+        return;
+      } catch (e: any) {
+        const msg = String(e?.message || "");
+
+        if (
+          msg === "NO_USER" ||
+          msg === "BAD_PHONE" ||
+          msg === "NO_ACTIVE_PLAN"
+        ) {
+          setShowNonMember(true);
+          clearTimer();
+          redirectTimerRef.current = window.setTimeout(() => {
+            setShowNonMember(false);
+            window.dispatchEvent(new Event("ob:open-activate"));
+            handleClose();
+          }, 2600);
+          return;
+        }
+
+        if (msg === "SLOTS_FULL") {
+          setError(t.SLOTS_FULL);
+          return;
+        }
+
+        if (msg === "DEVICE_ALREADY_AUTHORIZED") {
+          await connectKnown();
+          return;
+        }
+
+        setError(t.START_FAIL);
+        return;
+      }
+    } catch {
+      toast(t.ERROR);
+    } finally {
+      setChecking(false);
     }
-  } catch {
-    toast(t.ERROR);
-  } finally {
-    setChecking(false);
-  }
   }
 
   async function onSubmitCode(e: React.FormEvent) {
@@ -502,7 +540,10 @@ export default function ConnectModal() {
         onMouseDown={onBackdropClick}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
       >
-        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl" dir={lang === "ar" ? "rtl" : "ltr"}>
+        <div
+          className="p-4 sm:p-6 bg-white text-black rounded-3xl"
+          dir={lang === "ar" ? "rtl" : "ltr"}
+        >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">{t.TITLE}</h2>
             <button
@@ -535,7 +576,11 @@ export default function ConnectModal() {
               </div>
 
               {error && (
-                <div className="mt-2 text-sm text-red-600" role="status" aria-live="polite">
+                <div
+                  className="mt-2 text-sm text-red-600"
+                  role="status"
+                  aria-live="polite"
+                >
                   {error}
                 </div>
               )}
@@ -546,7 +591,10 @@ export default function ConnectModal() {
                   aria-live="polite"
                   className="mt-3 rounded-xl border border-amber-300/40 bg-amber-100 text-amber-900 px-3 py-2 text-sm"
                 >
-                  {t.NOT_MEMBER} <span className="opacity-75">{t.BANNER_REDIRECTING}</span>
+                  {t.NOT_MEMBER}{" "}
+                  <span className="opacity-75">
+                    {t.BANNER_REDIRECTING}
+                  </span>
                 </div>
               )}
 
@@ -577,7 +625,9 @@ export default function ConnectModal() {
               <h3 className="text-base font-semibold">{t.PAIR_TITLE}</h3>
               <p className="text-sm text-black/80 mt-1">{t.PAIR_HINT}</p>
 
-              <label className="text-sm block mt-3 mb-1">{t.CODE_LABEL}</label>
+              <label className="text-sm block mt-3 mb-1">
+                {t.CODE_LABEL}
+              </label>
               <input
                 ref={codeInputRef}
                 dir="ltr"
@@ -587,7 +637,9 @@ export default function ConnectModal() {
                 placeholder={t.CODE_PH}
                 value={code}
                 onChange={(e) => {
-                  const v = e.target.value.replace(/[^\d]/g, "").slice(0, 6);
+                  const v = e.target.value
+                    .replace(/[^\d]/g, "")
+                    .slice(0, 6);
                   setCode(v);
                   setError(null);
                 }}
@@ -596,12 +648,17 @@ export default function ConnectModal() {
 
               {expiresAt && (
                 <div className="mt-2 text-xs text-black/60">
-                  TTL : jusqu’au {new Date(expiresAt).toLocaleString()}
+                  TTL : jusqu’au{" "}
+                  {new Date(expiresAt).toLocaleString()}
                 </div>
               )}
 
               {error && (
-                <div className="mt-2 text-sm text-red-600" role="status" aria-live="polite">
+                <div
+                  className="mt-2 text-sm text-red-600"
+                  role="status"
+                  aria-live="polite"
+                >
                   {error}
                 </div>
               )}
@@ -625,7 +682,10 @@ export default function ConnectModal() {
                 </button>
                 <button
                   type="submit"
-                  disabled={checking || code.replace(/[^\d]/g, "").length !== 6}
+                  disabled={
+                    checking ||
+                    code.replace(/[^\d]/g, "").length !== 6
+                  }
                   className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 disabled:opacity-60"
                 >
                   {checking ? t.LOADING : t.SUBMIT}
@@ -633,7 +693,12 @@ export default function ConnectModal() {
               </div>
 
               <div className="mt-2 text-xs text-black/60">
-                {attemptsLeft < 5 ? t.INVALID_CODE.replace("{n}", String(attemptsLeft)) : ""}
+                {attemptsLeft < 5
+                  ? t.INVALID_CODE.replace(
+                      "{n}",
+                      String(attemptsLeft),
+                    )
+                  : ""}
               </div>
             </form>
           )}
@@ -641,4 +706,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-            }
+      }
