@@ -196,10 +196,7 @@ export default function ConnectModal() {
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
     return () =>
-      window.removeEventListener(
-        "ob:lang-changed",
-        onLang as EventListener,
-      );
+      window.removeEventListener("ob:lang-changed", onLang as EventListener);
   }, []);
 
   /* ----------------------- Ouverture via événement global ----------------------- */
@@ -209,34 +206,36 @@ export default function ConnectModal() {
     return () => window.removeEventListener("ob:open-connect", openEvt);
   }, []);
 
+  function clearTimer() {
+    if (redirectTimerRef.current) {
+      window.clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+  }
+
+  function handleClose() {
+    setOpen(false);
+    setChecking(false);
+    setShowNonMember(false);
+    setError(null);
+    clearTimer();
+    // reset pairing
+    setPairingActive(false);
+    setChallengeId(null);
+    setAttemptsLeft(5);
+    setExpiresAt(null);
+    setCode("");
+  }
+
   /* --- Succès d'autorisation (event global) --- */
   useEffect(() => {
     const onAuthorized = (e: Event) => {
       const detail = (e as CustomEvent<DeviceAuthorizedDetail>).detail;
       if (!detail || detail.status !== "active") return;
 
-      try {
-        localStorage.setItem("ob_connected", "1");
-        localStorage.setItem(
-          "oneboarding.phoneE164",
-          detail.phoneE164 || phone,
-        );
-      } catch {}
-
-      window.dispatchEvent(
-        new CustomEvent("ob:set-connected", {
-          detail: {
-            phoneE164: detail.phoneE164 || phone,
-            deviceId: detail.deviceId,
-            planActive: detail.planActive,
-            paymentRef: detail.paymentRef,
-            source: detail.source || "ConnectModal",
-          },
-        }),
-      );
-
-      toast(t.WELCOME_OK);
-      handleClose();
+      const p = detail.phoneE164 || phone;
+      const active = detail.planActive ?? true;
+      connectKnown({ phoneE164: p, planActive: active });
     };
 
     window.addEventListener(
@@ -263,10 +262,7 @@ export default function ConnectModal() {
     if (open)
       setTimeout(
         () =>
-          (pairingActive
-            ? codeInputRef.current
-            : inputRef.current
-          )?.focus(),
+          (pairingActive ? codeInputRef.current : inputRef.current)?.focus(),
         60,
       );
   }, [open, pairingActive]);
@@ -282,13 +278,6 @@ export default function ConnectModal() {
     return () => d.removeEventListener("cancel", onCancel);
   }, []);
 
-  function clearTimer() {
-    if (redirectTimerRef.current) {
-      window.clearTimeout(redirectTimerRef.current);
-      redirectTimerRef.current = null;
-    }
-  }
-
   const onBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
     const d = dialogRef.current;
     if (!d) return;
@@ -300,20 +289,6 @@ export default function ConnectModal() {
       e.clientY <= r.bottom;
     if (!inside) handleClose();
   };
-
-  function handleClose() {
-    setOpen(false);
-    setChecking(false);
-    setShowNonMember(false);
-    setError(null);
-    clearTimer();
-    // reset pairing
-    setPairingActive(false);
-    setChallengeId(null);
-    setAttemptsLeft(5);
-    setExpiresAt(null);
-    setCode("");
-  }
 
   /* --------------------------------- API calls -------------------------------- */
   // ⬇️ utilise GET + cookie de session + header x-ob-device-id, et mappe spaceActive -> planActive
@@ -333,7 +308,6 @@ export default function ConnectModal() {
       const dev = data?.devices || {};
       return {
         ok: true,
-        // /api/auth/check renvoie spaceActive → on le mappe vers planActive attendu par le flux
         planActive: !!data?.spaceActive,
         devices: {
           hasAnyDevice: Number(dev.deviceCount || 0) > 0,
@@ -377,7 +351,7 @@ export default function ConnectModal() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
-      credentials: "include", // ✅ pour bien recevoir/propager le cookie de session
+      credentials: "include",
       body: JSON.stringify({ challengeId, code: code6 }),
     });
     const data = await res.json().catch(() => ({}));
@@ -394,17 +368,40 @@ export default function ConnectModal() {
         };
   }
 
-  async function connectKnown() {
+  /* ---------------------- Marque le membre comme connecté --------------------- */
+  async function connectKnown(opts?: {
+    phoneE164?: string;
+    planActive?: boolean;
+  }) {
+    const p = (opts?.phoneE164 || phone || "").trim();
+    const isActive = !!opts?.planActive;
+
     try {
       localStorage.setItem("ob_connected", "1");
-      localStorage.setItem("oneboarding.phoneE164", phone);
+      if (p) {
+        localStorage.setItem("oneboarding.phoneE164", p);
+      }
+      localStorage.setItem("oneboarding.spaceActive", isActive ? "1" : "0");
     } catch {}
+
     window.dispatchEvent(new Event("ob:connected-changed"));
+    if (isActive) {
+      window.dispatchEvent(new Event("ob:space-activated"));
+    } else {
+      window.dispatchEvent(new Event("ob:space-deactivated"));
+    }
+    window.dispatchEvent(new Event("ob:plan-changed"));
+
     window.dispatchEvent(
       new CustomEvent("ob:set-connected", {
-        detail: { phoneE164: phone, source: "ConnectModal" },
+        detail: {
+          phoneE164: p,
+          planActive: isActive,
+          source: "ConnectModal",
+        },
       }),
     );
+
     toast(t.WELCOME_OK);
     handleClose();
   }
@@ -442,7 +439,10 @@ export default function ConnectModal() {
       const deviceKnown = !!chk?.devices?.deviceKnown;
 
       if (hasSession && deviceKnown) {
-        await connectKnown();
+        await connectKnown({
+          phoneE164: p,
+          planActive: !!chk?.planActive,
+        });
         return;
       }
 
@@ -458,11 +458,7 @@ export default function ConnectModal() {
       } catch (e: any) {
         const msg = String(e?.message || "");
 
-        if (
-          msg === "NO_USER" ||
-          msg === "BAD_PHONE" ||
-          msg === "NO_ACTIVE_PLAN"
-        ) {
+        if (msg === "NO_USER" || msg === "BAD_PHONE" || msg === "NO_ACTIVE_PLAN") {
           setShowNonMember(true);
           clearTimer();
           redirectTimerRef.current = window.setTimeout(() => {
@@ -479,7 +475,7 @@ export default function ConnectModal() {
         }
 
         if (msg === "DEVICE_ALREADY_AUTHORIZED") {
-          await connectKnown();
+          await connectKnown({ phoneE164: p, planActive: true });
           return;
         }
 
@@ -505,7 +501,8 @@ export default function ConnectModal() {
     try {
       const out = await confirmPairing(code6);
       if (out.ok && (out as any).authorized) {
-        await connectKnown();
+        const p = (phone || "").trim();
+        await connectKnown({ phoneE164: p, planActive: true });
         return;
       }
       const err = (out as any).error as string | undefined;
@@ -559,7 +556,9 @@ export default function ConnectModal() {
           {/* Étape 1 : saisie téléphone */}
           {!pairingActive && (
             <>
-              <label className="text-sm block mb-1">{t.PHONE_LABEL}</label>
+              <label className="text-sm block mb-1">
+                {t.PHONE_LABEL}
+              </label>
               <div dir="ltr">
                 <input
                   ref={inputRef}
@@ -622,8 +621,12 @@ export default function ConnectModal() {
           {/* Étape 2 : saisie du code (Pairing v2) */}
           {pairingActive && (
             <form onSubmit={onSubmitCode} className="mt-2">
-              <h3 className="text-base font-semibold">{t.PAIR_TITLE}</h3>
-              <p className="text-sm text-black/80 mt-1">{t.PAIR_HINT}</p>
+              <h3 className="text-base font-semibold">
+                {t.PAIR_TITLE}
+              </h3>
+              <p className="text-sm text-black/80 mt-1">
+                {t.PAIR_HINT}
+              </p>
 
               <label className="text-sm block mt-3 mb-1">
                 {t.CODE_LABEL}
@@ -637,9 +640,7 @@ export default function ConnectModal() {
                 placeholder={t.CODE_PH}
                 value={code}
                 onChange={(e) => {
-                  const v = e.target.value
-                    .replace(/[^\d]/g, "")
-                    .slice(0, 6);
+                  const v = e.target.value.replace(/[^\d]/g, "").slice(0, 6);
                   setCode(v);
                   setError(null);
                 }}
@@ -648,8 +649,7 @@ export default function ConnectModal() {
 
               {expiresAt && (
                 <div className="mt-2 text-xs text-black/60">
-                  TTL : jusqu’au{" "}
-                  {new Date(expiresAt).toLocaleString()}
+                  TTL : jusqu’au {new Date(expiresAt).toLocaleString()}
                 </div>
               )}
 
@@ -667,13 +667,11 @@ export default function ConnectModal() {
                 <button
                   type="button"
                   onClick={() => {
-                    // réinitialiser et renvoyer un nouveau challenge
                     setPairingActive(false);
                     setChallengeId(null);
                     setAttemptsLeft(5);
                     setExpiresAt(null);
                     setCode("");
-                    // relance onContinue() pour rejouer la logique (device inconnu → startPairing)
                     onContinue();
                   }}
                   className="px-3 py-2 rounded-xl border border-black/15 bg-black/5 hover:bg-black/10 text-sm"
@@ -682,10 +680,7 @@ export default function ConnectModal() {
                 </button>
                 <button
                   type="submit"
-                  disabled={
-                    checking ||
-                    code.replace(/[^\d]/g, "").length !== 6
-                  }
+                  disabled={checking || code.replace(/[^\d]/g, "").length !== 6}
                   className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 disabled:opacity-60"
                 >
                   {checking ? t.LOADING : t.SUBMIT}
@@ -694,10 +689,7 @@ export default function ConnectModal() {
 
               <div className="mt-2 text-xs text-black/60">
                 {attemptsLeft < 5
-                  ? t.INVALID_CODE.replace(
-                      "{n}",
-                      String(attemptsLeft),
-                    )
+                  ? t.INVALID_CODE.replace("{n}", String(attemptsLeft))
                   : ""}
               </div>
             </form>
@@ -706,4 +698,4 @@ export default function ConnectModal() {
       </dialog>
     </>
   );
-      }
+    }
