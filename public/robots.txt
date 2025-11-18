@@ -1,31 +1,29 @@
-# robots.txt — OneBoarding AI (pré-lancement strict)
-# 1) On bloque tout par défaut
+# robots.txt — OneBoarding AI
+# Version : Indexation générale ouverte (ALLOW ALL)
+# Conçu pour : lancement public et référencement global
+
+# 1) Autoriser tous les robots (Google, Bing, Baidu, Yandex, DuckDuckGo, etc.)
 User-agent: *
-Disallow: /
+Allow: /
 
-# 2) On n’ouvre QUE pour les robots Meta indispensables aux aperçus/vérifications
-
-# Facebook / Instagram link preview (historiquement)
+# 2) Robots Meta (Facebook, Instagram, WhatsApp)
 User-agent: facebookexternalhit
 Allow: /
 
-# Variantes observées / casse
 User-agent: FacebookExternalHit
 Allow: /
 
-# Crawler général de Meta
 User-agent: Facebot
 Allow: /
+
 User-agent: FacebookBot
 Allow: /
 
-# Nouvel UA Meta annoncé (remplace/complète facebookexternalhit)
 User-agent: Meta-ExternalAgent
 Allow: /
 
-# WhatsApp (Meta) — prévisualisation de liens
 User-agent: WhatsApp
 Allow: /
 
-# (facultatif) Laisser le sitemap déclaré même en pré-lancement
+# 3) Sitemap officiel — utile pour Google & co.
 Sitemap: https://oneboardingai.com/sitemap.xml
