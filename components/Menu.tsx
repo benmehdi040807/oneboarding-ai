@@ -379,7 +379,7 @@ export default function Menu() {
       // 1) connexion
       const newConnected = !!data?.loggedIn;
 
-      // 2) espace actif : RÈGLE UNIQUE → reflète directement planActive
+      // 2) RÈGLE UNIQUE : l'espace actif reflète directement le plan actif
       const newPlanActive = !!data?.planActive;
       const newSpaceActive = newPlanActive;
 
@@ -860,7 +860,7 @@ export default function Menu() {
     emit("ob:lang-changed", { lang: l });
   }
 
-  /** ============ Consentement légal ============ */
+  /** ============ Consentement légal (décorrélé de l’accès) ============ */
   function openLegalModal() {
     setLegalOpen(true);
     pushHistoryFor("legal");
@@ -1533,4 +1533,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-      }
+        }
