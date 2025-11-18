@@ -129,13 +129,10 @@ export async function GET(req: NextRequest) {
     const currentPeriodEnd = sub?.currentPeriodEnd ?? null;
 
     // 5) Droit d'accès effectif (notre logique métier globale, par USER)
-    //    → indépendant du device (pairing, navigateur, etc.)
     const planActive = await userHasPaidAccess(user.phoneE164);
 
-    // 5 bis) Espace actif = droit d'accès + consentement (si tu veux le coupler)
-    // Si tu n'as pas de logique plus fine de "désactivation", tu peux simplement
-    // faire: const spaceActive = planActive;
-    const spaceActive = planActive && !!user.consentAt;
+    // 5 bis) Règle canonique actuelle : espace actif = plan actif
+    const spaceActive = planActive;
 
     // Statut "logique" pour l'UX
     let effectiveStatus: "NONE" | "ACTIVE" | "EXPIRED" = "NONE";
@@ -202,4 +199,4 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   }
-}
+  }
