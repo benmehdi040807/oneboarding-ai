@@ -379,8 +379,9 @@ export default function Menu() {
       // 1) connexion
       const newConnected = !!data?.loggedIn;
 
-      // 2) espace actif : aligné sur le plan payé (source de vérité actuelle)
-      const newSpaceActive = !!data?.planActive;
+      // 2) espace actif : RÈGLE UNIQUE → reflète directement planActive
+      const newPlanActive = !!data?.planActive;
+      const newSpaceActive = newPlanActive;
 
       // 3) plan : on tolère CONTINU / PASS1MOIS ou déjà normalisé
       const rawPlan = data?.plan as
@@ -419,13 +420,6 @@ export default function Menu() {
             "oneboarding.phoneE164",
             data.phoneE164 as string
           );
-        }
-        if (typeof data?.consentGiven === "boolean" && data.consentGiven) {
-          localStorage.setItem(CONSENT_KEY, "1");
-          if (!localStorage.getItem(CONSENT_AT_KEY)) {
-            localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
-          }
-          setConsented(true);
         }
       } catch {
         // best-effort
