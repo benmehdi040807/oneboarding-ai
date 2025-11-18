@@ -77,12 +77,14 @@ export async function GET(req: NextRequest) {
     const user = session.user;
 
     // 2 bis) Charger le device correspondant à session.deviceId (si présent)
-    let device: null | {
-      deviceId: string;
-      authorized: boolean;
-      revokedAt: Date | null;
-      lastSeenAt: Date | null;
-    } = null;
+    let device:
+      | null
+      | {
+          deviceId: string;
+          authorized: boolean;
+          revokedAt: Date | null;
+          lastSeenAt: Date | null;
+        } = null;
 
     if (session.deviceId) {
       const d = await prisma.device.findUnique({
@@ -126,8 +128,12 @@ export async function GET(req: NextRequest) {
     const rawStatus = sub?.status ?? null;
     const currentPeriodEnd = sub?.currentPeriodEnd ?? null;
 
-    // 5) Droit d'accès effectif (notre logique métier globale, par USER)
+    // 5) Droit d'accès effectif (logique métier globale, par USER)
     //    → indépendant du device (pairing, navigateur, etc.)
+    //
+    // ⚖️ Philosophie Benmehdi :
+    // - Le paiement crée le droit d'accès (planActive).
+    // - spaceActive n'est qu'un alias d'affichage / compatibilité.
     const planActive = await userHasPaidAccess(user.phoneE164);
 
     // 🔴 RÈGLE UNIQUE : l'espace actif = le plan actif
@@ -153,7 +159,7 @@ export async function GET(req: NextRequest) {
         deviceCount,
         maxDevices: MAX_DEVICES_DEFAULT,
 
-        // Infos supplémentaires
+        // Infos supplémentaires (non obligatoires pour CheckState)
         plan,
         subscriptionStatus: rawStatus,
         effectiveStatus,
@@ -196,4 +202,4 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   }
-  }
+      }
