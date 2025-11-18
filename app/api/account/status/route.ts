@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
           effectiveStatus: "NONE" as const,
           currentPeriodEnd: null,
           phoneE164: null,
-          consentGiven: false,
           device: null,
         },
         { status: 200 }
@@ -69,7 +68,6 @@ export async function GET(req: NextRequest) {
           effectiveStatus: "NONE" as const,
           currentPeriodEnd: null,
           phoneE164: null,
-          consentGiven: false,
           device: null,
         },
         { status: 200 }
@@ -129,9 +127,10 @@ export async function GET(req: NextRequest) {
     const currentPeriodEnd = sub?.currentPeriodEnd ?? null;
 
     // 5) Droit d'accès effectif (notre logique métier globale, par USER)
+    //    → indépendant du device (pairing, navigateur, etc.)
     const planActive = await userHasPaidAccess(user.phoneE164);
 
-    // 5 bis) Règle canonique actuelle : espace actif = plan actif
+    // 🔴 RÈGLE UNIQUE : l'espace actif = le plan actif
     const spaceActive = planActive;
 
     // Statut "logique" pour l'UX
@@ -154,7 +153,7 @@ export async function GET(req: NextRequest) {
         deviceCount,
         maxDevices: MAX_DEVICES_DEFAULT,
 
-        // Infos supplémentaires (non obligatoires pour CheckState)
+        // Infos supplémentaires
         plan,
         subscriptionStatus: rawStatus,
         effectiveStatus,
@@ -162,7 +161,6 @@ export async function GET(req: NextRequest) {
           ? currentPeriodEnd.toISOString()
           : null,
         phoneE164: user.phoneE164,
-        consentGiven: !!user.consentAt,
         device: device
           ? {
               deviceId: device.deviceId,
@@ -193,7 +191,6 @@ export async function GET(req: NextRequest) {
         effectiveStatus: "NONE" as const,
         currentPeriodEnd: null,
         phoneE164: null,
-        consentGiven: false,
         device: null,
       },
       { status: 200 }
