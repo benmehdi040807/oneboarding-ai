@@ -33,6 +33,13 @@ function isDeviceId(d?: string): d is string {
   return typeof d === "string" && d.trim().length >= 8;
 }
 
+// Même helper que dans /api/pay/return
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 /* =========================== Types ============================ */
 
 type Req = {
@@ -97,7 +104,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (challenge.expiresAt <= new Date() || challenge.attemptsLeft <= 0) {
+    const now = new Date();
+
+    if (challenge.expiresAt <= now || challenge.attemptsLeft <= 0) {
       await prisma.devicePairingChallenge.update({
         where: { id: challenge.id },
         data: { status: "EXPIRED" },
@@ -158,7 +167,7 @@ export async function POST(req: Request) {
 
       await prisma.device.update({
         where: { id: dev.id },
-        data: { authorized: false, revokedAt: new Date() },
+        data: { authorized: false, revokedAt: now },
       });
 
       revokedDeviceId = revokeDeviceId;
@@ -182,7 +191,7 @@ export async function POST(req: Request) {
         userId,
         deviceId: newDeviceId,
         authorized: true,
-        firstAuthorizedAt: new Date(),
+        firstAuthorizedAt: now,
         isFounder: false, // ✅ un device de pairing n’est jamais fondateur
       },
     });
@@ -192,14 +201,35 @@ export async function POST(req: Request) {
       where: { id: challenge.id },
       data: {
         status: "APPROVED",
-        approvedAt: new Date(),
+        approvedAt: now,
         encCode: Buffer.from([]),
         encIv: Buffer.from([]),
         encTag: Buffer.from([]),
       },
     });
 
-    return NextResponse.json<Ok>(
+    // ======================= SESSION + COOKIE =======================
+    //
+    // On crée une session 30 jours pour CE device appairé,
+    // exactement comme dans /api/pay/return pour le fondateur.
+    //
+    const EXPIRE_AFTER_DAYS = 30;
+    const sessionExpiresAt = addDays(now, EXPIRE_AFTER_DAYS);
+
+    const session = await prisma.session.create({
+      data: {
+        userId,
+        deviceId: newDeviceId,
+        expiresAt: sessionExpiresAt,
+        revokedAt: null,
+      },
+      select: {
+        id: true,
+        expiresAt: true,
+      },
+    });
+
+    const res = NextResponse.json<Ok>(
       {
         ok: true,
         authorized: true,
@@ -209,6 +239,17 @@ export async function POST(req: Request) {
       },
       { headers: { "Cache-Control": "no-store" } }
     );
+
+    // Cookie de session, identique à celui de /api/pay/return
+    res.cookies.set("ob_session", session.id, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      expires: session.expiresAt,
+    });
+
+    return res;
   } catch (e: any) {
     console.error("PAIRING_CONFIRM_ERR", e);
     return NextResponse.json<Err>(
@@ -216,4 +257,4 @@ export async function POST(req: Request) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
-}
+        }
