@@ -9,11 +9,11 @@ export const metadata = {
   alternates: { canonical: "https://oneboardingai.com" },
   title: "OneBoarding AI",
   description:
-    "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
+    "Votre IA personnelle, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
   openGraph: {
     title: "OneBoarding AI",
     description:
-      "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
+      "Votre IA personnelle, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
     url: "https://oneboardingai.com",
     siteName: "OneBoarding AI",
     images: [
@@ -21,14 +21,14 @@ export const metadata = {
         url: "/brand/og-oneboardingai-1200x628.jpg",
         width: 1200,
         height: 628,
-        alt: "OneBoarding AI - Votre IA personnel",
+        alt: "OneBoarding AI - Votre IA personnelle",
         type: "image/jpeg",
       },
       {
         url: "/brand/og-oneboardingai-1200x628.png",
         width: 1200,
         height: 628,
-        alt: "OneBoarding AI - Votre IA personnel",
+        alt: "OneBoarding AI - Votre IA personnelle",
         type: "image/png",
       },
       {
@@ -46,7 +46,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "OneBoarding AI",
     description:
-      "Votre IA personnel, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
+      "Votre IA personnelle, à votre service. 3 interactions offertes — Activez votre futur dès aujourd’hui.",
     images: [
       "/brand/og-oneboardingai-1200x628.jpg",
       "/brand/og-oneboardingai-1200x628.png",
@@ -56,7 +56,7 @@ export const metadata = {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -65,8 +65,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Mobile */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Harmonise la barre d’adresse mobile */}
-        <meta name="theme-color" content="#B3E5FC" />
+        {/* Harmonise la barre d’adresse mobile / PWA */}
+        <meta name="theme-color" content="#020617" />
+
+        {/* PWA / Manifest */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="application-name" content="OneBoarding AI" />
+        <meta name="apple-mobile-web-app-title" content="OneBoarding AI" />
 
         {/* JSON-LD schema.org */}
         <script
@@ -82,7 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
 
-        {/* ---- Bootstrap PayPal return/cancel + 1€ authorize ---- */}
+        {/* ---- Bootstrap PayPal return/cancel ---- */}
         <script
           id="ob-bootstrap"
           dangerouslySetInnerHTML={{
@@ -114,29 +122,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     var url=new URL(window.location.href);
     var paid = url.searchParams.get("paid")==="1";
     var cancel = url.searchParams.get("cancel")==="1";
-    var ppReturn = url.searchParams.get("paypal_return")==="1";
-    var ppCancel = url.searchParams.get("paypal_cancel")==="1";
-    var purpose = url.searchParams.get("purpose") || "";
-    var device = url.searchParams.get("device") || "";
 
     // Retour souscription (activation plan)
     if(paid){
-      // Essayer de récupérer infos locales
-      var phone = "";
       var plan = "subscription";
       try{
-        phone = localStorage.getItem("oneboarding.phoneE164") || "";
         var cand = localStorage.getItem("oneboarding.planCandidate");
         if(cand==="one-month"||cand==="subscription") plan=cand;
       }catch(_){}
 
-      // Marquer connecté côté front (UX immédiate)
+      // Marquer connecté côté front
       try{ localStorage.setItem("ob_connected","1"); }catch(_){}
 
-      // Émettre l'event app
+      // Émettre un event app
       try{
         window.dispatchEvent(new CustomEvent("ob:subscription-active", {
-          detail: { status:"active", plan: plan, deviceId: localStorage.getItem("oneboarding.deviceId") || undefined, source: "Return" }
+          detail: { status:"active", plan: plan, source:"Return" }
         }));
       }catch(_){}
 
@@ -144,46 +145,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       clearParams(["paid"]);
     }
 
-    // Retour autorisation 1€ (nouvel appareil pour membre existant)
-    if(ppReturn && purpose==="authorize_device"){
-      var phone2 = "";
-      try{ phone2 = localStorage.getItem("oneboarding.phoneE164") || ""; }catch(_){}
-      try{
-        window.dispatchEvent(new CustomEvent("ob:device-authorized", {
-          detail: { status:"active", phoneE164: phone2, deviceId: device || undefined, planActive: true, source:"Return" }
-        }));
-      }catch(_){}
-      toast("Appareil autorisé.");
-      clearParams(["paypal_return","purpose","device"]);
-    }
-
-    // Annulations
+    // Annulation paiement
     if(cancel){
       toast("Paiement annulé.");
       clearParams(["cancel"]);
     }
-    if(ppCancel){
-      toast("Opération annulée.");
-      clearParams(["paypal_cancel","purpose","device"]);
-    }
+
   } catch(_) {}
-})();`,
+})();
+`,
           }}
         />
       </head>
 
       <body className="min-h-dvh bg-transparent text-black antialiased [color-scheme:light] selection:bg-black/10">
-        {/* Layout en colonne pour un footer fixe et sans overlap */}
         <div className="min-h-dvh flex flex-col">
           <main className="flex-1">
             <div className="mx-auto w-full max-w-xl px-4 pb-6">
               {children}
             </div>
           </main>
-          {/* Footer final – version 18px confirmée */}
           <Footer />
         </div>
       </body>
     </html>
   );
-}
+      }
