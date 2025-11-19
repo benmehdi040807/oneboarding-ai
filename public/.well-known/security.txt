@@ -2,7 +2,8 @@
 # Spécification : RFC 9116
 
 Contact: mailto:office.benmehdi@gmail.com
+Encryption: https://oneboardingai.com/pgp.txt
 Policy: https://oneboardingai.com/legal?lang=fr
 Preferred-Languages: fr, en
 Canonical: https://oneboardingai.com/.well-known/security.txt
-Expires: 2026-11-18T23:59:59Z
+Expires: 2026-12-31T23:59:59Z
