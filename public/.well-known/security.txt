@@ -1,0 +1,8 @@
+# security.txt — OneBoarding AI
+# Spécification : RFC 9116
+
+Contact: mailto:office.benmehdi@gmail.com
+Policy: https://oneboardingai.com/legal?lang=fr
+Preferred-Languages: fr, en
+Canonical: https://oneboardingai.com/.well-known/security.txt
+Expires: 2026-11-18T23:59:59Z
