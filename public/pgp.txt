@@ -1,0 +1,11 @@
+# pgp.txt — OneBoarding AI
+# Point d’accès prévu pour la clé publique PGP utilisée
+# pour le chiffrement des rapports de sécurité sensibles.
+
+Cette URL est réservée à la future publication de la clé publique PGP
+de OneBoarding AI.
+
+En attendant la mise en ligne de cette clé, merci d’utiliser le canal suivant :
+Contact: mailto:office.benmehdi@gmail.com
+
+Dernière mise à jour : 2025-11-18
