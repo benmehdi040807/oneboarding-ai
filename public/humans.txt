@@ -1,0 +1,24 @@
+/* humans.txt — OneBoarding AI */
+/* Déclare l’auteur humain et la philosophie du projet. */
+
+Team: Maître Benmehdi Mohamed Rida
+Role: Fondateur de OneBoarding AI – Avocat au Barreau de Casablanca, Docteur en droit, MBA (EILM – Dublin)
+Location: Casablanca, Maroc
+Website: https://oneboardingai.com
+Contact: mailto:office.benmehdi@gmail.com
+Twitter: (optionnel)
+LinkedIn: https://www.linkedin.com/in/benmehdi-rida
+Facebook: https://www.facebook.com/rida.benmehdi
+
+/* À propos */
+OneBoarding AI est conçu comme un pont entre le droit, la technologie et l’intelligence artificielle.
+Objectif : offrir à chaque personne un accès souverain, simple et sécurisé à sa propre intelligence numérique.
+
+/* Crédits techniques */
+Stack: Next.js 14, TypeScript, Edge Runtime, OpenAI API
+Design: Style Benmehdi – minimal, sobre, centré sur la lisibilité et la confiance.
+
+/* Respect des utilisateurs */
+Aucune donnée inutile n’est collectée.
+Le consentement est central, traçable et réversible.
+Voir: https://oneboardingai.com/protocol?lang=fr
