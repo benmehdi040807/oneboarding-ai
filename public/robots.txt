@@ -1,12 +1,16 @@
 # robots.txt — OneBoarding AI
 # Version : Indexation générale ouverte (ALLOW ALL)
-# Conçu pour : lancement public et référencement global
+# Optimisé pour Google, Bing, Meta, GPTBots et moteurs arabophones
 
-# 1) Autoriser tous les robots (Google, Bing, Baidu, Yandex, DuckDuckGo, etc.)
+# ===========================
+# 1) Autoriser tous les robots
+# ===========================
 User-agent: *
 Allow: /
 
+# ================================================
 # 2) Robots Meta (Facebook, Instagram, WhatsApp)
+# ================================================
 User-agent: facebookexternalhit
 Allow: /
 
@@ -25,5 +29,22 @@ Allow: /
 User-agent: WhatsApp
 Allow: /
 
-# 3) Sitemap officiel — utile pour Google & co.
+# ================================================
+# 3) Robots IA (GPT, ChatGPT, OpenAI Search)
+# ================================================
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# ================================================
+# 4) Robots Google Ads / Previews
+# ================================================
+User-agent: adsbot-google
+Allow: /
+
+# ============================
+# 5) Sitemap XML principal
+# ============================
 Sitemap: https://oneboardingai.com/sitemap.xml
