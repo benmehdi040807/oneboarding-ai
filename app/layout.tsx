@@ -68,11 +68,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Harmonise la barre d’adresse mobile / PWA */}
         <meta name="theme-color" content="#020617" />
 
+        {/* Google Search Console */}
+        <meta
+          name="google-site-verification"
+          content="4Bn1SZvmZ8NaA6tQbTYy2tt1lXnlzJBebFkUta5gSxc"
+        />
+
         {/* PWA / Manifest */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
         <meta name="application-name" content="OneBoarding AI" />
         <meta name="apple-mobile-web-app-title" content="OneBoarding AI" />
 
@@ -170,4 +179,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
-      }
+}
