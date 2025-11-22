@@ -382,10 +382,15 @@ export default function Menu() {
 
   async function sendConsentToServer(silent = false): Promise<string | null> {
     try {
+      const deviceId = getOrCreateDeviceId();
+
       const res = await fetch("/api/consent", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-ob-device-id": deviceId,
+        },
       });
 
       if (!res.ok) {
@@ -398,7 +403,7 @@ export default function Menu() {
       const data: any = await res.json().catch(() => null);
       // On tolère plusieurs formes de payload
       const consentAt: string | null =
-        data?.consentAt ?? data?.user?.consentAt ?? null;
+        data?.user?.consentAt ?? data?.consentAt ?? null;
 
       return consentAt ?? new Date().toISOString();
     } catch {
@@ -1619,4 +1624,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-}
+  }
