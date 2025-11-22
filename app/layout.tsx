@@ -102,9 +102,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   ],
                   honorificPrefix: "Maître",
                   jobTitle:
-                    "Avocat au Barreau de Casablanca, Docteur en droit, MBA (EILM – Dublin), Fondateur de l’Office Benmehdi et de OneBoarding AI",
+                    "Avocat au Barreau de Casablanca, Docteur en droit, MBA in Business Administration (EILM – Dublin), Fondateur de l’Office Benmehdi et de OneBoarding AI",
                   description:
-                    "Benmehdi Mohamed Rida est avocat au Barreau de Casablanca, docteur en droit privé (mention très honorable) et titulaire d’un MBA de l’EILM – Dublin. Lauréat de l’Institut Supérieur de la Magistrature, ancien Substitut du Procureur du Roi à Marrakech et El Kelaâ des Sraghna, il est le fondateur de l’Office Benmehdi et de OneBoarding AI, un protocole d’intelligence artificielle personnelle fondé sur le consentement numérique souverain et le Droit d’Accès Intelligent (2025–2030).",
+                    "Benmehdi Mohamed Rida est avocat au Barreau de Casablanca, docteur en droit privé (mention très honorable) et titulaire d’un MBA in Business Administration (EILM – Dublin). Lauréat de l’Institut Supérieur de la Magistrature, ancien Substitut du Procureur du Roi à Marrakech et El Kelaâ des Sraghna, il est le fondateur de l’Office Benmehdi et de OneBoarding AI, un protocole d’intelligence artificielle personnelle fondé sur le consentement numérique souverain et le Droit d’Accès Intelligent (2025–2030).",
                   url: "https://oneboardingai.com",
                   nationality: {
                     "@type": "Country",
