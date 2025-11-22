@@ -1,6 +1,7 @@
 // components/Menu.tsx
 "use client";
 
+import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   legalCopyFor,
@@ -25,6 +26,7 @@ type PendingData = {
 /** ===================== Constantes ===================== */
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
 const CONSENT_AT_KEY = "oneboarding.legalConsentAt";
+const CONSENT_SYNC_KEY = "oneboarding.legalConsentSynced.v1";
 const DEVICE_ID_KEY = "oneboarding.deviceId";
 
 const POLL_INTERVAL_MS = 12000; // ~12s
@@ -101,6 +103,16 @@ function formatCountdown(ms: number) {
   const mm = Math.floor(total / 60);
   const ss = total % 60;
   return `${two(mm)}:${two(ss)}`;
+}
+
+function consentErrorMessage(lang: Lang): string {
+  if (lang === "en") {
+    return "Unable to record your consent online. Please try again.";
+  }
+  if (lang === "ar") {
+    return "تعذّر تسجيل الموافقة عبر الخادم. يُرجى المحاولة مرة أخرى.";
+  }
+  return "Impossible d’enregistrer votre consentement en ligne. Veuillez réessayer.";
 }
 
 /** ===================== i18n ===================== */
@@ -366,6 +378,37 @@ export default function Menu() {
 
   const t = useMemo(() => I18N[lang], [lang]);
 
+  // ===================== Helper : POST /api/consent =====================
+
+  async function sendConsentToServer(silent = false): Promise<string | null> {
+    try {
+      const res = await fetch("/api/consent", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        if (!silent) {
+          toast(consentErrorMessage(lang));
+        }
+        return null;
+      }
+
+      const data: any = await res.json().catch(() => null);
+      // On tolère plusieurs formes de payload
+      const consentAt: string | null =
+        data?.consentAt ?? data?.user?.consentAt ?? null;
+
+      return consentAt ?? new Date().toISOString();
+    } catch {
+      if (!silent) {
+        toast(consentErrorMessage(lang));
+      }
+      return null;
+    }
+  }
+
   // ===================== Sync backend -> état local =====================
 
   async function refreshAccountStatusFromServer() {
@@ -445,6 +488,31 @@ export default function Menu() {
       setMessages(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
     } catch {}
+  }, []);
+
+  // Rattrapage silencieux : si consentement local mais pas encore synchronisé DB
+  useEffect(() => {
+    try {
+      const hasConsentLocal = localStorage.getItem(CONSENT_KEY) === "1";
+      const synced = localStorage.getItem(CONSENT_SYNC_KEY) === "1";
+      if (!hasConsentLocal || synced) return;
+
+      void (async () => {
+        const consentAt = await sendConsentToServer(true);
+        if (consentAt) {
+          try {
+            localStorage.setItem(CONSENT_SYNC_KEY, "1");
+            localStorage.setItem(
+              CONSENT_AT_KEY,
+              String(new Date(consentAt).getTime())
+            );
+          } catch {}
+        }
+      })();
+    } catch {
+      // silencieux
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Au montage, on essaie déjà de resynchroniser avec le backend
@@ -865,16 +933,32 @@ export default function Menu() {
     setLegalOpen(true);
     pushHistoryFor("legal");
   }
-  function acceptLegal() {
-    if (!consented) {
-      try {
-        localStorage.setItem(CONSENT_KEY, "1");
-        localStorage.setItem(CONSENT_AT_KEY, String(Date.now()));
-      } catch {}
-      setConsented(true);
-      window.dispatchEvent(new Event("ob:consent-updated"));
-      toast("Merci, consentement enregistré.");
+
+  async function acceptLegal() {
+    // si déjà consenti, on ne spam pas l'API
+    if (consented) {
+      closeLegalModal();
+      return;
     }
+
+    const consentAt = await sendConsentToServer(false);
+    if (!consentAt) {
+      // erreur déjà signalée via toast
+      return;
+    }
+
+    try {
+      localStorage.setItem(CONSENT_KEY, "1");
+      localStorage.setItem(
+        CONSENT_AT_KEY,
+        String(new Date(consentAt).getTime())
+      );
+      localStorage.setItem(CONSENT_SYNC_KEY, "1");
+    } catch {}
+
+    setConsented(true);
+    window.dispatchEvent(new Event("ob:consent-updated"));
+    toast(t.LEGAL.CONSENTED);
     closeLegalModal();
   }
 
@@ -1244,7 +1328,7 @@ export default function Menu() {
                   setDeactivateOpen(false);
                   setDeactivateStep(1);
                 }}
-                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg:white/15 hover:bg-white/15 text-white"
               >
                 {t.ACC.DEACT_CANCEL}
               </button>
@@ -1309,7 +1393,9 @@ export default function Menu() {
                 </button>
               )}
               <button
-                onClick={acceptLegal}
+                onClick={() => {
+                  void acceptLegal();
+                }}
                 className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
               >
                 {t.LEGAL.ACCEPT}
@@ -1533,4 +1619,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-        }
+}
