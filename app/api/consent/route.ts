@@ -1,11 +1,11 @@
 // app/api/consent/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth"; // ou ton helper d’auth actuel
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser(); // identifie par session / phoneE164
+    const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: "Utilisateur non authentifié" },
