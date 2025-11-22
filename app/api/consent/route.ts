@@ -1,4 +1,3 @@
-// app/api/consent/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionPhone } from "@/lib/auth";
@@ -9,6 +8,7 @@ type UserLite = {
   consentAt: Date | null;
 };
 
+// 1) Chemin session : cookie ob_session -> phoneE164 -> user
 async function findUserFromSession(): Promise<UserLite | null> {
   const phone = getSessionPhone();
   if (!phone) return null;
@@ -18,28 +18,34 @@ async function findUserFromSession(): Promise<UserLite | null> {
     select: { id: true, phoneE164: true, consentAt: true },
   });
 
-  return user ?? null;
+  return user;
 }
 
+// 2) Chemin device : deviceId -> user (via relation devices[])
 async function findUserFromDeviceId(deviceId: string): Promise<UserLite | null> {
-  const device = await prisma.device.findUnique({
-    where: { deviceId },
-    select: {
-      user: { select: { id: true, phoneE164: true, consentAt: true } },
+  if (!deviceId) return null;
+
+  const user = await prisma.user.findFirst({
+    where: {
+      devices: {
+        some: { deviceId },
+      },
     },
+    select: { id: true, phoneE164: true, consentAt: true },
   });
 
-  return device?.user ?? null;
+  return user;
 }
 
+// 3) Route POST /api/consent
 export async function POST(req: NextRequest) {
   try {
-    const deviceId = req.headers.get("x-ob-device-id") ?? undefined;
+    const deviceId = req.headers.get("x-ob-device-id") ?? "";
 
-    // 1) D'abord via la session (cookie ob_session)
+    // a) on tente d'abord par la session
     let user = await findUserFromSession();
 
-    // 2) Si pas de session valide, on tente via le device appairé
+    // b) sinon, on tente via le device (pairing réussi)
     if (!user && deviceId) {
       user = await findUserFromDeviceId(deviceId);
     }
@@ -51,6 +57,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Si déjà consenti : on renvoie tel quel (idempotent)
+    if (user.consentAt) {
+      return NextResponse.json(
+        {
+          ok: true,
+          user: {
+            id: user.id,
+            phoneE164: user.phoneE164,
+            consentAt: user.consentAt,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
     const now = new Date();
 
     const updated = await prisma.user.update({
@@ -59,7 +80,13 @@ export async function POST(req: NextRequest) {
       select: { id: true, phoneE164: true, consentAt: true },
     });
 
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        user: updated,
+      },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("Erreur enregistrement consentement", err);
     return NextResponse.json(
