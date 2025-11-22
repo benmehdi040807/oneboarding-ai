@@ -1,6 +1,6 @@
 // app/api/consent/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth"; // ou ton helper d’auth actuel
 
 export async function POST(req: NextRequest) {
