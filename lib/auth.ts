@@ -2,6 +2,8 @@
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { userHasPaidAccess } from "@/lib/subscriptions";
+import { prisma } from "@/lib/db";          // ⬅️ NEW
+import type { User } from "@prisma/client"; // ⬅️ NEW
 
 type SessionPayload = {
   sub: string;           // phoneE164
@@ -41,7 +43,9 @@ export function getSessionPayload(): SessionPayload | null {
 
     if (expected !== s) return null;
 
-    const payload = JSON.parse(Buffer.from(b, "base64url").toString()) as SessionPayload;
+    const payload = JSON.parse(
+      Buffer.from(b, "base64url").toString()
+    ) as SessionPayload;
 
     // exp/iat en SECONDES (Unix)
     if (!payload?.exp || Date.now() / 1000 > payload.exp) return null;
@@ -82,3 +86,21 @@ export async function assertPaidAccess(): Promise<{ ok: boolean; phone?: string 
 
   return { ok: true, phone };
 }
+
+/**
+ * Récupère l'utilisateur courant en base à partir de la session.
+ * Utilisé par /api/consent (et réutilisable ailleurs).
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  const phone = getSessionPhone();
+  if (!phone) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { phoneE164: phone },
+    });
+    return user;
+  } catch {
+    return null;
+  }
+                      }
