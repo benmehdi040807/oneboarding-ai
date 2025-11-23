@@ -502,6 +502,14 @@ export default function Menu() {
       const synced = localStorage.getItem(CONSENT_SYNC_KEY) === "1";
       if (!hasConsentLocal || synced) return;
 
+      // On ne tente la synchro que pour un vrai membre (présent en DB)
+      const isMember =
+        connected ||
+        spaceActive ||
+        !!localStorage.getItem("oneboarding.phoneE164");
+
+      if (!isMember) return;
+
       void (async () => {
         const consentAt = await sendConsentToServer(true);
         if (consentAt) {
@@ -517,8 +525,7 @@ export default function Menu() {
     } catch {
       // silencieux
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [connected, spaceActive]);
 
   // Au montage, on essaie déjà de resynchroniser avec le backend
   useEffect(() => {
@@ -940,41 +947,41 @@ export default function Menu() {
   }
 
   async function acceptLegal() {
-    let alreadySynced = false;
-    try {
-      alreadySynced = localStorage.getItem(CONSENT_SYNC_KEY) === "1";
-    } catch {
-      alreadySynced = false;
-    }
-
-    // Cas 1 : consentement déjà donné ET déjà synchronisé en base
-    // -> on ferme simplement la fenêtre, rien à refaire.
-    if (consented && alreadySynced) {
-      closeLegalModal();
-      return;
-    }
-
-    // Cas 2 : soit premier consentement, soit ancien consentement jamais synchronisé
-    const consentAt = await sendConsentToServer(false);
-    if (!consentAt) {
-      // Erreur déjà signalée par toast
-      return;
-    }
-
+    // 1) Toujours marquer localement le clic, pour tout le monde
     try {
       localStorage.setItem(CONSENT_KEY, "1");
-      localStorage.setItem(
-        CONSENT_AT_KEY,
-        String(new Date(consentAt).getTime())
-      );
-      localStorage.setItem(CONSENT_SYNC_KEY, "1");
     } catch {}
 
+    // 2) Déterminer si on est face à un vrai membre (présent en DB)
+    const isMember =
+      connected ||
+      spaceActive ||
+      !!localStorage.getItem("oneboarding.phoneE164");
+
+    let consentAt: string | null = null;
+
+    // 3) Si membre → on synchronise tout de suite en base
+    if (isMember) {
+      consentAt = await sendConsentToServer(false);
+      if (!consentAt) {
+        // L'erreur (401, etc.) a déjà été signalée par toast
+        return;
+      }
+      try {
+        localStorage.setItem(CONSENT_SYNC_KEY, "1");
+        localStorage.setItem(
+          CONSENT_AT_KEY,
+          String(new Date(consentAt).getTime())
+        );
+      } catch {}
+    }
+
+    // 4) Mise à jour UI (membre ou pas, le clic est bien pris en compte localement)
     setConsented(true);
     window.dispatchEvent(new Event("ob:consent-updated"));
     toast(t.LEGAL.CONSENTED);
     closeLegalModal();
-                           }
+  }
 
   /** ============ Navigation native (history) ============ */
   function pushHistoryFor(kind: "menu" | "legal") {
