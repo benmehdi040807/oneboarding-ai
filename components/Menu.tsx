@@ -940,15 +940,24 @@ export default function Menu() {
   }
 
   async function acceptLegal() {
-    // si déjà consenti, on ne spam pas l'API
-    if (consented) {
+    let alreadySynced = false;
+    try {
+      alreadySynced = localStorage.getItem(CONSENT_SYNC_KEY) === "1";
+    } catch {
+      alreadySynced = false;
+    }
+
+    // Cas 1 : consentement déjà donné ET déjà synchronisé en base
+    // -> on ferme simplement la fenêtre, rien à refaire.
+    if (consented && alreadySynced) {
       closeLegalModal();
       return;
     }
 
+    // Cas 2 : soit premier consentement, soit ancien consentement jamais synchronisé
     const consentAt = await sendConsentToServer(false);
     if (!consentAt) {
-      // erreur déjà signalée via toast
+      // Erreur déjà signalée par toast
       return;
     }
 
@@ -965,7 +974,7 @@ export default function Menu() {
     window.dispatchEvent(new Event("ob:consent-updated"));
     toast(t.LEGAL.CONSENTED);
     closeLegalModal();
-  }
+                           }
 
   /** ============ Navigation native (history) ============ */
   function pushHistoryFor(kind: "menu" | "legal") {
