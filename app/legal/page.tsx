@@ -19,7 +19,7 @@ function isEmbed(sp?: URLSearchParams): boolean {
   return sp?.get("embed") === "1";
 }
 
-/* ===== Meta description dynamique (client) ===== */
+/* ===== Meta description ===== */
 function descFor(lang: Lang) {
   if (lang === "ar")
     return "OneBoarding AI — المعلومات القانونية: البيان، شروط الاستخدام، والخصوصية.";
@@ -33,7 +33,6 @@ export default function LegalPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // lecture naïve des query params (sans client JS)
   const sp =
     typeof searchParams === "object"
       ? new URLSearchParams(
@@ -54,16 +53,15 @@ export default function LegalPage({
       ? "Read & approved"
       : "Lu et approuvé";
 
-  // 🔹 Nouveau texte global : usage = acceptation (style Google)
-  const consentText =
+  /* ★★★★★ Nouveau texte final ★★★★★ */
+  const finalConsentText =
     lang === "ar"
-      ? "باستخدامك لمنصّة OneBoarding AI، فإنك تقبل بشروط الاستخدام وسياسة الخصوصية الخاصة بنا. يُعتبَر استعمال الخدمة موافقةً كاملة، سواء تمّ تأكيدها صراحةً أم لا."
+      ? "باستخدامكم OneBoarding AI، فإنكم توافقون على شروط الاستخدام وسياسة الخصوصية. ويُعتبَر استعمال الخدمة موافقة كاملة، سواء مع التأكيد الصريح أو بدونه."
       : lang === "en"
       ? "By using OneBoarding AI, you accept our Terms of Use and Privacy Policy. Using the service constitutes full approval, with or without explicit confirmation."
       : "En utilisant OneBoarding AI, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité. L’usage du service vaut approbation complète, avec ou sans confirmation explicite.";
 
-  const langLabel =
-    lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:";
+  const langLabel = lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:";
 
   const linksTitle =
     lang === "ar"
@@ -72,7 +70,6 @@ export default function LegalPage({
       ? "For additional information, please consult:"
       : "Pour toute information complémentaire, vous pouvez consulter:";
 
-  // Liens localisés (comme /terms)
   const qs = lang === "fr" ? "" : `?lang=${lang}`;
   const links = {
     deleteHref: `/delete${qs}`,
@@ -82,41 +79,22 @@ export default function LegalPage({
   };
 
   return (
-    <main
-      className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${
-        embed ? "pt-4" : ""
-      }`}
-    >
-      {/* Meta description dynamique, injectée côté client sans transformer la page en client component */}
+    <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
       <script
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{
-          __html: `
-(function(){
-  try {
-    var desc = ${JSON.stringify(descFor(lang))};
-    var m = document.querySelector('meta[name="description"]');
-    if (m) { m.setAttribute('content', desc); }
-    else {
-      m = document.createElement('meta');
-      m.name = 'description';
-      m.content = desc;
-      document.head.appendChild(m);
-    }
-  } catch(e) {}
-})();`,
+          __html: `(function(){try{var d=${JSON.stringify(
+            descFor(lang)
+          )};var m=document.querySelector('meta[name="description"]');if(m){m.setAttribute('content',d);}else{m=document.createElement('meta');m.name='description';m.content=d;document.head.appendChild(m);}}catch(e){}})();`,
         }}
       />
 
       {!embed && (
-        <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
+        <nav className="mb-5 text-sm">
           <span className="opacity-70 mr-2">{langLabel}</span>
           <a
             href="?lang=fr"
             className={`px-2 py-1 rounded border mr-1 ${
-              lang === "fr"
-                ? "bg-black text-white border-black"
-                : "border-black/20"
+              lang === "fr" ? "bg-black text-white border-black" : "border-black/20"
             }`}
           >
             FR
@@ -124,9 +102,7 @@ export default function LegalPage({
           <a
             href="?lang=en"
             className={`px-2 py-1 rounded border mr-1 ${
-              lang === "en"
-                ? "bg-black text-white border-black"
-                : "border-black/20"
+              lang === "en" ? "bg-black text-white border-black" : "border-black/20"
             }`}
           >
             EN
@@ -134,9 +110,7 @@ export default function LegalPage({
           <a
             href="?lang=ar"
             className={`px-2 py-1 rounded border ${
-              lang === "ar"
-                ? "bg-black text-white border-black"
-                : "border-black/20"
+              lang === "ar" ? "bg-black text-white border-black" : "border-black/20"
             }`}
           >
             AR
@@ -148,8 +122,7 @@ export default function LegalPage({
 
       <article dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-4 leading-6">
         {t.sections.map((s, i) => {
-          if (s.kind === "hr")
-            return <hr key={i} className="border-black/10 my-2" />;
+          if (s.kind === "hr") return <hr key={i} className="border-black/10 my-2" />;
           if (s.kind === "h2")
             return (
               <h2 key={i} className="text-lg font-semibold mt-4">
@@ -161,7 +134,7 @@ export default function LegalPage({
               <p
                 key={i}
                 className="opacity-90"
-                dangerouslySetInnerHTML={{ __html: (s as any).text }}
+                dangerouslySetInnerHTML={{ __html: (s as any).html }}
               />
             ) : (
               <p key={i} className="opacity-90">
@@ -172,55 +145,39 @@ export default function LegalPage({
             return (
               <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
                 {"items" in s &&
-                  (s as any).items.map((li: string, j: number) => (
-                    <li key={j}>{li}</li>
-                  ))}
+                  (s as any).items.map((li: string, j: number) => <li key={j}>{li}</li>)}
               </ul>
             );
           return null;
         })}
 
-        {/* ===== Section liens complémentaires (avant la section Version) ===== */}
         <hr className="border-black/10 my-3" />
         <div className="opacity-90">
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a
-                href={links.deleteHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.deleteHref} className="underline text-blue-700">
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a
-                href={links.termsHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.termsHref} className="underline text-blue-700">
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a
-                href={links.protocolHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.protocolHref} className="underline text-blue-700">
                 oneboardingai.com/protocol
               </a>
             </li>
             <li>
-              <a
-                href={links.trademarkHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.trademarkHref} className="underline text-blue-700">
                 oneboardingai.com/trademark
               </a>
             </li>
           </ul>
         </div>
 
-        {/* ===== Section Version (harmonisée : petite taille + espacement serré) ===== */}
         <hr className="border-black/10 my-3" />
         <div className="text-sm leading-tight space-y-0.5">
           <h3 className="font-semibold">{t.version.h}</h3>
@@ -228,27 +185,24 @@ export default function LegalPage({
           <p className="opacity-90">{t.version.note}</p>
         </div>
 
-        {/* 🔹 Nouveau paragraphe légal — toujours visible, embed ou non */}
-        <p className="mt-6 text-sm opacity-70">{consentText}</p>
-
-        {/* Bouton explicite : facultatif, seulement hors embed */}
+        {/* ★★★★★ Nouveau paragraphe visible quand !embed ★★★★★ */}
         {!embed && (
-          <p className="mt-3 text-center">
-            <a
-              href="/"
-              className="
-                inline-block px-5 py-2 rounded-xl border border-transparent
-                bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                text-white shadow-sm hover:opacity-90 transition
-              "
-            >
-              {approveLabel}
-            </a>
-          </p>
+          <>
+            <p className="mt-6 text-sm opacity-70">{finalConsentText}</p>
+
+            <p className="mt-3 text-center">
+              <a
+                href="/"
+                className="inline-block px-5 py-2 rounded-xl border border-transparent bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 text-white shadow-sm hover:opacity-90 transition"
+              >
+                {approveLabel}
+              </a>
+            </p>
+          </>
         )}
       </article>
 
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-                }
+      }
