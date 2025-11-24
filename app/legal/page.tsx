@@ -48,16 +48,22 @@ export default function LegalPage({
   const t = COPY[lang];
 
   const approveLabel =
-    lang === "ar" ? "تمّ الاطلاع والموافقة" : lang === "en" ? "Read & approved" : "Lu et approuvé";
+    lang === "ar"
+      ? "تمّ الاطلاع والموافقة"
+      : lang === "en"
+      ? "Read & approved"
+      : "Lu et approuvé";
 
+  // 🔹 Nouveau texte global : usage = acceptation (style Google)
   const consentText =
     lang === "ar"
-      ? "بدخولك إلى الخدمة، فإنك تُقِرّ بأنك اطلعت على هذه المعلومات. تبقى قواعد النظام العام المعمول بها في بلد المستخدم سارية المفعول بالكامل."
+      ? "باستخدامك لمنصّة OneBoarding AI، فإنك تقبل بشروط الاستخدام وسياسة الخصوصية الخاصة بنا. يُعتبَر استعمال الخدمة موافقةً كاملة، سواء تمّ تأكيدها صراحةً أم لا."
       : lang === "en"
-      ? "By accessing the service, you acknowledge having taken note of this information. Public-order rules applicable in the user’s country remain fully enforceable."
-      : "En accédant au service, vous reconnaissez avoir pris connaissance de ces informations. Les règles d’ordre public applicables dans le pays de l’utilisateur demeurent de plein droit.";
+      ? "By using OneBoarding AI, you accept our Terms of Use and Privacy Policy. Using the service constitutes full approval, with or without explicit confirmation."
+      : "En utilisant OneBoarding AI, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité. L’usage du service vaut approbation complète, avec ou sans confirmation explicite.";
 
-  const langLabel = lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:";
+  const langLabel =
+    lang === "ar" ? "اللغة:" : lang === "en" ? "Language:" : "Langue:";
 
   const linksTitle =
     lang === "ar"
@@ -76,7 +82,11 @@ export default function LegalPage({
   };
 
   return (
-    <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
+    <main
+      className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${
+        embed ? "pt-4" : ""
+      }`}
+    >
       {/* Meta description dynamique, injectée côté client sans transformer la page en client component */}
       <script
         // eslint-disable-next-line react/no-danger
@@ -104,7 +114,9 @@ export default function LegalPage({
           <a
             href="?lang=fr"
             className={`px-2 py-1 rounded border mr-1 ${
-              lang === "fr" ? "bg-black text-white border-black" : "border-black/20"
+              lang === "fr"
+                ? "bg-black text-white border-black"
+                : "border-black/20"
             }`}
           >
             FR
@@ -112,7 +124,9 @@ export default function LegalPage({
           <a
             href="?lang=en"
             className={`px-2 py-1 rounded border mr-1 ${
-              lang === "en" ? "bg-black text-white border-black" : "border-black/20"
+              lang === "en"
+                ? "bg-black text-white border-black"
+                : "border-black/20"
             }`}
           >
             EN
@@ -120,7 +134,9 @@ export default function LegalPage({
           <a
             href="?lang=ar"
             className={`px-2 py-1 rounded border ${
-              lang === "ar" ? "bg-black text-white border-black" : "border-black/20"
+              lang === "ar"
+                ? "bg-black text-white border-black"
+                : "border-black/20"
             }`}
           >
             AR
@@ -132,7 +148,8 @@ export default function LegalPage({
 
       <article dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-4 leading-6">
         {t.sections.map((s, i) => {
-          if (s.kind === "hr") return <hr key={i} className="border-black/10 my-2" />;
+          if (s.kind === "hr")
+            return <hr key={i} className="border-black/10 my-2" />;
           if (s.kind === "h2")
             return (
               <h2 key={i} className="text-lg font-semibold mt-4">
@@ -144,7 +161,7 @@ export default function LegalPage({
               <p
                 key={i}
                 className="opacity-90"
-                dangerouslySetInnerHTML={{ __html: (s as any).html }}
+                dangerouslySetInnerHTML={{ __html: (s as any).text }}
               />
             ) : (
               <p key={i} className="opacity-90">
@@ -155,7 +172,9 @@ export default function LegalPage({
             return (
               <ul key={i} className="list-disc pl-5 space-y-1.5 opacity-90">
                 {"items" in s &&
-                  (s as any).items.map((li: string, j: number) => <li key={j}>{li}</li>)}
+                  (s as any).items.map((li: string, j: number) => (
+                    <li key={j}>{li}</li>
+                  ))}
               </ul>
             );
           return null;
@@ -167,22 +186,34 @@ export default function LegalPage({
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.deleteHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.termsHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.protocolHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/protocol
               </a>
             </li>
             <li>
-              <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
+              <a
+                href={links.trademarkHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/trademark
               </a>
             </li>
@@ -197,29 +228,27 @@ export default function LegalPage({
           <p className="opacity-90">{t.version.note}</p>
         </div>
 
-        {!embed && (
-          <>
-            {/* Texte de consentement (petit & atténué) */}
-            <p className="mt-6 text-sm opacity-70">{consentText}</p>
+        {/* 🔹 Nouveau paragraphe légal — toujours visible, embed ou non */}
+        <p className="mt-6 text-sm opacity-70">{consentText}</p>
 
-            {/* Bouton – même classes que /terms & /trademark */}
-            <p className="mt-3 text-center">
-              <a
-                href="/"
-                className="
-                  inline-block px-5 py-2 rounded-xl border border-transparent
-                  bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
-                  text-white shadow-sm hover:opacity-90 transition
-                "
-              >
-                {approveLabel}
-              </a>
-            </p>
-          </>
+        {/* Bouton explicite : facultatif, seulement hors embed */}
+        {!embed && (
+          <p className="mt-3 text-center">
+            <a
+              href="/"
+              className="
+                inline-block px-5 py-2 rounded-xl border border-transparent
+                bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400
+                text-white shadow-sm hover:opacity-90 transition
+              "
+            >
+              {approveLabel}
+            </a>
+          </p>
         )}
       </article>
 
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-        }
+                }
