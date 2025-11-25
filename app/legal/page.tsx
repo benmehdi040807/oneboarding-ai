@@ -19,7 +19,7 @@ function isEmbed(sp?: URLSearchParams): boolean {
   return sp?.get("embed") === "1";
 }
 
-/* ===== Meta description ===== */
+/* ===== Meta description dynamique ===== */
 function descFor(lang: Lang) {
   if (lang === "ar")
     return "OneBoarding AI — المعلومات القانونية: البيان، شروط الاستخدام، والخصوصية.";
@@ -53,7 +53,7 @@ export default function LegalPage({
       ? "Read & approved"
       : "Lu et approuvé";
 
-  /* ★★★★★ Nouveau texte final ★★★★★ */
+  // ✔ Texte final Google-style : utilisation = acceptation
   const finalConsentText =
     lang === "ar"
       ? "باستخدامكم OneBoarding AI، فإنكم توافقون على شروط الاستخدام وسياسة الخصوصية. ويُعتبَر استعمال الخدمة موافقة كاملة، سواء مع التأكيد الصريح أو بدونه."
@@ -80,6 +80,7 @@ export default function LegalPage({
 
   return (
     <main className={`px-4 py-8 mx-auto w-full max-w-2xl text-black ${embed ? "pt-4" : ""}`}>
+      {/* Meta description dynamique */}
       <script
         dangerouslySetInnerHTML={{
           __html: `(function(){try{var d=${JSON.stringify(
@@ -89,7 +90,7 @@ export default function LegalPage({
       />
 
       {!embed && (
-        <nav className="mb-5 text-sm">
+        <nav className="mb-5 text-sm" aria-label="Sélecteur de langue">
           <span className="opacity-70 mr-2">{langLabel}</span>
           <a
             href="?lang=fr"
@@ -151,33 +152,38 @@ export default function LegalPage({
           return null;
         })}
 
+        {/* Liens complémentaires */}
         <hr className="border-black/10 my-3" />
         <div className="opacity-90">
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a href={links.deleteHref} className="underline text-blue-700">
+              <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a href={links.termsHref} className="underline text-blue-700">
+              <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a href={links.protocolHref} className="underline text-blue-700">
+              <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/protocol
               </a>
             </li>
             <li>
-              <a href={links.trademarkHref} className="underline text-blue-700">
+              <a
+                href={links.trademarkHref}
+                className="underline text-blue-700 hover:text-blue-900"
+              >
                 oneboardingai.com/trademark
               </a>
             </li>
           </ul>
         </div>
 
+        {/* Version */}
         <hr className="border-black/10 my-3" />
         <div className="text-sm leading-tight space-y-0.5">
           <h3 className="font-semibold">{t.version.h}</h3>
@@ -185,11 +191,10 @@ export default function LegalPage({
           <p className="opacity-90">{t.version.note}</p>
         </div>
 
-        {/* ★★★★★ Nouveau paragraphe visible quand !embed ★★★★★ */}
+        {/* Paragraphe final + bouton (page complète uniquement) */}
         {!embed && (
           <>
             <p className="mt-6 text-sm opacity-70">{finalConsentText}</p>
-
             <p className="mt-3 text-center">
               <a
                 href="/"
@@ -205,4 +210,4 @@ export default function LegalPage({
       <style>{`.nowrap-ar{white-space:nowrap;font-weight:700;}`}</style>
     </main>
   );
-      }
+          }
