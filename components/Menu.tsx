@@ -184,12 +184,8 @@ const I18N: Record<Lang, any> = {
       ACCEPT: "Lu et approuvé",
       LATER: "Plus tard",
       TITLE: "Informations légales",
-      CONSENT_NOTE:
-        "En cliquant sur « Lu et approuvé », vous confirmez avoir pris connaissance de ces informations.",
+      CONSENT_NOTE: "L’utilisation de ce service vaut acceptation de nos Conditions.",
       CONSENTED: "Consentement enregistré.",
-      // ✅ Paragraphe Google-style (utilisation = acceptation)
-      USAGE:
-        "En utilisant OneBoarding AI, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité. L’usage du service vaut approbation complète, avec ou sans confirmation explicite.",
     },
   },
   en: {
@@ -259,11 +255,8 @@ const I18N: Record<Lang, any> = {
       ACCEPT: "Read & approved",
       LATER: "Later",
       TITLE: "Legal information",
-      CONSENT_NOTE:
-        "By clicking “Read & approved”, you acknowledge having read this information.",
+      CONSENT_NOTE: "Using this service constitutes acceptance of our Terms.",
       CONSENTED: "Consent recorded.",
-      USAGE:
-        "By using OneBoarding AI, you accept our Terms of Use and Privacy Policy. Using the service constitutes full approval, with or without explicit confirmation.",
     },
   },
   ar: {
@@ -303,8 +296,7 @@ const I18N: Record<Lang, any> = {
       DONE_NEUTRAL: "انتهى الطلب. يُرجى التحقق من الجهاز الجديد.",
       // Deactivation (double confirm)
       DEACT_STEP1_TITLE: "إيقاف مساحتي؟",
-      DEACT_STEP1_MSG:
-        "هل ترغب حقاً في إيقاف مساحتك؟\nيُرجى التأكيد.",
+      DEACT_STEP1_MSG: "هل ترغب حقاً في إيقاف مساحتك؟\nيُرجى التأكيد.",
       DEACT_STEP2_TITLE: "نهاية المساحة النشطة",
       DEACT_STEP2_MSG:
         "بإيقاف مساحتك، سينتهي اشتراكك\nوسيتم تقييد وصولك.",
@@ -333,10 +325,8 @@ const I18N: Record<Lang, any> = {
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
       CONSENT_NOTE:
-        "بالنقر على «قُرِئ وتمت الموافقة» فأنت تُقرّ بأنك اطّلعت على هذه المعلومات.",
+        "إن استعمال هذه الخدمة يُعد قبولاً لشروطنا.",
       CONSENTED: "تم تسجيل الموافقة.",
-      USAGE:
-        "باستخدامكم OneBoarding AI، فإنكم توافقون على شروط الاستخدام وسياسة الخصوصية. ويُعتبَر استعمال الخدمة موافقة كاملة، سواء مع التأكيد الصريح أو بدونه.",
     },
   },
 };
@@ -1122,17 +1112,17 @@ export default function Menu() {
                       </div>
                       <div>
                         {t.ACC.CONN}:{" "}
-                        <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
+                          <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
                       </div>
                       <div>
                         {t.ACC.PLAN}:{" "}
-                          <b>
-                            {plan === "subscription"
-                              ? t.ACC.SUB
-                              : plan === "one-month"
-                              ? t.ACC.ONEOFF
-                              : t.ACC.NONE}
-                          </b>
+                        <b>
+                          {plan === "subscription"
+                            ? t.ACC.SUB
+                            : plan === "one-month"
+                            ? t.ACC.ONEOFF
+                            : t.ACC.NONE}
+                        </b>
                       </div>
                     </div>
                   </div>
@@ -1278,11 +1268,9 @@ export default function Menu() {
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
-              {!consented && (
-                <p className="text-xs opacity-80 mt-3">
-                  {t.LEGAL.CONSENT_NOTE}
-                </p>
-              )}
+              <p className="text-xs opacity-80 mt-3">
+                {t.LEGAL.CONSENT_NOTE}
+              </p>
             </Accordion>
           </div>
         </div>
@@ -1339,7 +1327,7 @@ export default function Menu() {
               setDeactivateStep(1);
             }}
           />
-          <div className="relative mx-4 w	full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
+          <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             <h2 className="text-lg font-semibold mb-2">
               {deactivateStep === 1
                 ? t.ACC.DEACT_STEP1_TITLE
@@ -1408,13 +1396,13 @@ export default function Menu() {
             </div>
 
             <p className="text-xs opacity-70 mt-3">
-              {consented ? t.LEGAL.CONSENTED : t.LEGAL.CONSENT_NOTE}
+              {t.LEGAL.CONSENT_NOTE}
             </p>
-
-            {/* ✅ Paragraphe d’usage – même logique que /legal, juste avant les boutons */}
-            <p className="mt-2 text-sm opacity-70 text-center">
-              {t.LEGAL.USAGE}
-            </p>
+            {consented && (
+              <p className="text-xs opacity-70 mt-1">
+                {t.LEGAL.CONSENTED}
+              </p>
+            )}
 
             <div className="mt-3 flex items-center justify-end gap-2">
               {!consented && (
@@ -1560,6 +1548,14 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
     trademarkHref: `/trademark${qs}`,
   };
 
+  // Texte juridique final (intégré au document scrollable)
+  const finalParagraph =
+    lang === "ar"
+      ? "باستخدامكم OneBoarding AI، فإنكم توافقون على شروط الاستخدام وسياسة الخصوصية. ويُعتبر استعمال الخدمة موافقة كاملة، سواء مع التأكيد الصريح أو بدونه."
+      : lang === "en"
+      ? "By using OneBoarding AI, you accept our Terms of Use and Privacy Policy. Using the service constitutes full approval, with or without explicit confirmation."
+      : "En utilisant OneBoarding AI, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité. L’usage du service vaut approbation complète, avec ou sans confirmation explicite.";
+
   return (
     <main className="p-4">
       <h1 className="text-xl font-semibold mb-3">{t.title}</h1>
@@ -1649,6 +1645,9 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           <p className="font-semibold">{t.version.v}</p>
           <p className="opacity-90">{t.version.note}</p>
         </div>
+
+        <hr className="border-black/10 my-3" />
+        <p className="text-sm opacity-90">{finalParagraph}</p>
       </article>
     </main>
   );
