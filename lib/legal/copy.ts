@@ -73,13 +73,6 @@ const COPY: Record<Lang, Copy> = {
         text:
           "OneBoarding AI est conçu, développé et dirigé par Benmehdi Mohamed Rida, avec pour vocation de rendre l’IA simple, rapide et universelle.",
       },
-
-      /* ─── ✔️ Ajout du paragraphe final (FR) ─── */
-      {
-        kind: "p",
-        text:
-          "En utilisant OneBoarding AI, vous acceptez nos Conditions Générales d’Utilisation et notre Politique de Confidentialité. L’usage du service vaut approbation complète, avec ou sans confirmation explicite.",
-      },
     ],
     version: {
       h: "Version & Mises à jour",
@@ -146,13 +139,6 @@ const COPY: Record<Lang, Copy> = {
         text:
           "OneBoarding AI was conceived, developed, and authored by Benmehdi Mohamed Rida, aiming to make AI simple, fast, and universal.",
       },
-
-      /* ─── ✔️ Ajout du paragraphe final (EN) ─── */
-      {
-        kind: "p",
-        text:
-          "By using OneBoarding AI, you accept our Terms of Use and Privacy Policy. Using the service constitutes full approval, with or without explicit confirmation.",
-      },
     ],
     version: {
       h: "Version & Updates",
@@ -216,13 +202,6 @@ const COPY: Record<Lang, Copy> = {
         html: true,
         text:
           'تم ابتكار وتطوير OneBoarding AI من طرف <strong class="nowrap-ar">بنمهدي محمد رضى</strong>، بهدف جعل الذكاء الاصطناعي بسيطًا وسريعًا وعالميًا.',
-      },
-
-      /* ─── ✔️ Ajout du paragraphe final (AR) ─── */
-      {
-        kind: "p",
-        text:
-          "باستخدامكم OneBoarding AI، فإنكم توافقون على شروط الاستخدام وسياسة الخصوصية. ويُعتبَر استعمال الخدمة موافقة كاملة، سواء مع التأكيد الصريح أو بدونه.",
       },
     ],
     version: {
