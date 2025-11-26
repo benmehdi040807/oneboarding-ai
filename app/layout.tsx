@@ -65,7 +65,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Mobile */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Harmonise la barre d’adresse mobile / PWA */}
         <meta name="theme-color" content="#020617" />
 
         {/* Google Search Console */}
@@ -74,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           content="4Bn1SZvmZ8NaA6tQbTYy2tt1lXnlzJBebFkUta5gSxc"
         />
 
-        {/* PWA / Manifest */}
+        {/* PWA */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -85,20 +84,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="application-name" content="OneBoarding AI" />
         <meta name="apple-mobile-web-app-title" content="OneBoarding AI" />
 
-        {/* JSON-LD schema.org – Person + Office Benmehdi + OneBoarding AI */}
+        {/* JSON-LD */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@graph": [
+                /* ------------------------------------------------------------------
+                 *  PERSON — Benmehdi Mohamed Rida (images x11 — ordre optimisé C)
+                 * ------------------------------------------------------------------ */
                 {
                   "@type": "Person",
                   "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida",
                   name: "Benmehdi Mohamed Rida",
                   alternateName: [
                     "Maître Benmehdi Mohamed Rida",
-                    "Rida Benmehdi",
+                    "Rida Benmehdi"
                   ],
                   honorificPrefix: "Maître",
                   jobTitle:
@@ -106,16 +108,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   description:
                     "Benmehdi Mohamed Rida est avocat au Barreau de Casablanca, docteur en droit privé (mention très honorable) et titulaire d’un MBA in Business Administration (EILM – Dublin). Lauréat de l’Institut Supérieur de la Magistrature, ancien Substitut du Procureur du Roi à Marrakech et El Kelaâ des Sraghna, il est le fondateur de l’Office Benmehdi et de OneBoarding AI, un protocole d’intelligence artificielle personnelle fondé sur le consentement numérique souverain et le Droit d’Accès Intelligent (2025–2030).",
                   url: "https://oneboardingai.com",
-                  nationality: {
-                    "@type": "Country",
-                    name: "Maroc",
-                  },
+                  nationality: { "@type": "Country", name: "Maroc" },
                   address: {
                     "@type": "PostalAddress",
                     addressCountry: "MA",
                     addressLocality: "Casablanca",
-                    addressRegion: "Casablanca-Settat",
+                    addressRegion: "Casablanca-Settat"
                   },
+
+                  image: [
+                    // 1. Professionnel / institutionnel
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-allocution-officielle.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-rencontre-institutionnelle.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-serement-magistrature.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-serment-avocat.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-portrait-avocat.jpg",
+
+                    // 2. Académique / distinctions
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-ceremonie-doctorat.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-ceremonie-certificat.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-portrait-conference.jpg",
+
+                    // 3. Portraits personnels mais élégants
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-business-profile.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-portrait-elegant.jpg",
+                    "https://oneboardingai.com/brand/benmehdi-mohamed-rida-portrait-nuit.jpg"
+                  ],
+
                   knowsLanguage: ["fr", "ar", "en"],
                   knowsAbout: [
                     "Droit pénal",
@@ -126,7 +145,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "Protection des données et RGPD",
                     "Consentement numérique",
                     "Droit d’Accès Intelligent",
-                    "Innovation juridique",
+                    "Innovation juridique"
                   ],
                   alumniOf: [
                     {
@@ -135,8 +154,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       address: {
                         "@type": "PostalAddress",
                         addressLocality: "Marrakech",
-                        addressCountry: "MA",
-                      },
+                        addressCountry: "MA"
+                      }
                     },
                     {
                       "@type": "CollegeOrUniversity",
@@ -144,23 +163,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       address: {
                         "@type": "PostalAddress",
                         addressLocality: "Dublin",
-                        addressCountry: "IE",
-                      },
-                    },
+                        addressCountry: "IE"
+                      }
+                    }
                   ],
                   award: [
-                    "Troisième Prix d’éloquence – Concours d’Éloquence et de Plaidoiries (ELSA – Université Libre de Bruxelles, 2005)",
+                    "Troisième Prix d’éloquence – Concours d’Éloquence et de Plaidoiries (ELSA – Université Libre de Bruxelles, 2005)"
                   ],
                   sameAs: [
                     "https://officebenmehdi.com",
                     "https://oneboardingai.com",
                     "https://www.linkedin.com/in/benmehdi-rida",
-                    "https://www.facebook.com/rida.benmehdi",
+                    "https://www.facebook.com/rida.benmehdi"
                   ],
                   worksFor: {
-                    "@id": "https://oneboardingai.com/#office-benmehdi",
-                  },
+                    "@id": "https://oneboardingai.com/#office-benmehdi"
+                  }
                 },
+
+                /* ------------------------------------------------------------------
+                 *  ORGANIZATION — Office Benmehdi (logo officiel)
+                 * ------------------------------------------------------------------ */
                 {
                   "@type": "Organization",
                   "@id": "https://oneboardingai.com/#office-benmehdi",
@@ -169,19 +192,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   description:
                     "L’Office Benmehdi est un cabinet d’avocat fondé par Maître Benmehdi Mohamed Rida à Casablanca. Il est spécialisé en droit pénal, droit immobilier, droit des sociétés et procédures collectives, et porte la vision d’un droit moderne, rigoureux et ouvert aux innovations numériques.",
                   founder: {
-                    "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida",
+                    "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida"
                   },
                   address: {
                     "@type": "PostalAddress",
                     addressLocality: "Casablanca",
-                    addressCountry: "MA",
+                    addressCountry: "MA"
                   },
+                  logo: "https://oneboardingai.com/brand/office-benmehdi-logo.jpg",
                   sameAs: [
                     "https://officebenmehdi.com",
                     "https://www.linkedin.com/in/benmehdi-rida",
-                    "https://www.facebook.com/rida.benmehdi",
-                  ],
+                    "https://www.facebook.com/rida.benmehdi"
+                  ]
                 },
+
+                /* ------------------------------------------------------------------
+                 *  SOFTWARE APPLICATION — OneBoarding AI
+                 * ------------------------------------------------------------------ */
                 {
                   "@type": ["SoftwareApplication", "Product"],
                   "@id": "https://oneboardingai.com/#oneboarding-ai",
@@ -191,10 +219,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "AI assistant, LegalTech, Personal productivity",
                   operatingSystem: "Web",
                   creator: {
-                    "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida",
+                    "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida"
                   },
                   publisher: {
-                    "@id": "https://oneboardingai.com/#office-benmehdi",
+                    "@id": "https://oneboardingai.com/#office-benmehdi"
                   },
                   isAccessibleForFree: true,
                   description:
@@ -207,14 +235,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "Consent Pairing Protocol",
                     "Droit d’Accès Intelligent",
                     "LegalTech",
-                    "Intelligence artificielle éthique",
+                    "Intelligence artificielle éthique"
                   ],
                   category: [
                     "Classe de Nice 9",
                     "Classe de Nice 35",
                     "Classe de Nice 41",
                     "Classe de Nice 42",
-                    "Classe de Nice 45",
+                    "Classe de Nice 45"
                   ],
                   offers: [
                     {
@@ -225,7 +253,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       category: "Subscription",
                       description:
                         "Abonnement mensuel donnant accès continu et illimité à OneBoarding AI.",
-                      availability: "https://schema.org/InStock",
+                      availability: "https://schema.org/InStock"
                     },
                     {
                       "@type": "Offer",
@@ -235,10 +263,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       category: "Access",
                       description:
                         "Accès illimité pendant un mois, sans engagement, à OneBoarding AI.",
-                      availability: "https://schema.org/InStock",
-                    },
-                  ],
+                      availability: "https://schema.org/InStock"
+                    }
+                  ]
                 },
+
+                /* ------------------------------------------------------------------
+                 *  BRAND — OneBoarding AI
+                 * ------------------------------------------------------------------ */
                 {
                   "@type": "Brand",
                   "@id": "https://oneboardingai.com/#oneboarding-ai-brand",
@@ -249,15 +281,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   description:
                     "OneBoarding AI est une marque déposée au Royaume du Maroc par Maître Benmehdi Mohamed Rida. Elle désigne une plateforme d’intelligence artificielle personnelle, éthique et juridiquement encadrée, fondée sur le Droit d’Accès Intelligent et le consentement numérique unifié.",
                   brandOwner: {
-                    "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida",
-                  },
-                },
-              ],
+                    "@id": "https://oneboardingai.com/#benmehdi-mohamed-rida"
+                  }
+                }
+              ]
             }),
           }}
         />
 
-        {/* ---- Bootstrap PayPal return/cancel ---- */}
+        {/* Bootstrapping PayPal */}
         <script
           id="ob-bootstrap"
           dangerouslySetInnerHTML={{
@@ -290,29 +322,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     var paid = url.searchParams.get("paid")==="1";
     var cancel = url.searchParams.get("cancel")==="1";
 
-    // Retour souscription (activation plan)
     if(paid){
       var plan = "subscription";
       try{
         var cand = localStorage.getItem("oneboarding.planCandidate");
         if(cand==="one-month"||cand==="subscription") plan=cand;
       }catch(_){}
-
-      // Marquer connecté côté front
       try{ localStorage.setItem("ob_connected","1"); }catch(_){}
-
-      // Émettre un event app
       try{
         window.dispatchEvent(new CustomEvent("ob:subscription-active", {
           detail: { status:"active", plan: plan, source:"Return" }
         }));
       }catch(_){}
-
       toast("Paiement confirmé. Espace activé.");
       clearParams(["paid"]);
     }
 
-    // Annulation paiement
     if(cancel){
       toast("Paiement annulé.");
       clearParams(["cancel"]);
@@ -337,4 +362,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
-                  }
+                }
