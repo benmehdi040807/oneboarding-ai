@@ -19,7 +19,7 @@ export default function Footer() {
       }}
     >
       <p className="text-[10px] tracking-tight leading-none text-center">
-        OneBoarding AI ® – Designed for the world – © 2025 – All rights reserved
+        OneBoarding AI® – Designed for the world – © 2025 – All rights reserved
       </p>
     </footer>
   );
