@@ -121,14 +121,13 @@ export async function applyWebhookChange(evt: {
       cancelAtPeriodEnd = true;
       break;
     case "BILLING.SUBSCRIPTION.CANCELLED":
-      // On honore jusqu’à échéance si connue
+      // On honore jusqu’à échéance si connue (pour la donnée),
+      // mais l’accès concret est maintenant régi par la règle unique
       cancelAtPeriodEnd = true;
       break;
     case "BILLING.SUBSCRIPTION.EXPIRED":
-      // Profil terminé côté PayPal, mais on laisse l’échéance jouer
       cancelAtPeriodEnd = true;
       break;
-    // Autres types possibles : on laisse le status PayPal trancher
     default:
       break;
   }
@@ -144,68 +143,44 @@ export async function applyWebhookChange(evt: {
 }
 
 /**
- * Droit d’accès : TRUE si
- * - plan CONTINU avec status cohérent
- * - ou PASS1MOIS (même EXPIRED) mais période d’un mois non échue.
+ * Droit d’accès effectif pour un numéro de téléphone :
+ *
+ * 🔒 RÈGLE TECHNIQUE UNIQUE (tous plans confondus) :
+ *  - il existe une souscription associée
+ *  - status === "ACTIVE"
+ *  - currentPeriodEnd non nul ET strictement > maintenant
  *
  * currentPeriodEnd = "date souveraine de fin du dernier droit d’accès payé".
  */
 export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
+  if (!phoneE164) return false;
+
+  // On récupère d'abord l'utilisateur
+  const user = await prisma.user.findFirst({
+    where: { phoneE164 },
+    select: { id: true },
+  });
+
+  if (!user) return false;
+
+  // Puis la dernière souscription connue pour ce user
   const sub = await prisma.subscription.findFirst({
-    where: {
-      user: { phoneE164 },
-    },
+    where: { userId: user.id },
     orderBy: { updatedAt: "desc" },
     select: {
-      plan: true,
       status: true,
       currentPeriodEnd: true,
-      createdAt: true,
-      cancelAtPeriodEnd: true,
     },
   });
 
   if (!sub) return false;
+
+  // Seule une souscription ACTIVE peut ouvrir l'accès
+  if (sub.status !== "ACTIVE") return false;
+
+  // Par sécurité : sans date d'échéance, aucun accès
+  if (!sub.currentPeriodEnd) return false;
+
   const now = new Date();
-
-  // ---------- Plan CONTINU ----------
-  if (sub.plan === "CONTINU") {
-    // Abonnement actif
-    if (sub.status === "ACTIVE") {
-      return true;
+  return sub.currentPeriodEnd.getTime() > now.getTime();
     }
-
-    // CANCELLED / EXPIRED mais avec période encore en cours
-    if (
-      (sub.status === "CANCELLED" || sub.status === "EXPIRED") &&
-      sub.currentPeriodEnd &&
-      sub.currentPeriodEnd > now
-    ) {
-      return true;
-    }
-
-    return false;
-  }
-
-  // ---------- Plan PASS1MOIS ----------
-  // Échéance logique = currentPeriodEnd, sinon createdAt + 30 jours
-  const logicalEnd =
-    sub.currentPeriodEnd ?? addDays(sub.createdAt, 30);
-
-  if (!logicalEnd || logicalEnd <= now) {
-    // Période terminée
-    return false;
-  }
-
-  // Pendant cette période, on considère que ces status donnent accès :
-  switch (sub.status) {
-    case "ACTIVE":
-    case "APPROVED":
-    case "APPROVAL_PENDING":
-    case "CANCELLED":
-    case "EXPIRED":
-      return true;
-    default:
-      return false;
-  }
-}
