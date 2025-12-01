@@ -21,15 +21,20 @@ function getMaxDevices(): number {
 
 //
 // Détermine si une souscription donne droit à l'accès payant "espace actif".
-// Rappel :
-//  - CONTINU => status doit être "ACTIVE"
-//  - PASS1MOIS => status "ACTIVE" ET currentPeriodEnd dans le futur
 //
-function evalPaidAccess(sub: {
-  plan: string;
-  status: string;
-  currentPeriodEnd: Date | null;
-} | null): {
+// 🔒 RÈGLE UNIQUE (tous plans confondus) :
+//  - status === "ACTIVE"
+//  - currentPeriodEnd non nul ET strictement dans le futur
+//
+function evalPaidAccess(
+  sub:
+    | {
+        plan: string;
+        status: string;
+        currentPeriodEnd: Date | null;
+      }
+    | null
+): {
   spaceActive: boolean;
   plan: "CONTINU" | "PASS1MOIS" | null;
 } {
@@ -37,25 +42,26 @@ function evalPaidAccess(sub: {
     return { spaceActive: false, plan: null };
   }
 
-  const plan = sub.plan === "PASS1MOIS" ? "PASS1MOIS" : "CONTINU";
+  const plan: "CONTINU" | "PASS1MOIS" =
+    sub.plan === "PASS1MOIS" ? "PASS1MOIS" : "CONTINU";
 
+  // Seules les souscriptions marquées ACTIVE peuvent ouvrir l'espace
   if (sub.status !== "ACTIVE") {
     return { spaceActive: false, plan };
   }
 
-  if (plan === "PASS1MOIS") {
-    if (!sub.currentPeriodEnd) {
-      return { spaceActive: false, plan };
-    }
-    // encore valable ?
-    const now = new Date();
-    if (sub.currentPeriodEnd.getTime() <= now.getTime()) {
-      return { spaceActive: false, plan };
-    }
-    return { spaceActive: true, plan };
+  // Par sécurité : sans date d'échéance, aucun accès
+  if (!sub.currentPeriodEnd) {
+    return { spaceActive: false, plan };
   }
 
-  // CONTINU + ACTIVE => accès ouvert
+  const now = new Date();
+  if (sub.currentPeriodEnd.getTime() <= now.getTime()) {
+    // Période écoulée → plus d'accès
+    return { spaceActive: false, plan };
+  }
+
+  // ACTIVE + date future => accès OK
   return { spaceActive: true, plan };
 }
 
@@ -67,9 +73,9 @@ type Ok = {
   plan: "CONTINU" | "PASS1MOIS" | null;
 
   devices: {
-    deviceCount: number;      // combien d'appareils autorisés actifs
-    deviceKnown: boolean;     // est-ce que l'appareil appelant est déjà autorisé ?
-    maxDevices: number;       // limite actuelle (ex: 3)
+    deviceCount: number; // combien d'appareils autorisés actifs
+    deviceKnown: boolean; // est-ce que l'appareil appelant est déjà autorisé ?
+    maxDevices: number; // limite actuelle (ex: 3)
   };
 
   // pour debug / affichage interne si tu veux
@@ -270,4 +276,4 @@ export async function GET(req: NextRequest) {
       }
     );
   }
-}
+          }
