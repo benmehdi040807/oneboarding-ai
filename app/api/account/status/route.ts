@@ -129,17 +129,15 @@ export async function GET(req: NextRequest) {
     const currentPeriodEnd = sub?.currentPeriodEnd ?? null;
 
     // 5) Droit d'accès effectif (logique métier globale, par USER)
-    //    → indépendant du device (pairing, navigateur, etc.)
     //
-    // ⚖️ Philosophie Benmehdi :
-    // - Le paiement crée le droit d'accès (planActive).
-    // - spaceActive n'est qu'un alias d'affichage / compatibilité.
+    // 🔒 RÈGLE UNIQUE appliquée par userHasPaidAccess :
+    //    status === "ACTIVE" && currentPeriodEnd > now
     const planActive = await userHasPaidAccess(user.phoneE164);
 
-    // 🔴 RÈGLE UNIQUE : l'espace actif = le plan actif
+    // Alias pour cohérence avec le reste de l'app
     const spaceActive = planActive;
 
-    // Statut "logique" pour l'UX
+    // Statut "logique" pour l’UX
     let effectiveStatus: "NONE" | "ACTIVE" | "EXPIRED" = "NONE";
     if (planActive) {
       effectiveStatus = "ACTIVE";
@@ -202,4 +200,4 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   }
-      }
+}
