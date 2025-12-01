@@ -19,7 +19,7 @@ export default function Footer() {
       }}
     >
       <p className="text-[10px] tracking-tight leading-none text-center">
-        OneBoarding AI® • Benmehdi Mohamed Rida • Tous droits réservés • © 2025
+        OneBoarding AI ® – Designed for the world – © 2025 – All rights reserved
       </p>
     </footer>
   );
