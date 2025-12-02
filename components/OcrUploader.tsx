@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-type Props = {
-  onText: (text: string) => void;
-  onPreview?: (url: string | null) => void;
+type OcrUploaderProps = {
+  // On renvoie toujours la liste courante des fichiers vers le parent
+  onSubmit: (files: File[]) => void;
 };
 
 type OcrFile = {
@@ -15,140 +15,82 @@ type OcrFile = {
   sizeLabel: string;
 };
 
-export default function OcrUploader({ onText, onPreview }: Props) {
-  const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
-  const AUTO_LANG = "fra+eng+ara";
-  const MAX_FILES = 10;
+const MAX_FILES = 10;
+const MAX_SIZE = 15 * 1024 * 1024; // 15 Mo
 
+function humanSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} Ko`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} Mo`;
+}
+
+export function OcrUploader({ onSubmit }: OcrUploaderProps) {
   const [files, setFiles] = useState<OcrFile[]>([]);
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [errorTooMany, setErrorTooMany] = useState(false);
-
+  const [progress, setProgress] = useState(0); // 0 -> 1
+  const [isReading, setIsReading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null); // "Max 10 files" / "Only first 10 files kept"
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const progressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  function humanSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} o`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
-  }
+  const remainingSlots = MAX_FILES - files.length;
+  const hasFiles = files.length > 0;
 
-  function clearAll() {
-    files.forEach((f) => URL.revokeObjectURL(f.url));
-    setFiles([]);
-    setRunning(false);
-    setProgress(0);
-    onText("");
-    onPreview?.(null);
+  function resetInput() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function removeOne(id: string) {
-    const remaining = files.filter((f) => f.id !== id);
-    const removed = files.find((f) => f.id === id);
-    if (removed) URL.revokeObjectURL(removed.url);
-
-    setFiles(remaining);
-
-    if (!remaining.length) {
-      setProgress(0);
-      onText("");
-      onPreview?.(null);
-      return;
-    }
-
-    recognizeAll(remaining);
+  function showNotice(msg: string) {
+    setNotice(msg);
+    setTimeout(() => {
+      setNotice((current) => (current === msg ? null : current));
+    }, 2500);
   }
 
-  async function recognizeAll(list: OcrFile[]) {
-    if (!list.length) return;
+  function startProgress() {
+    // petite animation simple, pas liée à un vrai upload
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    setIsReading(true);
+    setProgress(0.05);
 
-    setRunning(true);
-    setProgress(1);
-
-    let globalText = "";
-
-    try {
-      const Tesseract = (await import("tesseract.js")).default as any;
-
-      for (let index = 0; index < list.length; index++) {
-        const item = list[index];
-        let localText = "";
-
-        for (let i = 1; i <= 3; i++) {
-          try {
-            const result: any = await Tesseract.recognize(
-              item.file,
-              AUTO_LANG,
-              {
-                logger: (m: any) => {
-                  if (
-                    m?.status === "recognizing text" &&
-                    typeof m?.progress === "number"
-                  ) {
-                    const base = (index / list.length) * 100;
-                    const perFile =
-                      (Math.max(0, Math.min(1, m.progress)) / list.length) *
-                      100;
-                    const p = Math.max(
-                      1,
-                      Math.min(100, Math.round(base + perFile))
-                    );
-                    setProgress(p);
-                  }
-                },
-              } as any
-            );
-
-            const raw = String(result?.data?.text || "");
-            localText = raw
-              .replace(/[ \t]+\n/g, "\n")
-              .replace(/\n{3,}/g, "\n\n")
-              .trim();
-
-            if (localText.length > 10) break;
-          } catch {
-            await new Promise((r) => setTimeout(r, i * 200 + 300));
-          }
+    progressTimer.current = setInterval(() => {
+      setProgress((p) => {
+        const next = p + 0.12;
+        if (next >= 1) {
+          if (progressTimer.current) clearInterval(progressTimer.current);
+          setIsReading(false);
+          return 1;
         }
-
-        if (localText.length > 0) {
-          globalText +=
-            `\n\n--- Document ${index + 1}: ${item.name} ---\n\n` + localText;
-        }
-      }
-    } catch (e) {
-      console.warn("[OCR] error", e);
-    }
-
-    setRunning(false);
-    setProgress(100);
-
-    if (globalText.trim().length > 10) {
-      onText(globalText.trim());
-    } else {
-      // lecture trop faible -> on n’envoie rien mais on ne casse pas l’UX
-      onText("");
-    }
+        return next;
+      });
+    }, 180);
   }
 
   function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const list = e.target.files ? Array.from(e.target.files) : [];
     if (!list.length) return;
 
-    // 🔴 Vrai plafond : si la sélection dépasse le max → on refuse tout
-    if (list.length + files.length > MAX_FILES) {
-      setErrorTooMany(true);
-      setTimeout(() => setErrorTooMany(false), 1200);
-      if (inputRef.current) inputRef.current.value = "";
+    // Aucun slot disponible : on ne touche pas aux fichiers existants
+    if (remainingSlots <= 0) {
+      showNotice("Max 10 files");
+      resetInput();
       return;
     }
 
-    const mapped: OcrFile[] = list
+    let accepted = list;
+    let limited = false;
+
+    // Si la sélection dépasse le nombre de slots restants,
+    // on garde uniquement les premiers nécessaires pour atteindre 10.
+    if (list.length > remainingSlots) {
+      accepted = list.slice(0, remainingSlots);
+      limited = true;
+    }
+
+    const mapped: OcrFile[] = accepted
       .map((f, idx) => {
-        if (f.size > MAX_SIZE) {
-          return null as any;
-        }
+        if (f.size > MAX_SIZE) return null as any;
         const url = URL.createObjectURL(f);
         return {
           id: `${Date.now()}-${idx}-${f.name}`,
@@ -163,97 +105,116 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     const merged = [...files, ...mapped];
     setFiles(merged);
 
-    const first = merged.find((f) => f.file.type.startsWith("image/"));
-    onPreview?.(first ? first.url : null);
+    if (limited) {
+      showNotice("Only first 10 files kept");
+    }
 
-    recognizeAll(merged);
+    startProgress();
+    resetInput();
   }
 
-  const hasFiles = files.length > 0;
+  function handleRemove(id: string) {
+    const next = files.filter((f) => f.id !== id);
+    setFiles(next);
+    if (!next.length) {
+      setProgress(0);
+      setIsReading(false);
+    }
+  }
+
+  function handleRemoveAll() {
+    setFiles([]);
+    setProgress(0);
+    setIsReading(false);
+  }
+
+  // Envoi des fichiers bruts vers le parent à chaque changement
+  useEffect(() => {
+    onSubmit(files.map((f) => f.file));
+  }, [files, onSubmit]);
+
+  // Nettoyage des URL objets
+  useEffect(() => {
+    return () => {
+      if (progressTimer.current) clearInterval(progressTimer.current);
+      files.forEach((f) => URL.revokeObjectURL(f.url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
-      className={`rounded-xl border bg-white/5 p-3 transition
-        border-white/10
-        ${errorTooMany ? "ring-2 ring-red-400" : ""}
-      `}
+      className={`rounded-xl border bg-white/5 p-3 transition-all ${
+        notice ? "border-red-400 ring-1 ring-red-400/70" : "border-white/10"
+      }`}
     >
-      {/* Top bar: select + count + remove all */}
-      <div className="flex items-center gap-2 mb-2">
-        <input
-          ref={inputRef}
-          id="ocr-multi-file"
-          type="file"
-          accept="image/*,image/heic,image/heif"
-          multiple
-          onChange={handleSelect}
-          className="hidden"
-        />
+      {/* input natif invisible, déclenché par le bouton trombone externe OU par clic interne */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,.pdf"
+        multiple
+        className="hidden"
+        onChange={handleSelect}
+      />
 
+      {/* En-tête : message + notice courte */}
+      <div className="mb-2 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
-            ${
-              hasFiles
-                ? "bg-emerald-500 text-black border-emerald-400"
-                : "bg-white text-black hover:bg-gray-200 border-transparent"
-            }
-            ${running ? "opacity-70 pointer-events-none" : ""}
-          `}
-          title={hasFiles ? "Add documents" : "Select documents"}
+          className="rounded-full bg-white/70 px-4 py-1 text-xs font-medium text-sky-700 shadow-sm active:scale-95"
         >
-          {hasFiles ? "Add documents" : "Select documents"}
+          {hasFiles ? "Add files" : "Upload files"}
         </button>
 
-        <div className="flex-1 text-xs text-white/70 truncate">
-          {hasFiles
-            ? `${files.length} file(s) — max ${MAX_FILES}`
-            : `0 / ${MAX_FILES} file(s)`}
-        </div>
-
-        {hasFiles && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="shrink-0 text-xs px-2 py-1 rounded-lg bg-white/15 hover:bg-white/25"
-            title="Remove all"
-          >
-            Remove all ✕
-          </button>
+        {notice && (
+          <span className="rounded-full bg-red-500/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+            {notice}
+          </span>
         )}
       </div>
 
-      {/* List of files with mini-preview */}
+      {/* Liste des fichiers */}
       {hasFiles && (
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        <div className="mb-3 space-y-2">
+          <div className="flex items-center justify-between text-[11px] text-white/70">
+            <button
+              type="button"
+              onClick={handleRemoveAll}
+              className="text-[11px] font-medium text-white/80 underline-offset-2 hover:underline"
+            >
+              Remove all ✕
+            </button>
+            <span>
+              {files.length}/{MAX_FILES}
+            </span>
+          </div>
+
           {files.map((f) => (
             <div
               key={f.id}
-              className="flex items-center justify-between rounded-lg bg-white/10 px-2 py-1"
+              className="flex items-center justify-between rounded-lg bg-white/10 px-2 py-1.5 text-xs text-white/90"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-10 h-10 rounded-md overflow-hidden bg-white/10 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 overflow-hidden rounded-md bg-white/20">
                   <img
                     src={f.url}
-                    alt="preview"
-                    className="w-full h-full object-cover"
+                    alt={f.name}
+                    className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs text-white/90 truncate">
-                    {f.name}
-                  </span>
-                  <span className="text-[11px] text-white/60">
+                <div className="flex flex-col">
+                  <span className="max-w-[150px] truncate">{f.name}</span>
+                  <span className="text-[10px] text-white/60">
                     {f.sizeLabel}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => removeOne(f.id)}
-                className="text-[11px] px-2 py-1 rounded-md bg-white/15 hover:bg-white/25"
-                title="Remove"
+                onClick={() => handleRemove(f.id)}
+                className="text-[11px] font-medium text-white/80 hover:text-white"
               >
                 Remove ✕
               </button>
@@ -262,29 +223,28 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       )}
 
-      {/* Futuristic status: spinner + bar, sans texte */}
-      {(running || progress > 0) && (
-        <div className="w-full mt-3 flex items-center gap-2">
-          {/* Icône de statut */}
-          <div className="h-4 w-4 flex items-center justify-center">
-            {running ? (
-              <div className="h-4 w-4 rounded-full border-2 border-emerald-300 border-t-transparent animate-spin" />
-            ) : progress === 100 && hasFiles ? (
-              <div className="h-4 w-4 rounded-full bg-emerald-400 flex items-center justify-center">
-                <span className="text-[10px] text-black font-bold">✓</span>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Barre de progression stylisée */}
-          <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      {/* Barre de lecture/état, même sans texte */}
+      <div className="mt-1 flex items-center gap-2">
+        <div
+          className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+            isReading ? "border-sky-400" : "border-emerald-400"
+          }`}
+        >
+          <div
+            className={`h-2 w-2 rounded-full ${
+              isReading ? "bg-sky-400 animate-pulse" : "bg-emerald-400"
+            }`}
+          />
         </div>
-      )}
+        <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/15">
+          <div
+            className={`h-full rounded-full transition-all ${
+              isReading ? "bg-sky-400" : "bg-emerald-400"
+            }`}
+            style={{ width: `${Math.max(progress, hasFiles ? 0.15 : 0) * 100}%` }}
+          />
+        </div>
+      </div>
     </div>
   );
-                }
+  }
