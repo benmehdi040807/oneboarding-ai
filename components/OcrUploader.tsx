@@ -52,8 +52,11 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
   function removeOne(id: string) {
     const remaining = files.filter((f) => f.id !== id);
-    URL.revokeObjectURL(files.find((f) => f.id === id)?.url || "");
+    const removed = files.find((f) => f.id === id);
+    if (removed) URL.revokeObjectURL(removed.url);
+
     setFiles(remaining);
+
     if (!remaining.length) {
       setProgress(0);
       setStatusText("");
@@ -62,6 +65,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       onPreview?.(null);
       return;
     }
+
     // Re-lancer une lecture sur les fichiers restants
     recognizeAll(remaining);
   }
@@ -84,7 +88,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       for (let index = 0; index < list.length; index++) {
         const item = list[index];
 
-        // plusieurs tentatives par fichier si besoin
         let localText = "";
         for (let i = 1; i <= 3; i++) {
           try {
@@ -106,7 +109,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
                     const perFile =
                       (Math.max(0, Math.min(1, m.progress)) / list.length) *
                       100;
-                    const p = Math.max(1, Math.min(100, Math.round(base + perFile)));
+                    const p = Math.max(
+                      1,
+                      Math.min(100, Math.round(base + perFile))
+                    );
                     setProgress(p);
                   }
                 },
@@ -133,6 +139,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       }
     } catch (e: any) {
       lastErr = e;
+      // on laisse gérer par le gentle message plus bas
     }
 
     setRunning(false);
@@ -156,27 +163,30 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     const list = e.target.files ? Array.from(e.target.files) : [];
     if (!list.length) return;
 
-    const mapped: OcrFile[] = list.map((f, idx) => {
-      if (f.size > MAX_SIZE) {
-        // on ignore les fichiers trop lourds
-        return null as any;
-      }
-      const url = URL.createObjectURL(f);
-      return {
-        id: `${Date.now()}-${idx}-${f.name}`,
-        file: f,
-        url,
-        name: f.name,
-        sizeLabel: humanSize(f.size),
-      };
-    }).filter(Boolean);
+    const mapped: OcrFile[] = list
+      .map((f, idx) => {
+        if (f.size > MAX_SIZE) {
+          // on ignore les fichiers trop lourds
+          return null as any;
+        }
+        const url = URL.createObjectURL(f);
+        return {
+          id: `${Date.now()}-${idx}-${f.name}`,
+          file: f,
+          url,
+          name: f.name,
+          sizeLabel: humanSize(f.size),
+        };
+      })
+      .filter(Boolean);
 
     const merged = [...files, ...mapped];
     const limited = merged.slice(0, MAX_FILES);
 
-    // si on coupe, pas plus de 10
     if (merged.length > MAX_FILES) {
-      setInfoMsg("Maximum 10 fichiers par envoi. Seuls les 10 premiers sont pris en compte.");
+      setInfoMsg(
+        "Maximum 10 fichiers par envoi. Seuls les 10 premiers sont pris en compte."
+      );
     } else {
       setInfoMsg("");
     }
@@ -210,10 +220,18 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           type="button"
           onClick={() => inputRef.current?.click()}
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
-            ${hasFiles ? "bg-emerald-500 text-black border-emerald-400" : "bg-white text-black hover:bg-gray-200 border-transparent"}
+            ${
+              hasFiles
+                ? "bg-emerald-500 text-black border-emerald-400"
+                : "bg-white text-black hover:bg-gray-200 border-transparent"
+            }
             ${running ? "opacity-70 pointer-events-none" : ""}
           `}
-          title={hasFiles ? "Ajouter / remplacer des fichiers" : "Choisir des fichiers"}
+          title={
+            hasFiles
+              ? "Ajouter / remplacer des fichiers"
+              : "Choisir des fichiers"
+          }
         >
           {hasFiles ? "Ajouter des documents" : "Sélectionner des documents"}
         </button>
@@ -221,7 +239,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         <div className="flex-1 text-xs text-white/70 truncate">
           {hasFiles
             ? `${files.length} fichier(s) — max 10`
-            : "Aucun document sélectionné (max 10 fichiers par envoi).`}
+            : "Aucun document sélectionné (max 10 fichiers par envoi)."}
         </div>
 
         {hasFiles && (
@@ -245,8 +263,12 @@ export default function OcrUploader({ onText, onPreview }: Props) {
               className="flex items-center justify-between rounded-lg bg-white/10 px-2 py-1"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs text-white/90 truncate">{f.name}</span>
-                <span className="text-[11px] text-white/60">{f.sizeLabel}</span>
+                <span className="text-xs text-white/90 truncate">
+                  {f.name}
+                </span>
+                <span className="text-[11px] text-white/60">
+                  {f.sizeLabel}
+                </span>
               </div>
               <button
                 type="button"
@@ -262,9 +284,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
       {/* Infos & progression */}
       {infoMsg && (
-        <div className="mt-2 text-xs text-emerald-300/90">
-          {infoMsg}
-        </div>
+        <div className="mt-2 text-xs text-emerald-300/90">{infoMsg}</div>
       )}
 
       {(running || progress > 0) && (
@@ -290,4 +310,4 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       )}
     </div>
   );
-            }
+        }
