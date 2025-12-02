@@ -3,8 +3,12 @@
 import React, { useEffect, useRef, useState } from "react";
 
 type OcrUploaderProps = {
-  // On renvoie toujours la liste courante des fichiers vers le parent
-  onSubmit: (files: File[]) => void;
+  // On renvoie toujours la liste courante des fichiers vers le parent (si fourni)
+  onSubmit?: (files: File[]) => void;
+
+  // Compatibilité avec app/page.tsx (même si non utilisé pour l’OCR côté client)
+  onText?: (text: string) => void;
+  onPreview?: () => void;
 };
 
 type OcrFile = {
@@ -26,7 +30,7 @@ function humanSize(bytes: number): string {
   return `${mb.toFixed(1)} Mo`;
 }
 
-export function OcrUploader({ onSubmit }: OcrUploaderProps) {
+export function OcrUploader({ onSubmit, onText, onPreview }: OcrUploaderProps) {
   const [files, setFiles] = useState<OcrFile[]>([]);
   const [progress, setProgress] = useState(0); // 0 -> 1
   const [isReading, setIsReading] = useState(false);
@@ -109,6 +113,11 @@ export function OcrUploader({ onSubmit }: OcrUploaderProps) {
       showNotice("Only first 10 files kept");
     }
 
+    // Hook éventuel si tu veux réagir à la sélection côté parent
+    if (onPreview) {
+      onPreview();
+    }
+
     startProgress();
     resetInput();
   }
@@ -130,8 +139,15 @@ export function OcrUploader({ onSubmit }: OcrUploaderProps) {
 
   // Envoi des fichiers bruts vers le parent à chaque changement
   useEffect(() => {
-    onSubmit(files.map((f) => f.file));
-  }, [files, onSubmit]);
+    if (onSubmit) {
+      onSubmit(files.map((f) => f.file));
+    }
+
+    // Compat : si un jour tu veux dériver un texte depuis ces fichiers côté parent
+    if (onText) {
+      onText(""); // on envoie une string vide pour ne pas casser la logique existante
+    }
+  }, [files, onSubmit, onText]);
 
   // Nettoyage des URL objets
   useEffect(() => {
@@ -241,10 +257,17 @@ export function OcrUploader({ onSubmit }: OcrUploaderProps) {
             className={`h-full rounded-full transition-all ${
               isReading ? "bg-sky-400" : "bg-emerald-400"
             }`}
-            style={{ width: `${Math.max(progress, hasFiles ? 0.15 : 0) * 100}%` }}
+            style={{
+              width: `${
+                Math.max(progress, hasFiles ? 0.15 : 0) * 100
+              }%`,
+            }}
           />
         </div>
       </div>
     </div>
   );
-  }
+}
+
+// Pour que `import OcrUploader from "@/components/OcrUploader"` fonctionne
+export default OcrUploader;
