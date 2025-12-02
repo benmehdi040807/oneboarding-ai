@@ -1,116 +1,293 @@
 "use client";
 
-import { useState, useRef } from "react";
-import Image from "next/image";
+import { useRef, useState } from "react";
 
-export default function OcrUploader({ onSubmit }: { onSubmit: (files: File[]) => void }) {
-  const [files, setFiles] = useState<File[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
+type Props = {
+  /** Texte OCR final renvoyé vers le parent (non affiché ici) */
+  onText: (text: string) => void;
+  /** Prévisualisation (utile si tu veux afficher l’image ailleurs) */
+  onPreview?: (url: string | null) => void;
+};
 
-  // 📍 Ajout fichiers (max 10)
-  function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files ? Array.from(e.target.files) : [];
-    if (!selected.length) return;
+type OcrFile = {
+  id: string;
+  file: File;
+  url: string;
+  name: string;
+  sizeLabel: string;
+};
 
-    const merged = [...files, ...selected];
-    if (merged.length > 10) {
-      alert("Maximum 10 fichiers par envoi.");
-      setFiles(merged.slice(0, 10)); // on garde juste les 10 premiers
+export default function OcrUploader({ onText, onPreview }: Props) {
+  const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
+  const AUTO_LANG = "fra+eng+ara"; // auto fr+en+ar
+  const MAX_FILES = 10;
+
+  const [files, setFiles] = useState<OcrFile[]>([]);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState("");
+  const [infoMsg, setInfoMsg] = useState("");
+  const [attempt, setAttempt] = useState(0);
+
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  function humanSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} o`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+  }
+
+  function clearAll() {
+    files.forEach((f) => URL.revokeObjectURL(f.url));
+    setFiles([]);
+    setRunning(false);
+    setProgress(0);
+    setStatusText("");
+    setInfoMsg("");
+    setAttempt(0);
+    onText("");
+    onPreview?.(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function removeOne(id: string) {
+    const remaining = files.filter((f) => f.id !== id);
+    URL.revokeObjectURL(files.find((f) => f.id === id)?.url || "");
+    setFiles(remaining);
+    if (!remaining.length) {
+      setProgress(0);
+      setStatusText("");
+      setInfoMsg("");
+      onText("");
+      onPreview?.(null);
+      return;
+    }
+    // Re-lancer une lecture sur les fichiers restants
+    recognizeAll(remaining);
+  }
+
+  async function recognizeAll(list: OcrFile[]) {
+    if (!list.length) return;
+
+    setRunning(true);
+    setProgress(1);
+    setStatusText("Lecture des documents…");
+    setInfoMsg("");
+    setAttempt(0);
+
+    let globalText = "";
+    let lastErr: any = null;
+
+    try {
+      const Tesseract = (await import("tesseract.js")).default as any;
+
+      for (let index = 0; index < list.length; index++) {
+        const item = list[index];
+
+        // plusieurs tentatives par fichier si besoin
+        let localText = "";
+        for (let i = 1; i <= 3; i++) {
+          try {
+            setAttempt(i);
+            setStatusText(
+              `Lecture du document ${index + 1}/${list.length}…`
+            );
+
+            const result: any = await Tesseract.recognize(
+              item.file,
+              AUTO_LANG,
+              {
+                logger: (m: any) => {
+                  if (
+                    m?.status === "recognizing text" &&
+                    typeof m?.progress === "number"
+                  ) {
+                    const base = (index / list.length) * 100;
+                    const perFile =
+                      (Math.max(0, Math.min(1, m.progress)) / list.length) *
+                      100;
+                    const p = Math.max(1, Math.min(100, Math.round(base + perFile)));
+                    setProgress(p);
+                  }
+                },
+              } as any
+            );
+
+            const raw = String(result?.data?.text || "");
+            localText = raw
+              .replace(/[ \t]+\n/g, "\n")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim();
+
+            if (localText.length > 10) break;
+          } catch (e: any) {
+            lastErr = e;
+            await new Promise((r) => setTimeout(r, i * 200 + 300));
+          }
+        }
+
+        if (localText.length > 0) {
+          globalText +=
+            `\n\n--- Document ${index + 1}: ${item.name} ---\n\n` + localText;
+        }
+      }
+    } catch (e: any) {
+      lastErr = e;
+    }
+
+    setRunning(false);
+    setProgress(100);
+    setStatusText("Lecture terminée");
+
+    if (globalText.trim().length > 10) {
+      setInfoMsg("Lecture complète — analyse en cours.");
+      onText(globalText.trim());
     } else {
-      setFiles(merged);
+      // Ton message validé
+      const gentle =
+        "La lecture de l’image est incomplète, mais certains passages restent exploitables. " +
+        "Pour un meilleur résultat, vous pouvez envoyer une photo plus nette ou une capture d’écran de la page.";
+      setInfoMsg(gentle);
+      onText("");
     }
   }
 
-  // 📍 Retirer fichier individuellement
-  function removeFile(index: number) {
-    const updated = files.filter((_, i) => i !== index);
-    setFiles(updated);
+  function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = e.target.files ? Array.from(e.target.files) : [];
+    if (!list.length) return;
+
+    const mapped: OcrFile[] = list.map((f, idx) => {
+      if (f.size > MAX_SIZE) {
+        // on ignore les fichiers trop lourds
+        return null as any;
+      }
+      const url = URL.createObjectURL(f);
+      return {
+        id: `${Date.now()}-${idx}-${f.name}`,
+        file: f,
+        url,
+        name: f.name,
+        sizeLabel: humanSize(f.size),
+      };
+    }).filter(Boolean);
+
+    const merged = [...files, ...mapped];
+    const limited = merged.slice(0, MAX_FILES);
+
+    // si on coupe, pas plus de 10
+    if (merged.length > MAX_FILES) {
+      setInfoMsg("Maximum 10 fichiers par envoi. Seuls les 10 premiers sont pris en compte.");
+    } else {
+      setInfoMsg("");
+    }
+
+    setFiles(limited);
+
+    // aperçu = premier visuel
+    const first = limited.find((f) => f.file.type.startsWith("image/"));
+    onPreview?.(first ? first.url : null);
+
+    recognizeAll(limited);
   }
 
-  // 🚀 Unique action → Envoyer & analyser
-  function handleSubmit() {
-    if (!files.length) return alert("Veuillez sélectionner au moins un document.");
-    onSubmit(files);
-  }
+  const hasFiles = files.length > 0;
 
   return (
-    <div className="flex flex-col gap-4 w-full">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      {/* Barre info + bouton choisir */}
+      <div className="flex items-center gap-2 mb-2">
+        <input
+          ref={inputRef}
+          id="ocr-multi-file"
+          type="file"
+          accept="image/*,image/heic,image/heif"
+          multiple
+          onChange={handleSelect}
+          className="hidden"
+        />
 
-      {/* 🔹 Barre centrale (remontée au-dessus des commandes) */}
-      <div className="w-full text-center text-xs opacity-80 font-light select-none">
-        📄 0–10 fichiers — texte & documents acceptés
-      </div>
-
-      {/* 🔹 Boutons haut (Joindre / Micro / O bleu / O jaune) */}
-      <div className="flex flex-row justify-center gap-4 mb-2">
-        {/* === BOUTON PRINCIPAL → Joindre fichiers === */}
         <button
+          type="button"
           onClick={() => inputRef.current?.click()}
-          className="p-3 rounded-xl shadow-md bg-white text-gray-800 font-medium active:scale-95"
+          className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
+            ${hasFiles ? "bg-emerald-500 text-black border-emerald-400" : "bg-white text-black hover:bg-gray-200 border-transparent"}
+            ${running ? "opacity-70 pointer-events-none" : ""}
+          `}
+          title={hasFiles ? "Ajouter / remplacer des fichiers" : "Choisir des fichiers"}
         >
-          📎 Joindre
+          {hasFiles ? "Ajouter des documents" : "Sélectionner des documents"}
         </button>
 
-        {/* (les autres boutons restent gérés par ton UI externe) */}
+        <div className="flex-1 text-xs text-white/70 truncate">
+          {hasFiles
+            ? `${files.length} fichier(s) — max 10`
+            : "Aucun document sélectionné (max 10 fichiers par envoi).`}
+        </div>
+
+        {hasFiles && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="shrink-0 text-xs px-2 py-1 rounded-lg bg-white/15 hover:bg-white/25"
+            title="Retirer tous les fichiers"
+          >
+            Tout retirer ✕
+          </button>
+        )}
       </div>
 
-      {/* Input invisible → multi fichiers */}
-      <input
-        type="file"
-        accept="image/*,application/pdf,text/plain"
-        multiple
-        ref={inputRef}
-        onChange={handleSelect}
-        className="hidden"
-      />
-
-      {/* 🔹 Liste des fichiers chargés (aperçu persistant) */}
-      {files.length > 0 && (
-        <div className="flex flex-col gap-3 p-3 bg-white/40 rounded-xl shadow-inner">
-          <div className="text-sm font-medium">
-            {files.length} fichier(s) — <b>max 10</b>
-          </div>
-
-          {files.map((f, i) => (
-            <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg shadow-sm">
-              {/* 📄 Aperçu image si possible */}
-              <div className="flex items-center gap-3">
-                {f.type.startsWith("image/") ? (
-                  <Image
-                    src={URL.createObjectURL(f)}
-                    alt="preview"
-                    width={50}
-                    height={50}
-                    className="rounded-lg object-cover border"
-                  />
-                ) : (
-                  <div className="text-sm opacity-70">📄 {f.name}</div>
-                )}
-
-                <span className="text-xs opacity-70">
-                  {(f.size / 1024 / 1024).toFixed(2)} Mo
-                </span>
+      {/* Liste des fichiers */}
+      {hasFiles && (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {files.map((f) => (
+            <div
+              key={f.id}
+              className="flex items-center justify-between rounded-lg bg-white/10 px-2 py-1"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs text-white/90 truncate">{f.name}</span>
+                <span className="text-[11px] text-white/60">{f.sizeLabel}</span>
               </div>
-
-              {/* ❌ Retirer */}
               <button
-                onClick={() => removeFile(i)}
-                className="px-2 py-1 rounded-lg text-red-500 hover:bg-red-100 active:scale-95"
+                type="button"
+                onClick={() => removeOne(f.id)}
+                className="text-[11px] px-2 py-1 rounded-md bg-white/15 hover:bg-white/25"
               >
-                Retirer ✖
+                Retirer ✕
               </button>
             </div>
           ))}
         </div>
       )}
 
-      {/* 🚀 Bouton final → UN SEUL */}
-      <button
-        onClick={handleSubmit}
-        className="w-full py-3 mt-2 rounded-xl bg-green-600 text-white font-semibold text-lg active:scale-[0.97]"
-      >
-        Envoyer & analyser
-      </button>
+      {/* Infos & progression */}
+      {infoMsg && (
+        <div className="mt-2 text-xs text-emerald-300/90">
+          {infoMsg}
+        </div>
+      )}
+
+      {(running || progress > 0) && (
+        <div className="w-full mt-3">
+          <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
+            <div
+              className="h-2 bg-emerald-400 transition-[width] duration-200"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[11px] text-white/70">
+            <span>
+              {statusText}
+              {attempt > 1 && statusText !== "Lecture terminée"
+                ? ` (${attempt}/3)`
+                : ""}
+            </span>
+            {progress === 100 && !running ? (
+              <span className="text-emerald-300">Prêt</span>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
-          }
+            }
