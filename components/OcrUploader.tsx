@@ -1,288 +1,239 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
-  /** Texte OCR final renvoyé vers le parent (non affiché ici) */
+  /** Texte OCR final renvoyé vers le parent */
   onText: (text: string) => void;
-  /** Prévisualisation (utile si tu veux afficher l’image ailleurs) */
-  onPreview?: (url: string | null) => void;
+  /** Prévisualisation (toutes les images compressées ensemble) */
+  onPreview?: (urls: string[] | null) => void;
 };
 
 export default function OcrUploader({ onText, onPreview }: Props) {
-  // === Réglages ===
+  /* ===========================
+      CONSTANTES & LIMITES
+     =========================== */
+  const MAX_FILES = 10;
   const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
-  const AUTO_LANG = "fra+eng+ara"; // auto fr+en+ar
-  const MAX_ATTEMPTS = 3;
+  const AUTO_LANG = "fra+eng+ara";
 
-  // === State UI ===
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
+  /* ===========================
+      STATES
+     =========================== */
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [runningIndex, setRunningIndex] = useState<number | null>(null);
+  const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState<string>("");
-  const [fileName, setFileName] = useState<string>("");
-  const [fileSize, setFileSize] = useState<string>("");
-  const [infoMsg, setInfoMsg] = useState<string>("");
-  const [attempt, setAttempt] = useState<number>(0);
-  const [justFinished, setJustFinished] = useState<boolean>(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const fileRef = useRef<HTMLInputElement | null>(null);
-
-  // propage l’aperçu & nettoie l’ancien ObjectURL
+  /* ===========================
+      GESTION PREVIEW
+     =========================== */
   useEffect(() => {
-    onPreview?.(imageUrl ?? null);
+    previews.forEach((url) => URL.revokeObjectURL(url));
+    const newPreviews = files.map((f) => URL.createObjectURL(f));
+    setPreviews(newPreviews);
+    onPreview?.(newPreviews.length > 0 ? newPreviews : null);
+
     return () => {
-      if (imageUrl) URL.revokeObjectURL(imageUrl);
+      newPreviews.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [imageUrl, onPreview]);
+  }, [files, onPreview]);
 
-  function humanSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} o`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
-  }
-
-  /**
-   * Nettoyage visuel uniquement : on efface l’aperçu et les infos UI,
-   * mais on NE touche PAS au texte déjà envoyé au parent.
-   */
-  function softClearVisual() {
-    if (fileRef.current) fileRef.current.value = "";
-    setImageUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    setFileName("");
-    setFileSize("");
+  /* ===========================
+      SUPPRIMER UN FICHIER
+     =========================== */
+  function removeFile(idx: number) {
+    setFiles((arr) => arr.filter((_, i) => i !== idx));
     setProgress(0);
-    setStatusText("");
-    setInfoMsg("");
-    setAttempt(0);
-    setJustFinished(false);
+    setStatus("");
   }
 
-  /**
-   * Nettoyage complet : utilisé quand l’utilisateur clique sur « Retirer ✕ »
-   * → on efface aussi le texte OCR côté parent.
-   */
-  function clearFile() {
-    softClearVisual();
-    onText("");
-  }
+  /* ===========================
+      CHARGEMENT DES FICHIERS
+     =========================== */
+  function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const incoming = Array.from(e.target.files || []);
 
-  async function recognizeWithRetry(file: File) {
-    setRunning(true);
-    setInfoMsg("");
-    setStatusText("Préparation…");
-    setProgress((p) => (p <= 1 ? 1 : p));
+    if (incoming.length === 0) return;
 
-    let lastErr: any = null;
-    let extractedText = "";
+    // ❌ PDF interdits
+    if (incoming.some((f) => f.type === "application/pdf")) {
+      alert("Les PDF ne peuvent pas être lus. Veuillez envoyer des images ou captures d’écran.");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
 
-    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
-      try {
-        setAttempt(i);
-        if (i > 1) setStatusText(`Nouvelle tentative ${i}/${MAX_ATTEMPTS}…`);
+    // ❌ trop de fichiers
+    if (incoming.length + files.length > MAX_FILES) {
+      alert(`Maximum ${MAX_FILES} fichiers par analyse.`);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
 
-        const Tesseract = (await import("tesseract.js")).default as any;
-
-        setStatusText("Lecture du document…");
-        const result: any = await Tesseract.recognize(file, AUTO_LANG, {
-          logger: (m: any) => {
-            if (m?.status === "recognizing text" && typeof m?.progress === "number") {
-              const p = Math.max(1, Math.min(100, Math.round(m.progress * 100)));
-              setProgress(p);
-            }
-          },
-        } as any);
-
-        const raw = String(result?.data?.text || "");
-        extractedText = raw
-          .replace(/[ \t]+\n/g, "\n")
-          .replace(/\n{3,}/g, "\n\n")
-          .trim();
-
-        if (extractedText.length > 10) break; // on sort si du texte utile a été lu
-      } catch (e: any) {
-        lastErr = e;
-        await new Promise((r) => setTimeout(r, i * 200 + 300)); // petit délai avant retente
+    // ❌ fichier trop lourd
+    for (const f of incoming) {
+      if (f.size > MAX_SIZE) {
+        alert(`Fichier trop lourd : ${f.name} (${(f.size / 1024 / 1024).toFixed(1)} Mo)`);
+        if (inputRef.current) inputRef.current.value = "";
+        return;
       }
     }
 
-    setRunning(false);
-    setProgress(100);
-    setStatusText("Lecture terminée");
-    setJustFinished(true);
-    setTimeout(() => setJustFinished(false), 1200);
-
-    // Cas 1 : lecture utile
-    if (extractedText.length > 10) {
-      setInfoMsg("Lecture complète — analyse en cours.");
-      onText(extractedText);
-
-      // On laisse 400 ms pour que l’utilisateur voie "Lecture terminée",
-      // puis on nettoie visuellement pour ne pas encombrer l’écran.
-      setTimeout(() => {
-        softClearVisual();
-      }, 400);
-
-      return;
-    }
-
-    // Cas 2 : lecture partielle ou vide => retour expert, jamais d’erreur
-    const gentle =
-  "La lecture de l’image est incomplète, mais certains passages restent exploitables. " +
-  "Pour un meilleur résultat, vous pouvez envoyer une photo plus nette ou une capture d’écran de la page.";
-    setInfoMsg(gentle);
-    onText(""); // texte vide côté parent, mais feedback positif
+    setFiles((prev) => [...prev, ...incoming]);
+    if (inputRef.current) inputRef.current.value = "";
   }
 
-  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-
-    // Rejet doux des PDF (non pris en charge par ce module)
-    const isPdf =
-      f.type === "application/pdf" ||
-      f.name.toLowerCase().endsWith(".pdf");
-
-    if (isPdf) {
-      setInfoMsg(
-        "Votre fichier est un PDF. Pour l’instant, je peux lire uniquement des images " +
-          "(photo ou capture d’écran). Prenez une capture de la page importante puis rechargez-la ici."
-      );
-      if (fileRef.current) fileRef.current.value = "";
-      setFileName("");
-      setFileSize("");
-      setImageUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      setProgress(0);
-      setStatusText("");
-      setAttempt(0);
-      setJustFinished(false);
-      onText("");
-      return;
-    }
-
-    if (f.size > MAX_SIZE) {
-      setInfoMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite : 10 Mo.`);
-      if (fileRef.current) fileRef.current.value = "";
-      return;
-    }
-
-    setFileName(f.name);
-    setFileSize(humanSize(f.size));
+  /* ===========================
+      OCR D'UN FICHIER
+     =========================== */
+  async function readOne(file: File, index: number): Promise<string> {
+    setRunningIndex(index);
+    setStatus("Lecture du document…");
     setProgress(1);
-    setInfoMsg("");
-    setStatusText("Préparation…");
-    setAttempt(0);
-    setJustFinished(false);
 
-    const url = URL.createObjectURL(f);
-    setImageUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
+    const Tesseract = (await import("tesseract.js")).default as any;
+
+    const result: any = await Tesseract.recognize(file, AUTO_LANG, {
+      logger: (m: any) => {
+        if (m?.status === "recognizing text" && typeof m?.progress === "number") {
+          setProgress(Math.round(m.progress * 100));
+        }
+      },
     });
 
-    recognizeWithRetry(f);
+    const raw = String(result?.data?.text || "");
+    const clean = raw
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    setProgress(100);
+    setStatus("Lecture terminée");
+
+    return clean;
   }
 
-  const Progress = useMemo(
-    () =>
-      running || progress > 0 ? (
-        <div className="w-full mt-3">
-          <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
-            <div
-              className="h-2 bg-emerald-400 transition-[width] duration-200"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="mt-1 flex items-center justify-between text-[11px] text-white/70">
-            <span>
-              {statusText}
-              {attempt > 1 && statusText !== "Lecture terminée"
-                ? ` (${attempt}/${MAX_ATTEMPTS})`
-                : ""}
-            </span>
-            {progress === 100 ? <span className="text-emerald-300">Prêt</span> : null}
-          </div>
-        </div>
-      ) : null,
-    [running, progress, statusText, attempt]
-  );
+  /* ===========================
+      LANCER L'OCR SUR TOUS
+     =========================== */
+  async function runAll() {
+    if (files.length === 0) {
+      alert("Veuillez choisir au moins un fichier.");
+      return;
+    }
 
-  const hasFile = Boolean(fileName);
+    let allText = "";
 
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const text = await readOne(files[i], i);
+        if (text.length > 10) {
+          allText += "\n\n" + text;
+        } else {
+          allText +=
+            "\n\n(Passage peu lisible — zones floues ou texte absent. Analyse possible sur les parties reconnues.)";
+        }
+      } catch {
+        allText +=
+          "\n\n(La lecture de cette image est incomplète, mais certains passages restent exploitables. " +
+          "Pour un meilleur résultat, vous pouvez envoyer une photo plus nette ou une capture d’écran de la page.)";
+      }
+    }
+
+    setRunningIndex(null);
+    setStatus("Analyse prête");
+    onText(allText.trim());
+  }
+
+  /* ===========================
+      RENDER
+     =========================== */
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      {/* Barre info fichier + actions */}
-      <div className="flex items-center gap-2">
+      {/* Zone de sélection */}
+      <div className="flex items-center gap-3">
         <input
-          ref={fileRef}
-          id="ocr-file"
+          ref={inputRef}
           type="file"
           accept="image/*,image/heic,image/heif"
-          onChange={onPickFile}
+          multiple
+          onChange={handlePick}
           className="hidden"
         />
 
         <label
-          htmlFor="ocr-file"
-          className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
-            ${
-              hasFile
-                ? "bg-emerald-500 text-black border-emerald-400"
-                : "bg-white text-black hover:bg-gray-200 border-transparent"
-            }
-            ${running ? "opacity-70 pointer-events-none" : ""}
-            ${justFinished ? "animate-pulse" : ""}
-          `}
-          title={hasFile ? "Changer de fichier" : "Scanner une page (photo / capture)"}
+          htmlFor="ocr-files"
+          onClick={() => inputRef.current?.click()}
+          className="cursor-pointer px-3 py-2 rounded-xl text-sm font-medium bg-white text-black border border-transparent hover:bg-gray-200"
         >
-          {hasFile ? "Fichier chargé ✓" : "Scanner une page"}
+          Ajouter des fichiers
         </label>
 
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="text-xs text-white/70 truncate">
-            {hasFile ? `${fileName} — ${fileSize}` : "Aucun fichier choisi"}
-          </div>
-
-          {hasFile && (
-            <button
-              type="button"
-              onClick={clearFile}
-              className="shrink-0 text-xs px-2 py-1 rounded-lg bg-white/15 hover:bg-white/25"
-              title="Retirer le fichier"
-            >
-              Retirer ✕
-            </button>
-          )}
+        <div className="text-xs text-white/70">
+          {files.length === 0
+            ? "Aucun fichier sélectionné"
+            : `${files.length} fichier(s) — max ${MAX_FILES}`}
         </div>
       </div>
 
-      {/* Message d’information doux (jamais rouge, jamais “erreur”) */}
-      {infoMsg && <div className="mt-2 text-xs text-emerald-300/90">{infoMsg}</div>}
+      {/* Liste des fichiers */}
+      {files.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {files.map((file, idx) => (
+            <div
+              key={idx}
+              className="rounded-lg bg-white/10 p-2 flex items-center gap-3"
+            >
+              <img
+                src={previews[idx]}
+                alt="aperçu"
+                className="w-20 h-20 object-contain rounded border border-white/10"
+              />
 
-      {/* Aperçu visuel */}
-      {imageUrl && (
-        <div className="mt-3 relative">
-          <img
-            src={imageUrl}
-            alt="aperçu du document"
-            className="rounded-lg w-full max-h-64 object-contain border border-white/10"
-          />
-          {running && (
-            <div className="absolute inset-0 rounded-lg bg-black/25 grid place-items-center text-xs">
-              {statusText || "Analyse…"}
+              <div className="flex-1 text-xs text-white/80">
+                <div className="font-medium">{file.name}</div>
+                <div className="opacity-70">
+                  {(file.size / 1024 / 1024).toFixed(2)} Mo
+                </div>
+              </div>
+
+              <button
+                onClick={() => removeFile(idx)}
+                className="text-xs px-2 py-1 rounded bg-white/20 hover:bg-white/30"
+              >
+                Retirer ✕
+              </button>
             </div>
-          )}
+          ))}
         </div>
       )}
 
-      {/* Barre de progression */}
-      {Progress}
+      {/* Progression */}
+      {runningIndex !== null && (
+        <div className="mt-4">
+          <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
+            <div
+              className="h-2 bg-emerald-400 transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="text-xs mt-1 text-white/70">
+            {status} (document {runningIndex + 1}/{files.length})
+          </div>
+        </div>
+      )}
+
+      {/* Bouton Lancer */}
+      {files.length > 0 && (
+        <button
+          onClick={runAll}
+          className="mt-4 w-full py-2 rounded-xl bg-emerald-500 text-black font-medium hover:bg-emerald-400"
+        >
+          Lire et analyser
+        </button>
+      )}
     </div>
   );
-      }
+            }
