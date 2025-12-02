@@ -25,9 +25,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
   const [files, setFiles] = useState<OcrFile[]>([]);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState("");
-  const [infoMsg, setInfoMsg] = useState("");
-  const [attempt, setAttempt] = useState(0);
+  const [infoMsg, setInfoMsg] = useState(""); // interne uniquement, non affiché
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -42,9 +40,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     setFiles([]);
     setRunning(false);
     setProgress(0);
-    setStatusText("");
     setInfoMsg("");
-    setAttempt(0);
     onText("");
     onPreview?.(null);
     if (inputRef.current) inputRef.current.value = "";
@@ -59,7 +55,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
     if (!remaining.length) {
       setProgress(0);
-      setStatusText("");
       setInfoMsg("");
       onText("");
       onPreview?.(null);
@@ -75,9 +70,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
     setRunning(true);
     setProgress(1);
-    setStatusText("Lecture des documents…");
     setInfoMsg("");
-    setAttempt(0);
 
     let globalText = "";
     let lastErr: any = null;
@@ -91,11 +84,6 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         let localText = "";
         for (let i = 1; i <= 3; i++) {
           try {
-            setAttempt(i);
-            setStatusText(
-              `Lecture du document ${index + 1}/${list.length}…`
-            );
-
             const result: any = await Tesseract.recognize(
               item.file,
               AUTO_LANG,
@@ -139,18 +127,18 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       }
     } catch (e: any) {
       lastErr = e;
-      // on laisse gérer par le gentle message plus bas
+      console.warn("[OCR] erreur de lecture", lastErr);
     }
 
     setRunning(false);
     setProgress(100);
-    setStatusText("Lecture terminée");
 
     if (globalText.trim().length > 10) {
+      // Message interne (non affiché)
       setInfoMsg("Lecture complète — analyse en cours.");
       onText(globalText.trim());
     } else {
-      // Ton message validé
+      // Message doux interne (non affiché)
       const gentle =
         "La lecture de l’image est incomplète, mais certains passages restent exploitables. " +
         "Pour un meilleur résultat, vous pouvez envoyer une photo plus nette ou une capture d’écran de la page.";
@@ -184,6 +172,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     const limited = merged.slice(0, MAX_FILES);
 
     if (merged.length > MAX_FILES) {
+      // info interne, pas affichée
       setInfoMsg(
         "Maximum 10 fichiers par envoi. Seuls les 10 premiers sont pris en compte."
       );
@@ -193,7 +182,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
 
     setFiles(limited);
 
-    // aperçu = premier visuel
+    // aperçu = premier visuel (image)
     const first = limited.find((f) => f.file.type.startsWith("image/"));
     onPreview?.(first ? first.url : null);
 
@@ -254,7 +243,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         )}
       </div>
 
-      {/* Liste des fichiers */}
+      {/* Liste des fichiers avec aperçu */}
       {hasFiles && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {files.map((f) => (
@@ -263,12 +252,21 @@ export default function OcrUploader({ onText, onPreview }: Props) {
               className="flex items-center justify-between rounded-lg bg-white/10 px-2 py-1"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs text-white/90 truncate">
-                  {f.name}
-                </span>
-                <span className="text-[11px] text-white/60">
-                  {f.sizeLabel}
-                </span>
+                <div className="w-10 h-10 rounded-md overflow-hidden bg-white/10 shrink-0">
+                  <img
+                    src={f.url}
+                    alt="aperçu du document"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs text-white/90 truncate">
+                    {f.name}
+                  </span>
+                  <span className="text-[11px] text-white/60">
+                    {f.sizeLabel}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
@@ -282,11 +280,7 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         </div>
       )}
 
-      {/* Infos & progression */}
-      {infoMsg && (
-        <div className="mt-2 text-xs text-emerald-300/90">{infoMsg}</div>
-      )}
-
+      {/* Barre de progression — sans texte (signalétique universelle) */}
       {(running || progress > 0) && (
         <div className="w-full mt-3">
           <div className="w-full bg-white/10 rounded h-2 overflow-hidden">
@@ -295,19 +289,8 @@ export default function OcrUploader({ onText, onPreview }: Props) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="mt-1 flex items-center justify-between text-[11px] text-white/70">
-            <span>
-              {statusText}
-              {attempt > 1 && statusText !== "Lecture terminée"
-                ? ` (${attempt}/3)`
-                : ""}
-            </span>
-            {progress === 100 && !running ? (
-              <span className="text-emerald-300">Prêt</span>
-            ) : null}
-          </div>
         </div>
       )}
     </div>
   );
-        }
+                }
