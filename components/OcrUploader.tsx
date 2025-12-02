@@ -42,6 +42,34 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
   }
 
+  /**
+   * Nettoyage visuel uniquement : on efface l’aperçu et les infos UI,
+   * mais on NE touche PAS au texte déjà envoyé au parent.
+   */
+  function softClearVisual() {
+    if (fileRef.current) fileRef.current.value = "";
+    setImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFileName("");
+    setFileSize("");
+    setProgress(0);
+    setStatusText("");
+    setInfoMsg("");
+    setAttempt(0);
+    setJustFinished(false);
+  }
+
+  /**
+   * Nettoyage complet : utilisé quand l’utilisateur clique sur « Retirer ✕ »
+   * → on efface aussi le texte OCR côté parent.
+   */
+  function clearFile() {
+    softClearVisual();
+    onText("");
+  }
+
   async function recognizeWithRetry(file: File) {
     setRunning(true);
     setInfoMsg("");
@@ -69,7 +97,10 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         } as any);
 
         const raw = String(result?.data?.text || "");
-        extractedText = raw.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+        extractedText = raw
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
 
         if (extractedText.length > 10) break; // on sort si du texte utile a été lu
       } catch (e: any) {
@@ -88,35 +119,52 @@ export default function OcrUploader({ onText, onPreview }: Props) {
     if (extractedText.length > 10) {
       setInfoMsg("Lecture complète — analyse en cours.");
       onText(extractedText);
+
+      // On laisse 400 ms pour que l’utilisateur voie "Lecture terminée",
+      // puis on nettoie visuellement pour ne pas encombrer l’écran.
+      setTimeout(() => {
+        softClearVisual();
+      }, 400);
+
       return;
     }
 
     // Cas 2 : lecture partielle ou vide => retour expert, jamais d’erreur
     const gentle =
-      "La lecture semble partielle, mais des repères peuvent être exploités. L’analyse reste possible sur les zones les plus nettes.";
+  "La lecture de l’image est incomplète, mais certains passages restent exploitables. " +
+  "Pour un meilleur résultat, vous pouvez envoyer une photo plus nette ou une capture d’écran de la page.";
     setInfoMsg(gentle);
     onText(""); // texte vide côté parent, mais feedback positif
-  }
-
-  function clearFile() {
-    if (fileRef.current) fileRef.current.value = "";
-    setImageUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    setFileName("");
-    setFileSize("");
-    setProgress(0);
-    setStatusText("");
-    setInfoMsg("");
-    setAttempt(0);
-    setJustFinished(false);
-    onText("");
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    // Rejet doux des PDF (non pris en charge par ce module)
+    const isPdf =
+      f.type === "application/pdf" ||
+      f.name.toLowerCase().endsWith(".pdf");
+
+    if (isPdf) {
+      setInfoMsg(
+        "Votre fichier est un PDF. Pour l’instant, je peux lire uniquement des images " +
+          "(photo ou capture d’écran). Prenez une capture de la page importante puis rechargez-la ici."
+      );
+      if (fileRef.current) fileRef.current.value = "";
+      setFileName("");
+      setFileSize("");
+      setImageUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setProgress(0);
+      setStatusText("");
+      setAttempt(0);
+      setJustFinished(false);
+      onText("");
+      return;
+    }
 
     if (f.size > MAX_SIZE) {
       setInfoMsg(`Fichier trop lourd (${humanSize(f.size)}). Limite : 10 Mo.`);
@@ -154,7 +202,9 @@ export default function OcrUploader({ onText, onPreview }: Props) {
           <div className="mt-1 flex items-center justify-between text-[11px] text-white/70">
             <span>
               {statusText}
-              {attempt > 1 && statusText !== "Lecture terminée" ? ` (${attempt}/${MAX_ATTEMPTS})` : ""}
+              {attempt > 1 && statusText !== "Lecture terminée"
+                ? ` (${attempt}/${MAX_ATTEMPTS})`
+                : ""}
             </span>
             {progress === 100 ? <span className="text-emerald-300">Prêt</span> : null}
           </div>
@@ -181,13 +231,17 @@ export default function OcrUploader({ onText, onPreview }: Props) {
         <label
           htmlFor="ocr-file"
           className={`cursor-pointer select-none px-3 py-2 rounded-xl text-sm font-medium border transition
-            ${hasFile ? "bg-emerald-500 text-black border-emerald-400" : "bg-white text-black hover:bg-gray-200 border-transparent"}
+            ${
+              hasFile
+                ? "bg-emerald-500 text-black border-emerald-400"
+                : "bg-white text-black hover:bg-gray-200 border-transparent"
+            }
             ${running ? "opacity-70 pointer-events-none" : ""}
             ${justFinished ? "animate-pulse" : ""}
           `}
-          title={hasFile ? "Changer de fichier" : "Choisir un fichier"}
+          title={hasFile ? "Changer de fichier" : "Scanner une page (photo / capture)"}
         >
-          {hasFile ? "Fichier chargé ✓" : "Choisir un fichier"}
+          {hasFile ? "Fichier chargé ✓" : "Scanner une page"}
         </label>
 
         <div className="flex items-center gap-2 min-w-0">
@@ -231,4 +285,4 @@ export default function OcrUploader({ onText, onPreview }: Props) {
       {Progress}
     </div>
   );
-}
+      }
