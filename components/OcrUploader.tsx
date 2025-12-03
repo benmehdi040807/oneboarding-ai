@@ -3,8 +3,11 @@
 import React, { useRef, useState } from "react";
 
 type Props = {
+  // Liste des fichiers sélectionnés (ou [] si plus rien)
   onSubmit: (files: File[] | null) => void;
 };
+
+const MAX_FILES = 10;
 
 export function OcrUploader({ onSubmit }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -14,9 +17,24 @@ export function OcrUploader({ onSubmit }: Props) {
     const list = e.target.files;
     if (!list || list.length === 0) return;
 
-    const arr = Array.from(list);
-    setFiles(arr);
-    onSubmit(arr);
+    const current = [...files];
+    const incoming = Array.from(list);
+
+    const available = Math.max(0, MAX_FILES - current.length);
+    const toAdd = incoming.slice(0, available);
+
+    const next = [...current, ...toAdd];
+    setFiles(next);
+    onSubmit(next);
+  };
+
+  const handleRemove = (idx: number) => {
+    const next = files.filter((_, i) => i !== idx);
+    setFiles(next);
+    onSubmit(next);
+    if (next.length === 0 && inputRef.current) {
+      inputRef.current.value = "";
+    }
   };
 
   const handleRemoveAll = () => {
@@ -25,51 +43,64 @@ export function OcrUploader({ onSubmit }: Props) {
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const labelText =
-    files.length === 0
-      ? "Aucun fichier sélectionné."
-      : files.length === 1
-      ? "1 fichier sélectionné :"
-      : `${files.length} fichiers sélectionnés :`;
-
-  const detailText =
-    files.length > 0 ? files.map((f) => f.name).join(", ") : "";
-
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-white/88 px-4 py-3 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
+    <div className="rounded-2xl border border-[var(--border)] bg-white/80 px-3 py-2 shadow-sm">
+      {/* Ligne de commande : bouton + compteur */}
+      <div className="mb-2 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)] text-sm font-medium"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[var(--fg)] shadow-sm active:scale-95"
         >
-          Choisir un fichier
+          <span className="text-base leading-none">📎</span>
+          <span className="tabular-nums text-[11px]">
+            {files.length}/{MAX_FILES}
+          </span>
         </button>
+
         {files.length > 0 && (
           <button
             type="button"
             onClick={handleRemoveAll}
-            className="px-3 py-1.5 rounded-xl border border-[var(--border)] bg-white/70 hover:bg-white text-[var(--fg)] text-xs"
+            className="inline-flex items-center justify-center rounded-full bg-black/6 px-2 py-1 text-[11px] text-[var(--fg)]/70 hover:bg-black/12 active:scale-95"
           >
-            Retirer tout
+            ✕
           </button>
         )}
       </div>
 
-      <div className="text-xs text-[var(--fg)]/80">
-        <p>{labelText}</p>
-        {detailText && (
-          <p className="mt-1 line-clamp-2 break-all text-[11px] opacity-80">
-            {detailText}
-          </p>
-        )}
-      </div>
+      {/* Liste des fichiers sélectionnés */}
+      {files.length > 0 && (
+        <div className="space-y-1.5">
+          {files.map((f, idx) => (
+            <div
+              key={`${idx}-${f.name}`}
+              className="flex items-center justify-between rounded-xl bg-white/90 px-2 py-1 text-xs text-[var(--fg)]"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--chip-bg)]">
+                  <span className="text-[13px]">📄</span>
+                </div>
+                <span className="truncate text-[11px]">{f.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(idx)}
+                className="ml-2 text-[11px] text-[var(--fg)]/60 hover:text-[var(--fg)]"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {/* input natif totalement caché, déclenché par 📎 ou par le trombone externe */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*,.pdf"
-        multiple={false}
+        multiple
         onChange={handleChange}
         className="hidden"
       />
