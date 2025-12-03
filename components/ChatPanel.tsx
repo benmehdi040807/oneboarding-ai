@@ -1,266 +1,234 @@
-// components/ChatPanel.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 type Lang = "fr" | "en" | "ar";
 
-function getInitialLang(): Lang {
-  if (typeof window === "undefined") return "en";
+function readLang(): Lang {
+  if (typeof document === "undefined") return "fr";
+  const fromDom = document.documentElement.getAttribute("lang");
+  if (fromDom === "en" || fromDom === "ar") return fromDom;
   try {
-    const sp = new URLSearchParams(window.location.search);
-    const qRaw =
-      sp.get("lang") ||
-      document.documentElement.lang ||
-      localStorage.getItem("oneboarding.lang") ||
-      "en";
-
-    const q = qRaw.toLowerCase().trim();
-    return (["fr", "en", "ar"].includes(q) ? (q as Lang) : "en");
-  } catch {
-    return "en";
-  }
+    const ls = localStorage.getItem("oneboarding.lang") as Lang | null;
+    if (ls === "en" || ls === "ar") return ls;
+  } catch {}
+  return "fr";
 }
 
+/* =================== Icônes =================== */
+
+function PaperClipIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M8.5 12.75 13 8.25a2.5 2.5 0 1 1 3.54 3.54l-5.66 5.66a3.75 3.75 0 1 1-5.3-5.3l5.3-5.3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MicIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M12 4.5a2.5 2.5 0 0 1 2.5 2.5v4a2.5 2.5 0 1 1-5 0v-4A2.5 2.5 0 0 1 12 4.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+      <path
+        d="M7.75 11.5a4.25 4.25 0 0 0 8.5 0M12 15.75V19m-3 0h6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SendIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M5 5.5 19 12 5 18.5l2.5-6L12 12l-4.5-0.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* =================== ChatPanel =================== */
+
 export default function ChatPanel() {
-  const [lang, setLang] = useState<Lang>(getInitialLang());
-  const [input, setInput] = useState("");
+  const [lang, setLang] = useState<Lang>("fr");
+  const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // état visuel du micro (vient de Page via ob:mic-state)
+  // état micro (venant de app/page via ob:mic-state)
   const [micListening, setMicListening] = useState(false);
+  const [micSupported, setMicSupported] = useState(true);
 
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-
-  /* ====== Sync langue (Menu, URL) ====== */
   useEffect(() => {
-    const onLang = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { lang?: string } | undefined;
-      const nextGuess =
-        (detail?.lang as Lang) ||
-        (localStorage.getItem("oneboarding.lang") as Lang) ||
-        (document.documentElement.lang as Lang) ||
-        "en";
-
-      const v = (["fr", "en", "ar"].includes(nextGuess) ? (nextGuess as Lang) : "en");
-      setLang(v);
-    };
-
-    const onUrl = () => {
-      try {
-        const sp = new URLSearchParams(window.location.search);
-        const q = (sp.get("lang") || "").toLowerCase();
-        if (q && (["fr", "en", "ar"] as const).includes(q as Lang)) {
-          setLang(q as Lang);
-        }
-      } catch {
-        /* noop */
-      }
-    };
-
-    window.addEventListener("ob:lang-changed", onLang as EventListener);
-    window.addEventListener("ob:url-changed", onUrl as EventListener);
-
-    return () => {
-      window.removeEventListener("ob:lang-changed", onLang as EventListener);
-      window.removeEventListener("ob:url-changed", onUrl as EventListener);
-    };
-  }, []);
-
-  /* ====== Focus externe éventuel ====== */
-  useEffect(() => {
-    const onFocusReq = () => taRef.current?.focus();
-    window.addEventListener("ob:focus-input", onFocusReq);
-    return () => window.removeEventListener("ob:focus-input", onFocusReq);
-  }, []);
-
-  /* ====== Sync DOM → state (micro / input bridge) ====== */
-  useEffect(() => {
-    const syncFromDom = (ev: Event) => {
-      const ta = taRef.current;
-      if (!ta) return;
-      if (ev.target === ta) {
-        setInput(ta.value);
-      }
-    };
-    window.addEventListener("input", syncFromDom, true);
-    return () => window.removeEventListener("input", syncFromDom, true);
-  }, []);
-
-  /* ====== Reset input quand l’historique est effacé ====== */
-  useEffect(() => {
-    function onCleared() {
-      setInput("");
-    }
-    window.addEventListener("ob:history-cleared", onCleared as EventListener);
+    setLang(readLang());
+    const onLangChanged = () => setLang(readLang());
+    window.addEventListener("ob:lang-changed", onLangChanged as EventListener);
     return () =>
-      window.removeEventListener("ob:history-cleared", onCleared as EventListener);
+      window.removeEventListener(
+        "ob:lang-changed",
+        onLangChanged as EventListener
+      );
   }, []);
 
-  /* ====== Écoute de l’état du micro (Page → ChatPanel) ====== */
   useEffect(() => {
-    const onMicState = (e: Event) => {
-      const detail = (e as CustomEvent<{ listening?: boolean }>).detail;
-      setMicListening(Boolean(detail?.listening));
+    const onMicState = (evt: Event) => {
+      const e = evt as CustomEvent<{ listening: boolean; supported: boolean }>;
+      setMicListening(!!e.detail?.listening);
+      setMicSupported(!!e.detail?.supported);
     };
     window.addEventListener("ob:mic-state", onMicState as EventListener);
-    return () => {
+    return () =>
       window.removeEventListener("ob:mic-state", onMicState as EventListener);
-    };
   }, []);
 
-  /* ====== Envoi du message ====== */
-  function onSend() {
-    const text = input.trim();
-    if (!text) return;
+  const placeholder =
+    lang === "ar"
+      ? "اكتب هنا..."
+      : lang === "en"
+      ? "Write here..."
+      : "Écrivez ici...";
+
+  const sendLabel =
+    lang === "ar" ? "إرسال" : lang === "en" ? "Send" : "Envoyer";
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const value = text.trim();
+    if (!value) return;
 
     window.dispatchEvent(
       new CustomEvent("ob:chat-submit", {
-        detail: { text, lang },
+        detail: { text: value, lang },
       })
     );
-
-    setInput("");
-    requestAnimationFrame(() => taRef.current?.focus());
-  }
-
-  /* ====== Actions : joindre / micro ====== */
-  function onAttachClick() {
-    // Demande à la Page d’ouvrir le tiroir OCR + file picker
-    window.dispatchEvent(new Event("ob:open-ocr-picker"));
-  }
-
-  function onMicClick() {
-    window.dispatchEvent(new Event("ob:toggle-mic"));
-  }
-
-  /* ====== Libellés UI ====== */
-  const isRTL = lang === "ar";
-  const dir = isRTL ? "rtl" : "ltr";
-  const align = isRTL ? "text-right" : "text-left";
-
-  const LABELS: Record<Lang, { placeholder: string; send: string }> = {
-    fr: {
-      placeholder: "Écrivez ici…",
-      send: "Envoyer",
-    },
-    en: {
-      placeholder: "Type here…",
-      send: "Send",
-    },
-    ar: {
-      placeholder: "اكتب هنا…",
-      send: "إرسال",
-    },
+    setText("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "44px";
+    }
   };
-  const t = LABELS[lang];
 
-  /* ====== Rendu ====== */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "0px";
+    const next = Math.min(ta.scrollHeight, 200);
+    ta.style.height = next + "px";
+  };
+
+  const handleUploadClick = () => {
+    window.dispatchEvent(new Event("ob:open-ocr-picker"));
+  };
+
+  const handleMicClick = () => {
+    window.dispatchEvent(new Event("ob:toggle-mic"));
+  };
+
+  const iconBtnBase =
+    "inline-flex items-center justify-center h-11 w-11 rounded-full border border-[var(--border)] bg-white/80 hover:bg-white shadow-sm text-[var(--fg)] transition-all duration-150";
+
+  const sendDisabled = !text.trim();
+
   return (
-    <section dir={dir} className={`w-full max-w-3xl mx-auto ${align}`}>
-      <div
-        className={`
-          rounded-2xl border border-black/10 bg-white/80 text-black shadow-sm
-          p-3 sm:p-4
-        `}
-      >
-        <textarea
-          ref={taRef}
-          data-ob-chat-input
-          className={`
-            w-full resize-none outline-none
-            leading-6 text-[15px] placeholder-black/40 bg-transparent
-            ${isRTL ? "text-right" : "text-left"}
-          `}
-          rows={4}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t.placeholder}
-          dir={dir}
-          aria-label="Zone de saisie du message"
-        />
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="rounded-3xl bg-white/80 backdrop-blur-md shadow-md border border-[var(--border)] px-3 py-2 flex items-end gap-2">
+        {/* zone de texte */}
+        <div className="flex-1 flex flex-col">
+          <textarea
+            ref={textareaRef}
+            data-ob-chat-input
+            value={text}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            placeholder={placeholder}
+            className="w-full resize-none border-none bg-transparent outline-none text-[var(--fg)] text-base leading-relaxed placeholder:text-[var(--fg)]/40 pt-1 pb-2 px-1"
+            dir={lang === "ar" ? "rtl" : "ltr"}
+          />
+        </div>
 
-        <div className="mt-3 flex items-center justify-between">
-          {/* Zone gauche : joindre + micro */}
-          <div className="flex items-center gap-2">
-            {/* Joindre */}
-            <button
-              type="button"
-              onClick={onAttachClick}
-              className={`
-                h-10 w-10 sm:h-11 sm:w-11 rounded-xl
-                flex items-center justify-center
-                border border-black/5
-                bg-white/70 hover:bg-white
-                shadow-sm
-              `}
-              aria-label="Joindre un document"
-            >
-              <svg
-                className="h-5 w-5 text-sky-700"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
-              </svg>
-            </button>
-
-            {/* Micro */}
-            <button
-              type="button"
-              onClick={onMicClick}
-              className={`
-                h-10 w-10 sm:h-11 sm:w-11 rounded-xl
-                flex items-center justify-center
-                border border-black/10
-                bg-[#0b1b2b]
-                text-white
-                shadow-sm
-                ${micListening ? "mic-pulse" : "hover:bg-slate-900"}
-              `}
-              aria-label={
-                micListening ? "Arrêter l’enregistrement" : "Saisie vocale"
-              }
-            >
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
-                <path d="M19 10.5a7 7 0 01-14 0" />
-                <path d="M12 21v-3" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Bouton Envoyer */}
+        {/* boutons gauche (upload + micro) */}
+        <div className="flex items-center gap-1 pr-1">
+          {/* Upload */}
           <button
             type="button"
-            onClick={onSend}
-            disabled={!input.trim()}
-            className={`
-              inline-flex items-center gap-2 px-5 py-2 rounded-xl font-semibold
-              text-white transition
-              ${
-                !input.trim()
-                  ? "opacity-60 cursor-not-allowed bg-slate-600"
-                  : "hover:opacity-90"
-              }
-            `}
-            style={{ background: "linear-gradient(135deg,#111827,#374151)" }}
+            onClick={handleUploadClick}
+            className={iconBtnBase}
+            aria-label="Joindre un fichier"
           >
-            {t.send}
+            <PaperClipIcon className="h-5 w-5" />
+          </button>
+
+          {/* Micro */}
+          <button
+            type="button"
+            onClick={handleMicClick}
+            className={`${iconBtnBase} ${
+              micListening
+                ? "bg-[var(--panel)] text-white mic-pulse"
+                : micSupported
+                ? ""
+                : "opacity-60"
+            }`}
+            aria-label="Dictée vocale"
+          >
+            <MicIcon className="h-5 w-5" />
           </button>
         </div>
+
+        {/* bouton Envoyer */}
+        <button
+          type="submit"
+          disabled={sendDisabled}
+          className={`inline-flex items-center justify-center h-11 px-5 rounded-full bg-[var(--panel)] hover:bg-[var(--panel-strong)] text-white font-semibold shadow-md border border-[var(--panel-strong)] text-sm ${
+            sendDisabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+        >
+          <span className="mr-1">
+            <SendIcon className="h-4 w-4" />
+          </span>
+          {sendLabel}
+        </button>
       </div>
-    </section>
+    </form>
   );
-           }
+          }
