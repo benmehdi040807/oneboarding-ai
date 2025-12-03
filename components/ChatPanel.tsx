@@ -18,8 +18,8 @@ function readLang(): Lang {
 }
 
 /**
- * Petit type local pour la reco vocale.
- * Pas de SpeechRecognition global → pas d’erreur TS.
+ * Type minimal pour la reco vocale.
+ * → pas de `SpeechRecognition` global, donc pas d’erreur TypeScript.
  */
 type SpeechRec =
   | {
@@ -28,8 +28,14 @@ type SpeechRec =
       interimResults: boolean;
       start: () => void;
       stop: () => void;
-      addEventListener: (type: "result" | "end" | "error", listener: (ev: any) => void) => void;
-      removeEventListener: (type: "result" | "end" | "error", listener: (ev: any) => void) => void;
+      addEventListener: (
+        type: "result" | "end" | "error",
+        listener: (ev: any) => void
+      ) => void;
+      removeEventListener: (
+        type: "result" | "end" | "error",
+        listener: (ev: any) => void
+      ) => void;
     }
   | null;
 
@@ -43,7 +49,7 @@ export default function ChatPanel() {
   const [recognition, setRecognition] = useState<SpeechRec>(null);
   const [listening, setListening] = useState(false);
 
-  // Lang dynamique
+  // Lang dynamique (HTML + localStorage)
   useEffect(() => {
     setLang(readLang());
 
@@ -64,7 +70,7 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // Initialisation Web Speech (natif navigateur si dispo)
+  // Initialisation Web Speech natif
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -120,12 +126,11 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // adapter la langue de reco
+  // Adapter la langue de reco quand tu changes FR/EN/AR
   useEffect(() => {
     if (!recognition) return;
-    const code =
+    recognition.lang =
       lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR";
-    recognition.lang = code;
   }, [lang, recognition]);
 
   const placeholder =
@@ -164,20 +169,19 @@ export default function ChatPanel() {
     ta.style.height = next + "px";
   };
 
-  // IMPORTANT : Entrée = nouvelle ligne, PAS d’envoi
+  // 🎯 Enter = retour à la ligne. Jamais d’envoi.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      // on laisse juste la nouvelle ligne (comportement natif)
-      return;
+      return; // comportement natif, on laisse juste la nouvelle ligne
     }
   };
 
-  // Upload : on envoie un event, OcrUploader s’occupe du natif
+  // 📎 : ouvrir le sélecteur natif (géré par OcrUploader)
   const handleUploadClick = () => {
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
-  // Micro : toggle reco vocale
+  // 🎙 : toggle micro
   const handleMicClick = () => {
     if (!recognition) return;
 
@@ -186,9 +190,8 @@ export default function ChatPanel() {
         recognition.stop();
         setListening(false);
       } else {
-        const code =
+        recognition.lang =
           lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR";
-        recognition.lang = code;
         recognition.start();
         setListening(true);
       }
@@ -201,8 +204,8 @@ export default function ChatPanel() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="relative w-full rounded-[32px] border border-[var(--border)] bg-white px-4 pt-3 pb-9 shadow-lg">
-        {/* Grande zone de texte (identité claire, fond blanc) */}
+      <div className="relative w-full rounded-[32px] border border-white/70 bg-white/92 px-4 pt-3 pb-9 shadow-lg backdrop-blur-[2px]">
+        {/* Grande zone de texte (identité claire, fond doux) */}
         <textarea
           ref={textareaRef}
           data-ob-chat-input
@@ -217,6 +220,7 @@ export default function ChatPanel() {
 
         {/* Boutons bas gauche */}
         <div className="pointer-events-auto absolute left-4 bottom-2 flex items-center gap-2">
+          {/* Upload */}
           <button
             type="button"
             onClick={handleUploadClick}
@@ -228,6 +232,7 @@ export default function ChatPanel() {
             </span>
           </button>
 
+          {/* Micro */}
           <button
             type="button"
             onClick={handleMicClick}
@@ -260,4 +265,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-}
+    }
