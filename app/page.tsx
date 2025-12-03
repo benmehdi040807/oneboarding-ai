@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import { OcrUploader } from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
@@ -15,12 +14,6 @@ import { formatResponse } from "@/lib/txtPhrases";
 import { useAccessControl } from "@/lib/useAccessControl";
 import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
 import MemberLimitDialog from "@/components/MemberLimitDialog";
-
-// Boutons (➕ / 🔑) à droite
-const RightAuthButtons = dynamic(
-  () => import("@/components/RightAuthButtons"),
-  { ssr: false }
-);
 
 /* =================== Const =================== */
 const CONSENT_KEY = "oneboarding.legalConsent.v1";
@@ -507,6 +500,7 @@ export default function Page() {
   // i18n réactive : état + écoute des changements (Menu → ob:lang-changed)
   const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
   const recogRef = useRef<any>(null); // utilisé par la reco pour set .lang live
+  const listeningRef = useRef(false);
 
   // 🔐 Accès / quota (Benmehdi Protocol)
   const { snapshot: access, checkAndConsume } = useAccessControl();
@@ -625,9 +619,9 @@ export default function Page() {
     prevLoadingRef.current = loading;
   }, [loading]);
 
-  // === 🎙️ Micro (toujours visible)
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [listening, setListening] = useState(false);
+  // === 🎙️ Micro (logique uniquement, plus de bouton ici) ===
+  const [, setSpeechSupported] = useState(false);
+  const [, setListening] = useState(false);
 
   useEffect(() => {
     const SR: any =
@@ -646,7 +640,10 @@ export default function Page() {
     r.interimResults = false;
     r.maxAlternatives = 1;
 
-    r.onstart = () => setListening(true);
+    r.onstart = () => {
+      setListening(true);
+      listeningRef.current = true;
+    };
 
     // ⤵️ IMPORTANT : Insérer le texte dicté dans le <textarea data-ob-chat-input> du ChatPanel.
     r.onresult = (e: any) => {
@@ -677,7 +674,10 @@ export default function Page() {
       }
     };
 
-    const stopUI = () => setListening(false);
+    const stopUI = () => {
+      setListening(false);
+      listeningRef.current = false;
+    };
     r.onend =
       r.onspeechend =
       r.onaudioend =
@@ -695,16 +695,38 @@ export default function Page() {
       return;
     }
     try {
-      if (!listening) {
+      if (!listeningRef.current) {
         r.start();
       } else {
         r.stop();
       }
     } catch (e) {
       console.warn("Échec démarrage/arrêt micro:", e);
+      listeningRef.current = false;
       setListening(false);
     }
   }
+
+  // === Écoute des événements émis par ChatPanel (📎 / 🎙️) ===
+  useEffect(() => {
+    const onMic = () => toggleMic();
+    const onOcr = () => {
+      setShowOcr(true);
+      // laisse React rendre le tiroir puis clique le file input
+      setTimeout(() => {
+        triggerHiddenFileInput();
+      }, 0);
+    };
+
+    window.addEventListener("ob:toggle-mic", onMic as EventListener);
+    window.addEventListener("ob:open-ocr-picker", onOcr as EventListener);
+
+    return () => {
+      window.removeEventListener("ob:toggle-mic", onMic as EventListener);
+      window.removeEventListener("ob:open-ocr-picker", onOcr as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // === Pipeline “event bridge” : reçoit le texte (ChatPanel → génération)
   useEffect(() => {
@@ -744,9 +766,9 @@ export default function Page() {
       setLoading(true);
 
       const composedPrompt = hasOcr
-        ? `Voici le texte extrait d’un document (OCR) :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
+        ? `Voici des informations liées à des documents joints :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
             text || "(aucune)"
-          }\n\nConsigne pour l’IA : Résume/explique et réponds clairement, en conservant la langue du texte OCR si possible.`
+          }\n\nConsigne pour l’IA : Répondez aussi clairement que possible en tenant compte de ces éléments, dans la langue demandée.`
         : text;
 
       try {
@@ -890,75 +912,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Barre d’actions au-dessus du chat : OCR à gauche, Auth à droite */}
-      <div className="w-full max-w-3xl mb-3 flex items-center gap-3">
-        {/* OCR (icône seule) */}
-        <button
-          type="button"
-          onClick={() => setShowOcr((v) => !v)}
-          className="h-12 w-12 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] grid place-items-center transition"
-          title="Joindre un document (OCR)"
-          aria-label="Joindre un document"
-        >
-          <svg
-            className="h-6 w-6 text-[var(--fg)]"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 015.66 5.66L10 16.83a2 2 0 11-2.83-2.83l7.78-7.78" />
-          </svg>
-        </button>
-
-        {/* Micro (toujours visible) */}
-        <button
-          type="button"
-          onClick={toggleMic}
-          disabled={!speechSupported}
-          className={`h-12 w-12 rounded-xl border grid place-items-center transition
-            ${
-              listening
-                ? "border-[var(--accent)] bg-[var(--accent-tint)] mic-pulse"
-                : "border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)]"
-            }
-            ${!speechSupported ? "opacity-50 cursor-not-allowed" : ""}`}
-          aria-label={
-            speechSupported
-              ? listening
-                ? "Arrêter le micro"
-                : "Parler"
-              : "Micro non supporté"
-          }
-          title={
-            speechSupported
-              ? listening
-                ? "Arrêter l’enregistrement"
-                : "Saisie vocale"
-              : "Micro non supporté"
-          }
-        >
-          <svg
-            className="h-6 w-6 text-[var(--fg)]"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3z" />
-            <path d="M19 10.5a7 7 0 01-14 0" />
-            <path d="M12 21v-3" />
-          </svg>
-        </button>
-
-        <div className="ml-auto">
-          <RightAuthButtons />
-        </div>
-      </div>
+      {/* (Plus de barre de boutons au-dessus du chat : tout est dans ChatPanel) */}
 
       {/* Tiroir OCR */}
       {showOcr && (
@@ -975,11 +929,23 @@ export default function Page() {
               Charger 1 fichier
             </button>
           </div>
-          <OcrUploader onText={(t) => setOcrText(t)} onPreview={() => {}} />
+          <OcrUploader
+            onSubmit={(files) => {
+              if (!files || !files.length) {
+                setOcrText("");
+                return;
+              }
+              // Texte neutre en attendant le vrai OCR
+              const names = files.map((f) => f.name).join(", ");
+              setOcrText(
+                `L'utilisateur a joint ${files.length} fichier(s) : ${names}.`
+              );
+            }}
+          />
         </div>
       )}
 
-      {/* ChatPanel (gère input, micro & event submit) */}
+      {/* ChatPanel (gère input + boutons internes 📎 / 🎙️) */}
       <div className="w-full max-w-3xl">
         <ChatPanel />
       </div>
@@ -1239,4 +1205,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-      }
+    }
