@@ -74,14 +74,7 @@ export default function ChatPanel() {
 
     setText("");
     if (textareaRef.current) {
-      textareaRef.current.style.height = "44px";
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
+      textareaRef.current.style.height = "72px";
     }
   };
 
@@ -90,54 +83,55 @@ export default function ChatPanel() {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = "0px";
-    const next = Math.min(ta.scrollHeight, 220);
+    const next = Math.min(ta.scrollHeight, 260);
     ta.style.height = next + "px";
   };
 
   /* Upload OCR */
 
   const handleUploadClick = () => {
+    // app/page.tsx va ouvrir le sélecteur de fichiers
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
-  /* Micro ultra simple :
-     - focus textarea
-     - laisse la dictée native / app/page.tsx faire le reste
+  /* Micro très simple :
+     - met le curseur dans la zone de texte
+     - tu utilises ensuite le micro natif de ton clavier
   */
   const handleMicClick = () => {
     if (textareaRef.current) {
       textareaRef.current.focus();
+      const end = textareaRef.current.value.length;
+      try {
+        textareaRef.current.setSelectionRange(end, end);
+      } catch {}
     }
-    window.dispatchEvent(new Event("ob:toggle-mic"));
   };
 
   const sendDisabled = !text.trim();
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-center gap-2 rounded-[26px] border border-[var(--border)] bg-white px-4 py-3 shadow-md">
-        {/* zone de texte large */}
-        <div className="flex min-h-[44px] flex-1 flex-col">
-          <textarea
-            ref={textareaRef}
-            data-ob-chat-input
-            value={text}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            placeholder={placeholder}
-            className="w-full flex-1 resize-none border-none bg-transparent px-1 text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
-            dir={lang === "ar" ? "rtl" : "ltr"}
-          />
-        </div>
+      <div className="relative w-full rounded-[26px] border border-[var(--border)] bg-white shadow-md px-4 py-3">
+        {/* Zone de texte haute */}
+        <textarea
+          ref={textareaRef}
+          data-ob-chat-input
+          value={text}
+          onChange={handleInput}
+          // ⚠️ plus de onKeyDown : Entrée = nouvelle ligne
+          rows={3}
+          placeholder={placeholder}
+          className="w-full min-h-[72px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] pb-9 text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
+          dir={lang === "ar" ? "rtl" : "ltr"}
+        />
 
-        {/* boutons upload + micro */}
-        <div className="flex items-center gap-2 mr-1">
-          {/* Upload */}
+        {/* Boutons upload + micro en bas à gauche */}
+        <div className="pointer-events-auto absolute left-4 bottom-2 flex items-center gap-2">
           <button
             type="button"
             onClick={handleUploadClick}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white border border-[var(--border)] shadow-sm"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[var(--border)] shadow-sm"
             aria-label="Upload"
           >
             <span className="text-lg" aria-hidden="true">
@@ -145,11 +139,10 @@ export default function ChatPanel() {
             </span>
           </button>
 
-          {/* Micro */}
           <button
             type="button"
             onClick={handleMicClick}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white border border-[var(--border)] shadow-sm"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[var(--border)] shadow-sm"
             aria-label="Micro"
           >
             <span className="text-lg" aria-hidden="true">
@@ -158,11 +151,11 @@ export default function ChatPanel() {
           </button>
         </div>
 
-        {/* bouton Envoyer */}
+        {/* Bouton Envoyer en bas à droite */}
         <button
           type="submit"
           disabled={sendDisabled}
-          className={`inline-flex h-10 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-4 text-sm font-semibold text-white shadow-md hover:bg-[var(--panel-strong)] ${
+          className={`pointer-events-auto absolute right-4 bottom-2 inline-flex h-9 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-4 text-sm font-semibold text-white shadow-md hover:bg-[var(--panel-strong)] ${
             sendDisabled ? "cursor-not-allowed opacity-50" : ""
           }`}
         >
@@ -171,4 +164,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-}
+    }
