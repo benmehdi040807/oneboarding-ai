@@ -24,22 +24,39 @@ function humanSize(bytes: number): string {
   return `${mb.toFixed(1)} Mo`;
 }
 
-export function OcrUploader({ onSubmit }: OcrUploaderProps) {
+export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
   const [files, setFiles] = useState<OcrFile[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sélection des fichiers
-  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const hasFiles = files.length > 0;
+  const remainingSlots = MAX_FILES - files.length;
+
+  // clic venant du bouton 📎 dans ChatPanel
+  useEffect(() => {
+    const onOpen = () => {
+      if (!inputRef.current) return;
+      inputRef.current.click();
+    };
+
+    window.addEventListener("ob:open-ocr-picker", onOpen as EventListener);
+    return () =>
+      window.removeEventListener("ob:open-ocr-picker", onOpen as EventListener);
+  }, []);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const list = e.target.files ? Array.from(e.target.files) : [];
     if (!list.length) return;
 
-    const remaining = MAX_FILES - files.length;
-    if (remaining <= 0) {
-      // déjà plein → on ignore
+    if (remainingSlots <= 0) {
+      // rien de plus, on garde les fichiers existants
+      e.target.value = "";
       return;
     }
 
-    const accepted = list.slice(0, remaining);
+    let accepted = list;
+    if (list.length > remainingSlots) {
+      accepted = list.slice(0, remainingSlots);
+    }
 
     const mapped: OcrFile[] = accepted
       .map((f, idx) => {
@@ -53,94 +70,76 @@ export function OcrUploader({ onSubmit }: OcrUploaderProps) {
       })
       .filter(Boolean);
 
-    if (!mapped.length) return;
+    const merged = [...files, ...mapped];
+    setFiles(merged);
+    e.target.value = "";
+  }
 
-    setFiles((prev) => [...prev, ...mapped]);
-    // on laisse input.value vide pour pouvoir re-sélectionner les mêmes noms
-    if (inputRef.current) inputRef.current.value = "";
-  };
+  function handleRemove(id: string) {
+    const next = files.filter((f) => f.id !== id);
+    setFiles(next);
+  }
 
-  const handleRemove = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleRemoveAll = () => {
+  function handleRemoveAll() {
     setFiles([]);
-    if (inputRef.current) inputRef.current.value = "";
-  };
+  }
 
-  // Propager vers le parent chaque changement
+  // prévenir le parent à chaque changement
   useEffect(() => {
-    if (onSubmit) onSubmit(files.map((f) => f.file));
+    if (onSubmit) {
+      onSubmit(files.map((f) => f.file));
+    }
   }, [files, onSubmit]);
 
-  // Nettoyage (au cas où)
-  useEffect(() => {
-    return () => {
-      if (inputRef.current) inputRef.current.value = "";
-    };
-  }, []);
-
-  const count = files.length;
-
   return (
-    <div className="w-full">
-      {/* input file caché, déclenché par app/page.tsx */}
+    <>
+      {/* input natif caché, déclenché par l’event ob:open-ocr-picker */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*,.pdf"
         multiple
+        onChange={handleChange}
         className="hidden"
-        onChange={handleSelect}
       />
 
-      {/* Rien à afficher tant qu’aucun fichier */}
-      {count === 0 ? null : (
-        <div className="rounded-[26px] border border-[var(--border)] bg-white/88 shadow-md px-4 py-3 space-y-3">
-          {/* En-tête : compteur + fermer */}
-          <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 border border-[var(--border)]">
-              <span aria-hidden="true" className="text-sm">
-                📎
-              </span>
-              <span className="text-xs font-medium text-[var(--fg)]">
-                {count}/{MAX_FILES}
+      {/* Carte n’apparaît QUE s’il y a au moins 1 fichier */}
+      {hasFiles && (
+        <div className="mb-3 w-full rounded-[26px] border border-[var(--border)] bg-white/96 px-4 py-3 shadow-md">
+          <div className="mb-2 flex items-center justify-between text-xs text-[var(--fg)]/80">
+            <div className="inline-flex items-center gap-1 rounded-full bg-[var(--panel)]/6 px-3 py-1">
+              <span aria-hidden="true">📎</span>
+              <span>
+                {files.length}/{MAX_FILES}
               </span>
             </div>
             <button
               type="button"
               onClick={handleRemoveAll}
-              className="text-xs text-[var(--fg)]/70 hover:text-[var(--fg)]"
+              className="text-[11px] font-medium text-[var(--fg)]/70 underline-offset-2 hover:underline"
             >
-              ✕
+              Effacer tout
             </button>
           </div>
 
-          {/* Liste des fichiers */}
-          <div className="space-y-2">
+          <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
             {files.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center justify-between rounded-2xl bg-white/90 px-3 py-2 text-xs text-[var(--fg)] shadow-sm"
+                className="flex items-center justify-between rounded-xl bg-[var(--panel)]/6 px-3 py-1.5 text-xs text-[var(--fg)]"
               >
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" className="text-base">
-                    📄
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[11px] font-medium">
+                    {f.name}
                   </span>
-                  <div className="flex flex-col">
-                    <span className="max-w-[220px] truncate">
-                      {f.name}
-                    </span>
-                    <span className="text-[10px] opacity-70">
-                      {f.sizeLabel}
-                    </span>
-                  </div>
+                  <span className="text-[10px] opacity-70">
+                    {f.sizeLabel}
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleRemove(f.id)}
-                  className="text-[11px] font-medium opacity-80 hover:opacity-100"
+                  className="ml-3 text-[11px] font-semibold text-[var(--fg)]/70 hover:text-[var(--fg)]"
                 >
                   ✕
                 </button>
@@ -149,9 +148,6 @@ export function OcrUploader({ onSubmit }: OcrUploaderProps) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
-}
-
-// default export pour les imports existants
-export default OcrUploader;
+  }
