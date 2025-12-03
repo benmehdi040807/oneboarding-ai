@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import OcrUploader from "@/components/OcrUploader";
+
 import Menu from "@/components/Menu";
 import ChatPanel from "@/components/ChatPanel";
 
-// 🧠 Réponses premium (texte/audio/ocr) — moteur universel
+// 🧠 Réponses premium (texte) — moteur universel
 import { formatResponse } from "@/lib/txtPhrases";
 
 // 🔐 Accès / quota / membres
@@ -464,13 +464,26 @@ function readLangLS(): "fr" | "en" | "ar" {
 /* =================== Page =================== */
 export default function Page() {
   const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
+
+  // Micro
   const recogRef = useRef<any>(null);
   const listeningRef = useRef(false);
+  const [, setSpeechSupported] = useState(false);
+  const [, setListening] = useState(false);
 
   const { snapshot: access, checkAndConsume } = useAccessControl();
   const [welcomeLimitOpen, setWelcomeLimitOpen] = useState(false);
   const [memberLimitOpen, setMemberLimitOpen] = useState(false);
 
+  const [history, setHistory] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearLang, setClearLang] = useState<"fr" | "en" | "ar">("fr");
+
+  const [showLegal, setShowLegal] = useState(false);
+
+  /* === Langue globale (placeholder + direction) === */
   useEffect(() => {
     const onLangChanged = () => {
       const next = readLangLS();
@@ -509,17 +522,7 @@ export default function Page() {
     root.classList.toggle("lang-ar", lang === "ar");
   }, [lang]);
 
-  const [showOcr, setShowOcr] = useState(false);
-  const [ocrText, setOcrText] = useState("");
-  const ocrContainerRef = useRef<HTMLDivElement | null>(null);
-
-  const [history, setHistory] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const [showClearModal, setShowClearModal] = useState(false);
-  const [clearLang, setClearLang] = useState<"fr" | "en" | "ar">("fr");
-
-  const [showLegal, setShowLegal] = useState(false);
+  /* === CGU / Privacy auto au premier lancement === */
   useEffect(() => {
     const onOpen = () => {
       const c = localStorage.getItem(CONSENT_KEY) === "1";
@@ -530,6 +533,7 @@ export default function Page() {
       window.removeEventListener("ob:open-legal", onOpen as EventListener);
   }, []);
 
+  /* === Historique local === */
   useEffect(() => {
     try {
       const s = localStorage.getItem("oneboarding.history");
@@ -542,6 +546,7 @@ export default function Page() {
     } catch {}
   }, [history]);
 
+  /* === Demande de clear depuis le Menu === */
   useEffect(() => {
     const onRequestClear = (evt: Event) => {
       const e = evt as CustomEvent<{ lang?: "fr" | "en" | "ar" }>;
@@ -565,6 +570,7 @@ export default function Page() {
     };
   }, []);
 
+  /* === Scroll vers le haut quand la réponse arrive === */
   const prevLoadingRef = useRef(false);
   useEffect(() => {
     if (prevLoadingRef.current && !loading)
@@ -572,9 +578,7 @@ export default function Page() {
     prevLoadingRef.current = loading;
   }, [loading]);
 
-  const [, setSpeechSupported] = useState(false);
-  const [, setListening] = useState(false);
-
+  /* === Initialisation WebSpeech (micro) === */
   useEffect(() => {
     const SR: any =
       (typeof window !== "undefined" && (window as any).SpeechRecognition) ||
@@ -657,24 +661,14 @@ export default function Page() {
     }
   }
 
+  /* === Écoute des événements venant de ChatPanel === */
   useEffect(() => {
     const onMic = () => toggleMic();
-    const onOcr = () => {
-      setShowOcr(true);
-      setTimeout(() => {
-        triggerHiddenFileInput();
-      }, 0);
-    };
 
     window.addEventListener("ob:toggle-mic", onMic as EventListener);
-    window.addEventListener("ob:open-ocr-picker", onOcr as EventListener);
 
     return () => {
       window.removeEventListener("ob:toggle-mic", onMic as EventListener);
-      window.removeEventListener(
-        "ob:open-ocr-picker",
-        onOcr as EventListener
-      );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -700,32 +694,18 @@ export default function Page() {
       }
 
       const now = new Date().toISOString();
-      const hasOcr = Boolean(ocrText.trim());
-      const shown =
-        text ||
-        (hasOcr
-          ? "(Question vide — envoi du texte OCR uniquement)"
-          : "");
-      if (shown)
-        setHistory((h) => [{ role: "user", text: shown, time: now }, ...h]);
-
+      setHistory((h) => [{ role: "user", text, time: now }, ...h]);
       setLoading(true);
 
-      const composedPrompt = hasOcr
-        ? `Voici des informations liées à des documents joints :\n\n"""${ocrText}"""\n\nConsigne de l’utilisateur : ${
-            text || "(aucune)"
-          }\n\nConsigne pour l’IA : Répondez aussi clairement que possible en tenant compte de ces éléments, dans la langue demandée.`
-        : text;
-
       try {
-        const res = await fetch("/api/generate", {
+        const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: composedPrompt }),
+          body: JSON.stringify({ prompt: text }),
         });
-        const data = await res.json();
-        if (!res.ok || !data?.ok) {
-          const raw = String(data?.error || `HTTP ${res.status}`);
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+          const raw = String(data?.error || `HTTP ${response.status}`);
           let msg = `Erreur: ${raw}`;
           if (raw.includes("GROQ_API_KEY"))
             msg =
@@ -742,7 +722,7 @@ export default function Page() {
           const modelTextRaw: string = String(data.text || "");
           const conf = assessConfidence(modelTextRaw);
 
-          let finalText = formatResponse({
+          const finalText = formatResponse({
             lang: L,
             confidence: conf,
             summary: modelTextRaw,
@@ -779,16 +759,7 @@ export default function Page() {
     window.addEventListener("ob:chat-submit", onSubmit as EventListener);
     return () =>
       window.removeEventListener("ob:chat-submit", onSubmit as EventListener);
-  }, [lang, ocrText, loading, checkAndConsume]);
-
-  function triggerHiddenFileInput() {
-    const container = ocrContainerRef.current;
-    if (!container) return;
-    const input = container.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement | null;
-    input?.click();
-  }
+  }, [lang, loading, checkAndConsume]);
 
   function clearHistory() {
     setHistory([]);
@@ -847,28 +818,6 @@ export default function Page() {
           />
         </div>
       </div>
-
-      {/* Tiroir OCR natif, simple */}
-      {showOcr && (
-        <div
-          ref={ocrContainerRef}
-          className="animate-fadeUp z-[10] mb-4 w-full max-w-3xl"
-        >
-          <OcrUploader
-            onSubmit={(files) => {
-              if (!files || files.length === 0) {
-                setOcrText("");
-                setShowOcr(false); // fermeture quand plus aucun fichier
-                return;
-              }
-              const names = files.map((f) => f.name).join(", ");
-              setOcrText(
-                `Fichiers joints (${files.length}) : ${names}.`
-              );
-            }}
-          />
-        </div>
-      )}
 
       {/* ChatPanel (input + boutons internes 📎 / 🎙️) */}
       <div className="w-full max-w-3xl">
@@ -971,7 +920,11 @@ function StyleGlobals() {
         margin: 0;
         padding: 0;
         color: var(--fg);
-        background: linear-gradient(180deg, #b3e5fc 0%, #e0f7fa 100%) fixed !important;
+        background: linear-gradient(
+            180deg,
+            #cfe8ff 0%,
+            #f3f4ff 100%
+          ) fixed !important;
       }
 
       :root {
@@ -1004,7 +957,7 @@ function StyleGlobals() {
         pointer-events: none;
         background: radial-gradient(
           closest-side,
-          rgba(56, 189, 248, 0.28),
+          rgba(56, 189, 248, 0.24),
           rgba(56, 189, 248, 0)
         );
       }
@@ -1047,11 +1000,6 @@ function StyleGlobals() {
         animation: dots 1.2s ease-in-out infinite;
       }
 
-      .ocr-skin,
-      .ocr-skin * {
-        color: var(--fg) !important;
-      }
-
       .lang-ar textarea::placeholder {
         text-align: right;
       }
@@ -1079,4 +1027,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-        }
+                   }
