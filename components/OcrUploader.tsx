@@ -31,13 +31,12 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
   const hasFiles = files.length > 0;
   const remainingSlots = MAX_FILES - files.length;
 
-  // clic venant du bouton 📎 dans ChatPanel
+  // ▶️ Clic sur l’icône upload dans ChatPanel
   useEffect(() => {
     const onOpen = () => {
       if (!inputRef.current) return;
       inputRef.current.click();
     };
-
     window.addEventListener("ob:open-ocr-picker", onOpen as EventListener);
     return () =>
       window.removeEventListener("ob:open-ocr-picker", onOpen as EventListener);
@@ -48,7 +47,6 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
     if (!list.length) return;
 
     if (remainingSlots <= 0) {
-      // rien de plus, on garde les fichiers existants
       e.target.value = "";
       return;
     }
@@ -72,6 +70,8 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
 
     const merged = [...files, ...mapped];
     setFiles(merged);
+
+    // on reset pour pouvoir re-sélectionner le même fichier plus tard
     e.target.value = "";
   }
 
@@ -84,7 +84,7 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
     setFiles([]);
   }
 
-  // prévenir le parent à chaque changement
+  // Envoi des fichiers bruts vers le parent (backend OCR)
   useEffect(() => {
     if (onSubmit) {
       onSubmit(files.map((f) => f.file));
@@ -93,7 +93,7 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
 
   return (
     <>
-      {/* input natif caché, déclenché par l’event ob:open-ocr-picker */}
+      {/* input natif, jamais visible, déclenché par l’event */}
       <input
         ref={inputRef}
         type="file"
@@ -103,11 +103,12 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
         className="hidden"
       />
 
-      {/* Carte n’apparaît QUE s’il y a au moins 1 fichier */}
+      {/* Carte attachée : n’apparaît QUE s’il y a des fichiers */}
       {hasFiles && (
-        <div className="mb-3 w-full rounded-[26px] border border-[var(--border)] bg-white/96 px-4 py-3 shadow-md">
+        <div className="mb-3 w-full rounded-[26px] border border-white/70 bg-white/96 px-4 py-3 shadow-lg backdrop-blur-[2px]">
+          {/* En-tête  📎 2/10   [Effacer tout] */}
           <div className="mb-2 flex items-center justify-between text-xs text-[var(--fg)]/80">
-            <div className="inline-flex items-center gap-1 rounded-full bg-[var(--panel)]/6 px-3 py-1">
+            <div className="inline-flex items-center gap-1 rounded-full bg-[var(--panel)]/8 px-3 py-1">
               <span aria-hidden="true">📎</span>
               <span>
                 {files.length}/{MAX_FILES}
@@ -122,7 +123,8 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
             </button>
           </div>
 
-          <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+          {/* Liste des fichiers */}
+          <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
             {files.map((f) => (
               <div
                 key={f.id}
@@ -150,4 +152,4 @@ export default function OcrUploader({ onSubmit }: OcrUploaderProps) {
       )}
     </>
   );
-  }
+}
