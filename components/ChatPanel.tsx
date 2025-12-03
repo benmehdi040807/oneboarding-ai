@@ -123,23 +123,43 @@ export default function ChatPanel() {
     requestAnimationFrame(() => taRef.current?.focus());
   }
 
+  /* ====== Boutons internes (📎 / 🎙️) ====== */
+  function onAttachClick() {
+    // L’OCR / uploader écoute cet event pour ouvrir le file picker
+    window.dispatchEvent(new CustomEvent("ob:open-ocr-picker"));
+  }
+
+  function onMicClick() {
+    // Le contrôleur de micro écoute cet event
+    window.dispatchEvent(new CustomEvent("ob:toggle-mic"));
+  }
+
   /* ====== Libellés UI ====== */
   const isRTL = lang === "ar";
   const dir = isRTL ? "rtl" : "ltr";
   const align = isRTL ? "text-right" : "text-left";
 
-  const LABELS: Record<Lang, { placeholder: string; send: string }> = {
+  const LABELS: Record<
+    Lang,
+    { placeholder: string; send: string; attachLabel: string; micLabel: string }
+  > = {
     fr: {
       placeholder: "Écrivez ici…",
       send: "Envoyer",
+      attachLabel: "Joindre un document",
+      micLabel: "Dicter avec le micro",
     },
     en: {
       placeholder: "Type here…",
       send: "Send",
+      attachLabel: "Attach a document",
+      micLabel: "Dictate with microphone",
     },
     ar: {
       placeholder: "اكتب هنا…",
       send: "إرسال",
+      attachLabel: "إرفاق مستند",
+      micLabel: "الإملاء الصوتي",
     },
   };
   const t = LABELS[lang];
@@ -170,24 +190,67 @@ export default function ChatPanel() {
           aria-label="Zone de saisie du message"
         />
 
-        <div className={`mt-3 flex ${isRTL ? "justify-start" : "justify-end"}`}>
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={!input.trim()}
+        {/* Barre d’actions en bas : 📎 / 🎙️ à gauche, bouton Envoyer à droite */}
+        <div
+          className={`
+            mt-3 flex items-center justify-between gap-3
+            ${isRTL ? "flex-row-reverse" : "flex-row"}
+          `}
+        >
+          {/* Boutons gauche */}
+          <div
             className={`
-              inline-flex items-center gap-2 px-5 py-2 rounded-xl font-semibold
-              text-white transition
-              ${!input.trim()
-                ? "opacity-60 cursor-not-allowed"
-                : "hover:opacity-90"}
+              flex items-center gap-2
+              ${isRTL ? "justify-end" : "justify-start"}
             `}
-            style={{ background: "linear-gradient(135deg,#111827,#374151)" }}
           >
-            {t.send}
-          </button>
+            <button
+              type="button"
+              onClick={onAttachClick}
+              className="
+                flex h-9 w-9 items-center justify-center rounded-xl
+                bg-sky-50 text-sky-700 shadow-sm
+                active:scale-95
+              "
+              aria-label={t.attachLabel}
+            >
+              <span aria-hidden="true">📎</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onMicClick}
+              className="
+                flex h-9 w-9 items-center justify-center rounded-xl
+                bg-slate-900 text-white shadow-sm
+                active:scale-95
+              "
+              aria-label={t.micLabel}
+            >
+              <span aria-hidden="true">🎙️</span>
+            </button>
+          </div>
+
+          {/* Bouton Envoyer */}
+          <div className={`${isRTL ? "justify-start" : "justify-end"} flex`}>
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={!input.trim()}
+              className={`
+                inline-flex items-center gap-2 px-5 py-2 rounded-xl font-semibold
+                text-white transition
+                ${!input.trim()
+                  ? "opacity-60 cursor-not-allowed"
+                  : "hover:opacity-90"}
+              `}
+              style={{ background: "linear-gradient(135deg,#111827,#374151)" }}
+            >
+              {t.send}
+            </button>
+          </div>
         </div>
       </div>
     </section>
   );
-             }
+}
