@@ -4,8 +4,6 @@ import React, { useEffect, useRef, useState } from "react";
 
 type Lang = "fr" | "en" | "ar";
 
-/* =================== Lang helper =================== */
-
 function readLang(): Lang {
   if (typeof document === "undefined") return "fr";
   const fromDom = document.documentElement.getAttribute("lang");
@@ -19,6 +17,8 @@ function readLang(): Lang {
   return "fr";
 }
 
+type SpeechRec = (SpeechRecognition & { lang: string }) | null;
+
 /* =================== ChatPanel =================== */
 
 export default function ChatPanel() {
@@ -26,7 +26,10 @@ export default function ChatPanel() {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Langue réactive (Menu / localStorage)
+  const [recognition, setRecognition] = useState<SpeechRec>(null);
+  const [listening, setListening] = useState(false);
+
+  // Lang dynamique
   useEffect(() => {
     setLang(readLang());
 
@@ -47,7 +50,69 @@ export default function ChatPanel() {
     };
   }, []);
 
-  /* Libellés */
+  // Initialisation Web Speech (si dispo)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const AnyWindow = window as any;
+    const SR = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
+    if (!SR) {
+      setRecognition(null);
+      return;
+    }
+
+    const rec: SpeechRecognition = new SR();
+    rec.continuous = true;
+    rec.interimResults = false;
+
+    const handleResult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        if (res.isFinal) {
+          finalTranscript += res[0].transcript;
+        }
+      }
+      if (finalTranscript.trim()) {
+        setText((prev) =>
+          prev
+            ? prev.trimEnd() + "\n" + finalTranscript.trim()
+            : finalTranscript.trim()
+        );
+      }
+    };
+
+    const handleEnd = () => {
+      setListening(false);
+    };
+
+    const handleError = () => {
+      setListening(false);
+    };
+
+    rec.addEventListener("result", handleResult);
+    rec.addEventListener("end", handleEnd);
+    rec.addEventListener("error", handleError);
+
+    setRecognition(rec as SpeechRec);
+
+    return () => {
+      rec.removeEventListener("result", handleResult);
+      rec.removeEventListener("end", handleEnd);
+      rec.removeEventListener("error", handleError);
+      try {
+        rec.stop();
+      } catch {}
+    };
+  }, []);
+
+  // Adapter la langue de reco quand `lang` change
+  useEffect(() => {
+    if (!recognition) return;
+    const code =
+      lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR";
+    recognition.lang = code;
+  }, [lang, recognition]);
 
   const placeholder =
     lang === "ar"
@@ -58,8 +123,6 @@ export default function ChatPanel() {
 
   const sendLabel =
     lang === "ar" ? "إرسال" : lang === "en" ? "Send" : "Envoyer";
-
-  /* Envoi du message */
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -74,7 +137,7 @@ export default function ChatPanel() {
 
     setText("");
     if (textareaRef.current) {
-      textareaRef.current.style.height = "72px";
+      textareaRef.current.style.height = "120px";
     }
   };
 
@@ -87,24 +150,30 @@ export default function ChatPanel() {
     ta.style.height = next + "px";
   };
 
-  /* Upload OCR */
-
+  // Upload
   const handleUploadClick = () => {
-    // app/page.tsx va ouvrir le sélecteur de fichiers
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
-  /* Micro très simple :
-     - met le curseur dans la zone de texte
-     - tu utilises ensuite le micro natif de ton clavier
-  */
+  // Micro : toggle Web Speech
   const handleMicClick = () => {
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-      const end = textareaRef.current.value.length;
-      try {
-        textareaRef.current.setSelectionRange(end, end);
-      } catch {}
+    if (!recognition) {
+      // Pas de support → ne rien casser
+      return;
+    }
+    try {
+      if (listening) {
+        recognition.stop();
+        setListening(false);
+      } else {
+        const code =
+          lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : "fr-FR";
+        recognition.lang = code;
+        recognition.start();
+        setListening(true);
+      }
+    } catch {
+      setListening(false);
     }
   };
 
@@ -112,21 +181,20 @@ export default function ChatPanel() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="relative w-full rounded-[26px] border border-[var(--border)] bg-white shadow-md px-4 py-3">
-        {/* Zone de texte haute */}
+      <div className="relative w-full rounded-[26px] border border-[var(--border)] bg-white/92 shadow-md px-4 pt-3 pb-9">
+        {/* Grande zone de texte */}
         <textarea
           ref={textareaRef}
           data-ob-chat-input
           value={text}
           onChange={handleInput}
-          // ⚠️ plus de onKeyDown : Entrée = nouvelle ligne
-          rows={3}
+          rows={4}
           placeholder={placeholder}
-          className="w-full min-h-[72px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] pb-9 text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
+          className="w-full min-h-[120px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
           dir={lang === "ar" ? "rtl" : "ltr"}
         />
 
-        {/* Boutons upload + micro en bas à gauche */}
+        {/* Boutons bas gauche */}
         <div className="pointer-events-auto absolute left-4 bottom-2 flex items-center gap-2">
           <button
             type="button"
@@ -142,21 +210,26 @@ export default function ChatPanel() {
           <button
             type="button"
             onClick={handleMicClick}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[var(--border)] shadow-sm"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white shadow-sm transition ${
+              listening ? "ring-2 ring-sky-400" : ""
+            }`}
             aria-label="Micro"
           >
-            <span className="text-lg" aria-hidden="true">
+            <span
+              className={`text-lg ${listening ? "animate-pulse" : ""}`}
+              aria-hidden="true"
+            >
               🎙
             </span>
           </button>
         </div>
 
-        {/* Bouton Envoyer en bas à droite */}
+        {/* Bouton Envoyer bas droite */}
         <button
           type="submit"
           disabled={sendDisabled}
-          className={`pointer-events-auto absolute right-4 bottom-2 inline-flex h-9 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-4 text-sm font-semibold text-white shadow-md hover:bg-[var(--panel-strong)] ${
-            sendDisabled ? "cursor-not-allowed opacity-50" : ""
+          className={`pointer-events-auto absolute right-4 bottom-2 inline-flex h-9 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-5 text-sm font-semibold text-white shadow-md ${
+            sendDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-[var(--panel-strong)]"
           }`}
         >
           {sendLabel}
@@ -164,4 +237,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-    }
+      }
