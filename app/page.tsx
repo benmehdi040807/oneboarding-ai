@@ -630,6 +630,11 @@ export default function Page() {
         (window as any).webkitSpeechRecognition);
     if (!SR) {
       setSpeechSupported(false);
+      window.dispatchEvent(
+        new CustomEvent("ob:mic-state", {
+          detail: { listening: false, supported: false },
+        })
+      );
       return;
     }
     setSpeechSupported(true);
@@ -643,6 +648,11 @@ export default function Page() {
     r.onstart = () => {
       setListening(true);
       listeningRef.current = true;
+      window.dispatchEvent(
+        new CustomEvent("ob:mic-state", {
+          detail: { listening: true, supported: true },
+        })
+      );
     };
 
     // ⤵️ IMPORTANT : Insérer le texte dicté dans le <textarea data-ob-chat-input> du ChatPanel.
@@ -677,6 +687,11 @@ export default function Page() {
     const stopUI = () => {
       setListening(false);
       listeningRef.current = false;
+      window.dispatchEvent(
+        new CustomEvent("ob:mic-state", {
+          detail: { listening: false, supported: true },
+        })
+      );
     };
     r.onend =
       r.onspeechend =
@@ -686,12 +701,24 @@ export default function Page() {
         stopUI;
 
     recogRef.current = r;
+
+    return () => {
+      try {
+        r.stop();
+      } catch {}
+      stopUI();
+    };
   }, [lang]);
 
   function toggleMic() {
     const r = recogRef.current;
     if (!r) {
       console.warn("Micro non supporté par ce navigateur.");
+      window.dispatchEvent(
+        new CustomEvent("ob:mic-state", {
+          detail: { listening: false, supported: false },
+        })
+      );
       return;
     }
     try {
@@ -704,6 +731,11 @@ export default function Page() {
       console.warn("Échec démarrage/arrêt micro:", e);
       listeningRef.current = false;
       setListening(false);
+      window.dispatchEvent(
+        new CustomEvent("ob:mic-state", {
+          detail: { listening: false, supported: true },
+        })
+      );
     }
   }
 
@@ -723,7 +755,10 @@ export default function Page() {
 
     return () => {
       window.removeEventListener("ob:toggle-mic", onMic as EventListener);
-      window.removeEventListener("ob:open-ocr-picker", onOcr as EventListener);
+      window.removeEventListener(
+        "ob:open-ocr-picker",
+        onOcr as EventListener
+      );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -920,22 +955,16 @@ export default function Page() {
           ref={ocrContainerRef}
           className="w-full max-w-3xl mb-6 animate-fadeUp ocr-skin z-[10]"
         >
-          <div className="mb-3 flex gap-2">
-            <button
-              type="button"
-              onClick={triggerHiddenFileInput}
-              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--fg)]"
-            >
-              Charger 1 fichier
-            </button>
-          </div>
           <OcrUploader
             onSubmit={(files) => {
+              // Aucun fichier (ou "Remove all") → on nettoie et on ferme
               if (!files || !files.length) {
                 setOcrText("");
+                setShowOcr(false);
                 return;
               }
-              // Texte neutre en attendant le vrai OCR
+
+              // En attendant le vrai OCR : on note simplement les noms
               const names = files.map((f) => f.name).join(", ");
               setOcrText(
                 `L'utilisateur a joint ${files.length} fichier(s) : ${names}.`
@@ -1205,4 +1234,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-    }
+}
