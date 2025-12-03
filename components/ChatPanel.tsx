@@ -17,7 +17,22 @@ function readLang(): Lang {
   return "fr";
 }
 
-type SpeechRec = (SpeechRecognition & { lang: string }) | null;
+/**
+ * Petit type local pour Web Speech, sans dépendre des types DOM.
+ * On ne mentionne PAS "SpeechRecognition" ni "SpeechRecognitionEvent"
+ * pour éviter l'erreur TS.
+ */
+type SpeechRec =
+  | {
+      lang?: string;
+      continuous: boolean;
+      interimResults: boolean;
+      start: () => void;
+      stop: () => void;
+      addEventListener: (type: "result" | "end" | "error", listener: (ev: any) => void) => void;
+      removeEventListener: (type: "result" | "end" | "error", listener: (ev: any) => void) => void;
+    }
+  | null;
 
 /* =================== ChatPanel =================== */
 
@@ -61,11 +76,11 @@ export default function ChatPanel() {
       return;
     }
 
-    const rec: SpeechRecognition = new SR();
+    const rec: any = new SR();
     rec.continuous = true;
     rec.interimResults = false;
 
-    const handleResult = (event: SpeechRecognitionEvent) => {
+    const handleResult = (event: any) => {
       let finalTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
@@ -158,7 +173,7 @@ export default function ChatPanel() {
   // Micro : toggle Web Speech
   const handleMicClick = () => {
     if (!recognition) {
-      // Pas de support → ne rien casser
+      // Pas de support → on ne casse rien
       return;
     }
     try {
@@ -229,7 +244,9 @@ export default function ChatPanel() {
           type="submit"
           disabled={sendDisabled}
           className={`pointer-events-auto absolute right-4 bottom-2 inline-flex h-9 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-5 text-sm font-semibold text-white shadow-md ${
-            sendDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-[var(--panel-strong)]"
+            sendDisabled
+              ? "cursor-not-allowed opacity-50"
+              : "hover:bg-[var(--panel-strong)]"
           }`}
         >
           {sendLabel}
@@ -237,4 +254,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-      }
+    }
