@@ -18,9 +18,8 @@ function readLang(): Lang {
 }
 
 /**
- * Petit type local pour Web Speech, sans dépendre des types DOM.
- * On ne mentionne PAS "SpeechRecognition" ni "SpeechRecognitionEvent"
- * pour éviter l'erreur TS.
+ * Petit type local pour la reco vocale.
+ * Pas de SpeechRecognition global → pas d’erreur TS.
  */
 type SpeechRec =
   | {
@@ -65,7 +64,7 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // Initialisation Web Speech (si dispo)
+  // Initialisation Web Speech (natif navigateur si dispo)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -121,7 +120,7 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // Adapter la langue de reco quand `lang` change
+  // adapter la langue de reco
   useEffect(() => {
     if (!recognition) return;
     const code =
@@ -152,7 +151,7 @@ export default function ChatPanel() {
 
     setText("");
     if (textareaRef.current) {
-      textareaRef.current.style.height = "120px";
+      textareaRef.current.style.height = "140px";
     }
   };
 
@@ -165,17 +164,23 @@ export default function ChatPanel() {
     ta.style.height = next + "px";
   };
 
-  // Upload
+  // IMPORTANT : Entrée = nouvelle ligne, PAS d’envoi
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      // on laisse juste la nouvelle ligne (comportement natif)
+      return;
+    }
+  };
+
+  // Upload : on envoie un event, OcrUploader s’occupe du natif
   const handleUploadClick = () => {
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
-  // Micro : toggle Web Speech
+  // Micro : toggle reco vocale
   const handleMicClick = () => {
-    if (!recognition) {
-      // Pas de support → on ne casse rien
-      return;
-    }
+    if (!recognition) return;
+
     try {
       if (listening) {
         recognition.stop();
@@ -196,16 +201,17 @@ export default function ChatPanel() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="relative w-full rounded-[26px] border border-[var(--border)] bg-white/92 shadow-md px-4 pt-3 pb-9">
-        {/* Grande zone de texte */}
+      <div className="relative w-full rounded-[32px] border border-[var(--border)] bg-white px-4 pt-3 pb-9 shadow-lg">
+        {/* Grande zone de texte (identité claire, fond blanc) */}
         <textarea
           ref={textareaRef}
           data-ob-chat-input
           value={text}
           onChange={handleInput}
-          rows={4}
+          onKeyDown={handleKeyDown}
+          rows={5}
           placeholder={placeholder}
-          className="w-full min-h-[120px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
+          className="w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/35"
           dir={lang === "ar" ? "rtl" : "ltr"}
         />
 
@@ -214,7 +220,7 @@ export default function ChatPanel() {
           <button
             type="button"
             onClick={handleUploadClick}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[var(--border)] shadow-sm"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white shadow-sm"
             aria-label="Upload"
           >
             <span className="text-lg" aria-hidden="true">
@@ -254,4 +260,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-    }
+}
