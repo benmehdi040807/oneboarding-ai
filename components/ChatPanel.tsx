@@ -4,14 +4,18 @@ import React, { useEffect, useRef, useState } from "react";
 
 type Lang = "fr" | "en" | "ar";
 
+/* =================== Lang helper =================== */
+
 function readLang(): Lang {
   if (typeof document === "undefined") return "fr";
   const fromDom = document.documentElement.getAttribute("lang");
   if (fromDom === "en" || fromDom === "ar") return fromDom;
+
   try {
     const ls = localStorage.getItem("oneboarding.lang") as Lang | null;
     if (ls === "en" || ls === "ar") return ls;
   } catch {}
+
   return "fr";
 }
 
@@ -19,11 +23,7 @@ function readLang(): Lang {
 
 function PaperClipIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      {...props}
-    >
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
       <path
         d="M8.5 12.75 13 8.25a2.5 2.5 0 1 1 3.54 3.54l-5.66 5.66a3.75 3.75 0 1 1-5.3-5.3l5.3-5.3"
         fill="none"
@@ -38,11 +38,7 @@ function PaperClipIcon(props: React.SVGProps<SVGSVGElement>) {
 
 function MicIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      {...props}
-    >
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
       <path
         d="M12 4.5a2.5 2.5 0 0 1 2.5 2.5v4a2.5 2.5 0 1 1-5 0v-4A2.5 2.5 0 0 1 12 4.5Z"
         fill="none"
@@ -63,13 +59,9 @@ function MicIcon(props: React.SVGProps<SVGSVGElement>) {
 
 function SendIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      {...props}
-    >
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
       <path
-        d="M5 5.5 19 12 5 18.5l2.5-6L12 12l-4.5-0.5Z"
+        d="M5 5.5 19 12 5 18.5l2.5-6L12 12l-4.5-.5Z"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.8}
@@ -87,32 +79,43 @@ export default function ChatPanel() {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // état micro (venant de app/page via ob:mic-state)
+  // Micro : entièrement géré ici
   const [micListening, setMicListening] = useState(false);
   const [micSupported, setMicSupported] = useState(true);
 
+  /* Langue réactive (DOM + localStorage + event global) */
   useEffect(() => {
     setLang(readLang());
+
     const onLangChanged = () => setLang(readLang());
     window.addEventListener("ob:lang-changed", onLangChanged as EventListener);
-    return () =>
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "oneboarding.lang") setLang(readLang());
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
       window.removeEventListener(
         "ob:lang-changed",
         onLangChanged as EventListener
       );
-  }, []);
-
-  useEffect(() => {
-    const onMicState = (evt: Event) => {
-      const e = evt as CustomEvent<{ listening: boolean; supported: boolean }>;
-      setMicListening(!!e.detail?.listening);
-      setMicSupported(!!e.detail?.supported);
+      window.removeEventListener("storage", onStorage);
     };
-    window.addEventListener("ob:mic-state", onMicState as EventListener);
-    return () =>
-      window.removeEventListener("ob:mic-state", onMicState as EventListener);
   }, []);
 
+  /* Détection native du support micro (SpeechRecognition) */
+  useEffect(() => {
+    try {
+      const w = window as any;
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      setMicSupported(!!SR);
+    } catch {
+      setMicSupported(false);
+    }
+  }, []);
+
+  /* Libellés multilingues */
   const placeholder =
     lang === "ar"
       ? "اكتب هنا..."
@@ -123,6 +126,7 @@ export default function ChatPanel() {
   const sendLabel =
     lang === "ar" ? "إرسال" : lang === "en" ? "Send" : "Envoyer";
 
+  /* Envoi du message */
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const value = text.trim();
@@ -133,6 +137,7 @@ export default function ChatPanel() {
         detail: { text: value, lang },
       })
     );
+
     setText("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "44px";
@@ -146,6 +151,7 @@ export default function ChatPanel() {
     }
   };
 
+  /* Auto-resize natif du textarea */
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
     const ta = textareaRef.current;
@@ -155,11 +161,15 @@ export default function ChatPanel() {
     ta.style.height = next + "px";
   };
 
+  /* Upload OCR (ouvre le tiroir côté page) */
   const handleUploadClick = () => {
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
+  /* Micro natif : on toggle l’état local + on prévient app/page.tsx */
   const handleMicClick = () => {
+    if (!micSupported) return; // bouton juste grisé si pas supporté
+    setMicListening((prev) => !prev);
     window.dispatchEvent(new Event("ob:toggle-mic"));
   };
 
@@ -170,9 +180,9 @@ export default function ChatPanel() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="rounded-3xl bg-white/80 backdrop-blur-md shadow-md border border-[var(--border)] px-3 py-2 flex items-end gap-2">
+      <div className="flex items-end gap-2 rounded-3xl border border-[var(--border)] bg-white/80 px-3 py-2 shadow-md backdrop-blur-md">
         {/* zone de texte */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-1 flex-col">
           <textarea
             ref={textareaRef}
             data-ob-chat-input
@@ -181,33 +191,34 @@ export default function ChatPanel() {
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={placeholder}
-            className="w-full resize-none border-none bg-transparent outline-none text-[var(--fg)] text-base leading-relaxed placeholder:text-[var(--fg)]/40 pt-1 pb-2 px-1"
+            className="w-full resize-none border-none bg-transparent px-1 pt-1 pb-2 text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
             dir={lang === "ar" ? "rtl" : "ltr"}
           />
         </div>
 
-        {/* boutons gauche (upload + micro) */}
+        {/* boutons upload + micro */}
         <div className="flex items-center gap-1 pr-1">
-          {/* Upload */}
+          {/* Upload (ouvre le tiroir OCR) */}
           <button
             type="button"
             onClick={handleUploadClick}
             className={iconBtnBase}
-            aria-label="Joindre un fichier"
+            aria-label="Upload"
           >
             <PaperClipIcon className="h-5 w-5" />
           </button>
 
-          {/* Micro */}
+          {/* Micro dictée */}
           <button
             type="button"
             onClick={handleMicClick}
+            disabled={!micSupported}
             className={`${iconBtnBase} ${
-              micListening
+              !micSupported
+                ? "opacity-50 cursor-not-allowed"
+                : micListening
                 ? "bg-[var(--panel)] text-white mic-pulse"
-                : micSupported
-                ? ""
-                : "opacity-60"
+                : ""
             }`}
             aria-label="Dictée vocale"
           >
@@ -219,8 +230,8 @@ export default function ChatPanel() {
         <button
           type="submit"
           disabled={sendDisabled}
-          className={`inline-flex items-center justify-center h-11 px-5 rounded-full bg-[var(--panel)] hover:bg-[var(--panel-strong)] text-white font-semibold shadow-md border border-[var(--panel-strong)] text-sm ${
-            sendDisabled ? "opacity-50 cursor-not-allowed" : ""
+          className={`inline-flex h-11 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-5 text-sm font-semibold text-white shadow-md hover:bg-[var(--panel-strong)] ${
+            sendDisabled ? "cursor-not-allowed opacity-50" : ""
           }`}
         >
           <span className="mr-1">
@@ -231,4 +242,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-          }
+    }
