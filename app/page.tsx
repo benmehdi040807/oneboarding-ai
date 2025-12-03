@@ -1,9 +1,8 @@
-// app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { OcrUploader } from "@/components/OcrUploader";
+import OcrUploader from "@/components/OcrUploader";
 import Menu from "@/components/Menu";
 import ChatPanel from "@/components/ChatPanel";
 
@@ -75,21 +74,21 @@ function ConfirmDialog({
         ref={dialogRef}
         className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
       >
-        <h2 className="text-lg font-semibold mb-2">{title}</h2>
+        <h2 className="mb-2 text-lg font-semibold">{title}</h2>
         {description ? (
-          <p className="text-sm opacity-90 mb-4">{description}</p>
+          <p className="mb-4 text-sm opacity-90">{description}</p>
         ) : null}
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white"
+            className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-white hover:bg-white/15"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             data-autofocus={true}
-            className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
+            className="rounded-2xl bg-[var(--danger)] px-4 py-2 text-white hover:bg-[var(--danger-strong)]"
           >
             {confirmLabel}
           </button>
@@ -184,20 +183,20 @@ function CguPrivacyModal({
       />
       <div
         ref={ref}
-        className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
+        className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 text-white shadow-xl"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">CGU / Privacy</h2>
           <button
             onClick={close}
-            className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
+            className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 hover:bg-white/15"
             aria-label="Fermer"
           >
             ✕
           </button>
         </div>
 
-        <p className="text-sm opacity-90 mt-3">
+        <p className="mt-3 text-sm opacity-90">
           OneBoarding AI respecte votre confidentialité. Vos données restent
           locales sur votre appareil.
         </p>
@@ -205,13 +204,13 @@ function CguPrivacyModal({
         <div className="mt-4 flex gap-2">
           <a
             href="/legal"
-            className="flex-1 text-center px-4 py-2 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15"
+            className="flex-1 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-center hover:bg-white/15"
           >
             Lire le détail
           </a>
           <button
             onClick={accept}
-            className="flex-1 px-4 py-2 rounded-2xl bg-white text-black font-semibold hover:bg-gray-100"
+            className="flex-1 rounded-2xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-100"
           >
             Lu et approuvé
           </button>
@@ -226,7 +225,7 @@ function CguPrivacyModal({
         {!consented && (
           <button
             onClick={close}
-            className="mt-2 w-full text-center text-sm opacity-80 hover:opacity-100 underline underline-offset-4"
+            className="mt-2 w-full text-center text-sm underline underline-offset-4 opacity-80 hover:opacity-100"
           >
             Plus tard
           </button>
@@ -263,7 +262,6 @@ function PaymentReturnBridge() {
     };
 
     if (paid === "1") {
-      // Devine le plan choisi (tolère 2 noms de clé)
       let plan: "subscription" | "one-month" = "subscription";
       try {
         const storedA = localStorage.getItem(PENDING_PLAN_KEY_A);
@@ -273,19 +271,16 @@ function PaymentReturnBridge() {
 
         if (stored === "subscription" || stored === "one-month") plan = stored;
 
-        // Persiste le plan, nettoie les clés tampon
         localStorage.setItem(PLAN_KEY, plan);
         localStorage.removeItem(PENDING_PLAN_KEY_A);
         localStorage.removeItem(PENDING_PLAN_KEY_B);
       } catch {}
 
-      // Phone (si PaymentModal l’a posé avant redirection)
       let phoneE164 = "";
       try {
         phoneE164 = localStorage.getItem(PHONE_KEY) || "";
       } catch {}
 
-      // Émettre l’event standard (auto-connect UI)
       window.dispatchEvent(
         new CustomEvent("ob:subscription-active", {
           detail: {
@@ -304,12 +299,7 @@ function PaymentReturnBridge() {
       return;
     }
 
-    if (cancel === "1") {
-      clean();
-      return;
-    }
-
-    if (paidError) {
+    if (cancel === "1" || paidError) {
       clean();
       return;
     }
@@ -326,9 +316,7 @@ function AuthorizeReturnBridge() {
     let url: URL | null = null;
     try {
       url = new URL(window.location.href);
-    } catch {
-      /* Safari weird href */
-    }
+    } catch {}
 
     const ok = url?.searchParams.get("device_authorized");
     const phoneQS = url?.searchParams.get("phone") || "";
@@ -337,13 +325,11 @@ function AuthorizeReturnBridge() {
     const err = url?.searchParams.get("device_error");
 
     const emitAndClean = (phoneE164: string, deviceId?: string) => {
-      // normaliser deviceId: si non fourni en QS, tente LS
       if (!deviceId) {
         try {
           deviceId = localStorage.getItem(DEVICE_ID_KEY) || undefined;
         } catch {}
       }
-      // mémoriser le phone localement
       try {
         if (phoneE164) localStorage.setItem(PHONE_KEY, phoneE164);
       } catch {}
@@ -359,20 +345,14 @@ function AuthorizeReturnBridge() {
           },
         })
       );
-      // nettoie QS
       if (url) {
-        [
-          "device_authorized",
-          "phone",
-          "device",
-          "payref",
-          "device_error",
-        ].forEach((k) => url!.searchParams.delete(k));
+        ["device_authorized", "phone", "device", "payref", "device_error"].forEach(
+          (k) => url!.searchParams.delete(k)
+        );
         window.history.replaceState({}, "", url.toString());
       }
     };
 
-    // 1) Chemin “params d’URL”
     if (ok === "1") {
       const phone =
         phoneQS ||
@@ -387,21 +367,15 @@ function AuthorizeReturnBridge() {
       return;
     }
     if (err) {
-      // Erreur → juste nettoyer l’URL
       if (url) {
-        [
-          "device_authorized",
-          "phone",
-          "device",
-          "payref",
-          "device_error",
-        ].forEach((k) => url!.searchParams.delete(k));
+        ["device_authorized", "phone", "device", "payref", "device_error"].forEach(
+          (k) => url!.searchParams.delete(k)
+        );
         window.history.replaceState({}, "", url.toString());
       }
       return;
     }
 
-    // 2) Fallback “cookie”
     try {
       const ck = document.cookie
         .split(";")
@@ -409,9 +383,7 @@ function AuthorizeReturnBridge() {
         .find((s) => s.startsWith("ob.deviceAuth="));
       if (!ck) return;
 
-      // Effacer immédiatement pour éviter re-trigger
-      document.cookie =
-        "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax";
+      document.cookie = "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax";
       try {
         document.cookie =
           "ob.deviceAuth=; Path=/; Max-Age=0; SameSite=Lax; Secure";
@@ -435,9 +407,7 @@ function AuthorizeReturnBridge() {
         })();
         emitAndClean(phone, deviceId);
       }
-    } catch {
-      /* noop */
-    }
+    } catch {}
   }, []);
   return null;
 }
@@ -451,7 +421,6 @@ const cleanText = (s: string) =>
     .replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1")
     .trim();
 
-// copie robuste (Clipboard API + fallback execCommand)
 async function safeCopy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -473,7 +442,6 @@ async function safeCopy(text: string) {
   }
 }
 
-// Heuristique simple pour estimer la confiance d’une réponse texte
 function assessConfidence(text: string): "high" | "medium" | "low" {
   const len = text.length;
   const lines = (text.match(/\n/g) || []).length;
@@ -483,12 +451,10 @@ function assessConfidence(text: string): "high" | "medium" | "low" {
   return "low";
 }
 
-// Raccourci langue
 function readLangLS(): "fr" | "en" | "ar" {
   try {
     return (
-      (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") ||
-      "fr"
+      (localStorage.getItem("oneboarding.lang") as "fr" | "en" | "ar") || "fr"
     );
   } catch {
     return "fr";
@@ -497,12 +463,10 @@ function readLangLS(): "fr" | "en" | "ar" {
 
 /* =================== Page =================== */
 export default function Page() {
-  // i18n réactive : état + écoute des changements (Menu → ob:lang-changed)
   const [lang, setLang] = useState<"fr" | "en" | "ar">(() => readLangLS());
-  const recogRef = useRef<any>(null); // utilisé par la reco pour set .lang live
+  const recogRef = useRef<any>(null);
   const listeningRef = useRef(false);
 
-  // 🔐 Accès / quota (Benmehdi Protocol)
   const { snapshot: access, checkAndConsume } = useAccessControl();
   const [welcomeLimitOpen, setWelcomeLimitOpen] = useState(false);
   const [memberLimitOpen, setMemberLimitOpen] = useState(false);
@@ -511,7 +475,6 @@ export default function Page() {
     const onLangChanged = () => {
       const next = readLangLS();
       setLang(next);
-      // maj live de la reco vocale si déjà initialisée
       if (recogRef.current) {
         recogRef.current.lang =
           next === "ar" ? "ar-MA" : next === "en" ? "en-US" : "fr-FR";
@@ -546,22 +509,16 @@ export default function Page() {
     root.classList.toggle("lang-ar", lang === "ar");
   }, [lang]);
 
-  // OCR
   const [showOcr, setShowOcr] = useState(false);
   const [ocrText, setOcrText] = useState("");
   const ocrContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Historique & chargement
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 🧹 Modal Effacer (côté page — c'est ELLE qui supprime vraiment)
   const [showClearModal, setShowClearModal] = useState(false);
-
-  // 🗣 langue à utiliser dans cette modale finale
   const [clearLang, setClearLang] = useState<"fr" | "en" | "ar">("fr");
 
-  // ⚖️ CGU/Privacy (ouvert si Menu émet ob:open-legal ET pas de consentement)
   const [showLegal, setShowLegal] = useState(false);
   useEffect(() => {
     const onOpen = () => {
@@ -573,7 +530,6 @@ export default function Page() {
       window.removeEventListener("ob:open-legal", onOpen as EventListener);
   }, []);
 
-  // historique persist (chargement initial + sync LS)
   useEffect(() => {
     try {
       const s = localStorage.getItem("oneboarding.history");
@@ -586,11 +542,9 @@ export default function Page() {
     } catch {}
   }, [history]);
 
-  // ✨ écoute la demande de suppression venant du Menu
   useEffect(() => {
     const onRequestClear = (evt: Event) => {
       const e = evt as CustomEvent<{ lang?: "fr" | "en" | "ar" }>;
-      // on capture la langue fournie par le Menu au moment du clic
       const requestedLang =
         e.detail?.lang === "en" || e.detail?.lang === "ar"
           ? e.detail.lang
@@ -611,7 +565,6 @@ export default function Page() {
     };
   }, []);
 
-  // Auto-scroll top après génération
   const prevLoadingRef = useRef(false);
   useEffect(() => {
     if (prevLoadingRef.current && !loading)
@@ -619,7 +572,6 @@ export default function Page() {
     prevLoadingRef.current = loading;
   }, [loading]);
 
-  // === 🎙️ Micro (logique uniquement, plus de bouton ici) ===
   const [, setSpeechSupported] = useState(false);
   const [, setListening] = useState(false);
 
@@ -630,11 +582,6 @@ export default function Page() {
         (window as any).webkitSpeechRecognition);
     if (!SR) {
       setSpeechSupported(false);
-      window.dispatchEvent(
-        new CustomEvent("ob:mic-state", {
-          detail: { listening: false, supported: false },
-        })
-      );
       return;
     }
     setSpeechSupported(true);
@@ -648,14 +595,8 @@ export default function Page() {
     r.onstart = () => {
       setListening(true);
       listeningRef.current = true;
-      window.dispatchEvent(
-        new CustomEvent("ob:mic-state", {
-          detail: { listening: true, supported: true },
-        })
-      );
     };
 
-    // ⤵️ IMPORTANT : Insérer le texte dicté dans le <textarea data-ob-chat-input> du ChatPanel.
     r.onresult = (e: any) => {
       let finalTxt = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -670,7 +611,6 @@ export default function Page() {
       if (ta) {
         const needsSpace = ta.value && !/\s$/.test(ta.value);
         ta.value = ta.value + (needsSpace ? " " : "") + text;
-        // Notifier React (inputs contrôlés) + focus + curseur fin
         ta.dispatchEvent(new Event("input", { bubbles: true }));
         ta.focus();
         const end = ta.value.length;
@@ -687,11 +627,6 @@ export default function Page() {
     const stopUI = () => {
       setListening(false);
       listeningRef.current = false;
-      window.dispatchEvent(
-        new CustomEvent("ob:mic-state", {
-          detail: { listening: false, supported: true },
-        })
-      );
     };
     r.onend =
       r.onspeechend =
@@ -701,24 +636,12 @@ export default function Page() {
         stopUI;
 
     recogRef.current = r;
-
-    return () => {
-      try {
-        r.stop();
-      } catch {}
-      stopUI();
-    };
   }, [lang]);
 
   function toggleMic() {
     const r = recogRef.current;
     if (!r) {
       console.warn("Micro non supporté par ce navigateur.");
-      window.dispatchEvent(
-        new CustomEvent("ob:mic-state", {
-          detail: { listening: false, supported: false },
-        })
-      );
       return;
     }
     try {
@@ -731,20 +654,13 @@ export default function Page() {
       console.warn("Échec démarrage/arrêt micro:", e);
       listeningRef.current = false;
       setListening(false);
-      window.dispatchEvent(
-        new CustomEvent("ob:mic-state", {
-          detail: { listening: false, supported: true },
-        })
-      );
     }
   }
 
-  // === Écoute des événements émis par ChatPanel (📎 / 🎙️) ===
   useEffect(() => {
     const onMic = () => toggleMic();
     const onOcr = () => {
       setShowOcr(true);
-      // laisse React rendre le tiroir puis clique le file input
       setTimeout(() => {
         triggerHiddenFileInput();
       }, 0);
@@ -763,7 +679,6 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // === Pipeline “event bridge” : reçoit le texte (ChatPanel → génération)
   useEffect(() => {
     const onSubmit = async (evt: Event) => {
       const e = evt as CustomEvent<{
@@ -774,20 +689,16 @@ export default function Page() {
       const L = (e.detail?.lang as "fr" | "en" | "ar") || lang;
       if (!text || loading) return;
 
-      // 1) Vérifier les droits d’accès (quota + état membre)
       const res = await checkAndConsume();
       if (!res.allowed) {
         if (res.reason === "NEED_SUB") {
-          // plan inactif → offre de souscription
           setWelcomeLimitOpen(true);
         } else if (res.reason === "NEED_CONNECT") {
-          // plan actif non connecté → info membre
           setMemberLimitOpen(true);
         }
         return;
       }
 
-      // 2) Interaction autorisée → on continue
       const now = new Date().toISOString();
       const hasOcr = Boolean(ocrText.trim());
       const shown =
@@ -870,7 +781,6 @@ export default function Page() {
       window.removeEventListener("ob:chat-submit", onSubmit as EventListener);
   }, [lang, ocrText, loading, checkAndConsume]);
 
-  // Déclenche file input d’OcrUploader
   function triggerHiddenFileInput() {
     const container = ocrContainerRef.current;
     if (!container) return;
@@ -880,7 +790,6 @@ export default function Page() {
     input?.click();
   }
 
-  // Effacer définitivement (utilitaire central)
   function clearHistory() {
     setHistory([]);
     try {
@@ -890,15 +799,9 @@ export default function Page() {
     window.dispatchEvent(new Event("ob:history-cleared"));
   }
 
-  // libellés modale suppression finalisés selon clearLang
   const CLEAR_I18N: Record<
     "fr" | "en" | "ar",
-    {
-      title: string;
-      desc: string;
-      confirm: string;
-      cancel: string;
-    }
+    { title: string; desc: string; confirm: string; cancel: string }
   > = {
     fr: {
       title: "Effacer l’historique ?",
@@ -926,69 +829,62 @@ export default function Page() {
   const modalCopy = CLEAR_I18N[clearLang] || CLEAR_I18N.fr;
 
   return (
-    <div className="fixed inset-0 overflow-y-auto text-[var(--fg)] flex flex-col items-center p-6 pb-[120px] selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
-      {/* Bridges auto-connect */}
+    <div className="fixed inset-0 flex flex-col items-center overflow-y-auto p-6 pb-[120px] text-[var(--fg)] selection:bg-[var(--accent)/30] selection:text-[var(--fg)]">
       <PaymentReturnBridge />
       <AuthorizeReturnBridge />
 
       <StyleGlobals />
       <div className="halo" aria-hidden />
 
-      {/* Logo */}
       <div className="mb-1 -mt-1 flex justify-center">
-        <div className="relative h-32 w-32 md:h-44 md:w-44 overflow-hidden">
+        <div className="relative h-32 w-32 overflow-hidden md:h-44 md:w-44">
           <Image
             src="/brand/oneboardingai-logo.png"
             alt="OneBoarding AI — logomark"
             fill
             priority
-            className="object-contain -translate-y-3 md:-translate-y-4 drop-shadow-[0_0_40px_rgba(56,189,248,0.30)]"
+            className="drop-shadow-[0_0_40px_rgba(56,189,248,0.30)] object-contain -translate-y-3 md:-translate-y-4"
           />
         </div>
       </div>
 
-      {/* (Plus de barre de boutons au-dessus du chat : tout est dans ChatPanel) */}
-
-      {/* Tiroir OCR */}
+      {/* Tiroir OCR natif, simple */}
       {showOcr && (
         <div
           ref={ocrContainerRef}
-          className="w-full max-w-3xl mb-6 animate-fadeUp ocr-skin z-[10]"
+          className="animate-fadeUp z-[10] mb-4 w-full max-w-3xl"
         >
           <OcrUploader
             onSubmit={(files) => {
-              // Aucun fichier (ou "Remove all") → on nettoie et on ferme
-              if (!files || !files.length) {
+              if (!files || files.length === 0) {
                 setOcrText("");
-                setShowOcr(false);
+                setShowOcr(false); // fermeture quand plus aucun fichier
                 return;
               }
-
-              // En attendant le vrai OCR : on note simplement les noms
               const names = files.map((f) => f.name).join(", ");
               setOcrText(
-                `L'utilisateur a joint ${files.length} fichier(s) : ${names}.`
+                `Fichiers joints (${files.length}) : ${names}.`
               );
             }}
           />
         </div>
       )}
 
-      {/* ChatPanel (gère input + boutons internes 📎 / 🎙️) */}
+      {/* ChatPanel (input + boutons internes 📎 / 🎙️) */}
       <div className="w-full max-w-3xl">
         <ChatPanel />
       </div>
 
       {/* Historique */}
-      <div className="w-full max-w-3xl space-y-3 pb-10 z-[1] mt-3">
+      <div className="z-[1] mt-3 w-full max-w-3xl space-y-3 pb-10">
         {loading && (
-          <div className="msg-appear rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3 relative">
+          <div className="msg-appear relative rounded-xl border border-[var(--border)] bg-[var(--assistant-bg)] p-3">
             <p className="text-[var(--fg)]">
               <span className="typing-dots" aria-live="polite">
                 •••
               </span>
             </p>
-            <p className="text-xs opacity-70 mt-4">
+            <p className="mt-4 text-xs opacity-70">
               IA • {new Date().toLocaleString()}
             </p>
           </div>
@@ -997,7 +893,7 @@ export default function Page() {
         {history.map((item, idx) => (
           <div
             key={idx}
-            className={`msg-appear rounded-xl border p-3 relative
+            className={`msg-appear relative rounded-xl border p-3
               ${
                 item.role === "user"
                   ? "border-[var(--border)] bg-[var(--user-bg)]"
@@ -1015,13 +911,13 @@ export default function Page() {
                 onClick={async () => {
                   await safeCopy(item.text);
                 }}
-                className="absolute right-3 bottom-3 text-xs px-3 py-1 rounded-lg bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] border border-[var(--border)]"
+                className="absolute bottom-3 right-3 rounded-lg border border-[var(--border)] bg-[var(--chip-bg)] px-3 py-1 text-xs hover:bg-[var(--chip-hover)]"
               >
                 {lang === "ar" ? "نسخ" : lang === "en" ? "Copy" : "Copier"}
               </button>
             )}
 
-            <p className="text-xs opacity-70 mt-6">
+            <p className="mt-6 text-xs opacity-70">
               {item.role === "user"
                 ? "Vous"
                 : item.role === "assistant"
@@ -1033,7 +929,6 @@ export default function Page() {
         ))}
       </div>
 
-      {/* Modales utilitaires */}
       <ConfirmDialog
         open={showClearModal}
         title={modalCopy.title}
@@ -1048,7 +943,6 @@ export default function Page() {
         onRequestClose={() => setShowLegal(false)}
       />
 
-      {/* Modales quota / accès */}
       <WelcomeLimitDialog
         open={welcomeLimitOpen}
         onClose={() => setWelcomeLimitOpen(false)}
@@ -1060,7 +954,6 @@ export default function Page() {
         lang={lang}
       />
 
-      {/* Bouton Menu flottant + modales natives gérées à l’intérieur */}
       <Menu />
     </div>
   );
@@ -1078,12 +971,7 @@ function StyleGlobals() {
         margin: 0;
         padding: 0;
         color: var(--fg);
-        background: linear-gradient(
-            180deg,
-            #b3e5fc 0%,
-            #e0f7fa 100%
-          )
-          fixed !important;
+        background: linear-gradient(180deg, #b3e5fc 0%, #e0f7fa 100%) fixed !important;
       }
 
       :root {
@@ -1159,53 +1047,11 @@ function StyleGlobals() {
         animation: dots 1.2s ease-in-out infinite;
       }
 
-      @keyframes micPulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.25);
-          transform: scale(1);
-        }
-        70% {
-          box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
-          transform: scale(1.02);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
-          transform: scale(1);
-        }
-      }
-      .mic-pulse {
-        animation: micPulse 1.6s ease-out infinite;
-      }
-
       .ocr-skin,
       .ocr-skin * {
         color: var(--fg) !important;
       }
-      .ocr-skin input[type="file"] {
-        position: absolute !important;
-        left: -10000px !important;
-        width: 1px !important;
-        height: 1px !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        display: none !important;
-      }
-      .ocr-skin input[type="file"]::file-selector-button,
-      .ocr-skin input[type="file"] + *,
-      .ocr-skin input[type="file"] ~ span,
-      .ocr-skin input[type="file"] ~ small {
-        display: none !important;
-      }
-      .ocr-skin .truncate,
-      .ocr-skin [class*="file-name"],
-      .ocr-skin [class*="filename"],
-      .ocr-skin [class*="fileName"],
-      .ocr-skin [class*="name"] {
-        display: none !important;
-      }
 
-      /* Ajustements légers quand la langue active est l'arabe.
-         Pas d'inversion de layout : uniquement confort de lecture. */
       .lang-ar textarea::placeholder {
         text-align: right;
       }
@@ -1213,7 +1059,6 @@ function StyleGlobals() {
         text-align: right;
       }
 
-      /* Safe area + micro-anim du bouton Menu */
       .safe-bottom {
         padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
       }
@@ -1234,4 +1079,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-}
+        }
