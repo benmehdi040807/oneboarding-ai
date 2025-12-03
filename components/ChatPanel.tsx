@@ -17,10 +17,6 @@ function readLang(): Lang {
   return "fr";
 }
 
-/**
- * Type minimal pour la reco vocale.
- * → pas de `SpeechRecognition` global, donc pas d’erreur TypeScript.
- */
 type SpeechRec =
   | {
       lang?: string;
@@ -39,8 +35,6 @@ type SpeechRec =
     }
   | null;
 
-/* =================== ChatPanel =================== */
-
 export default function ChatPanel() {
   const [lang, setLang] = useState<Lang>("fr");
   const [text, setText] = useState("");
@@ -49,7 +43,6 @@ export default function ChatPanel() {
   const [recognition, setRecognition] = useState<SpeechRec>(null);
   const [listening, setListening] = useState(false);
 
-  // Lang dynamique (HTML + localStorage)
   useEffect(() => {
     setLang(readLang());
 
@@ -70,7 +63,6 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // Initialisation Web Speech natif
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -126,7 +118,6 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // Adapter la langue de reco quand tu changes FR/EN/AR
   useEffect(() => {
     if (!recognition) return;
     recognition.lang =
@@ -169,19 +160,17 @@ export default function ChatPanel() {
     ta.style.height = next + "px";
   };
 
-  // 🎯 Enter = retour à la ligne. Jamais d’envoi.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter = nouvelle ligne, jamais envoi
     if (e.key === "Enter" && !e.shiftKey) {
-      return; // comportement natif, on laisse juste la nouvelle ligne
+      return;
     }
   };
 
-  // 📎 : ouvrir le sélecteur natif (géré par OcrUploader)
   const handleUploadClick = () => {
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
-  // 🎙 : toggle micro
   const handleMicClick = () => {
     if (!recognition) return;
 
@@ -204,8 +193,7 @@ export default function ChatPanel() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="relative w-full rounded-[32px] border border-white/70 bg-white/92 px-4 pt-3 pb-9 shadow-lg backdrop-blur-[2px]">
-        {/* Grande zone de texte (identité claire, fond doux) */}
+      <div className="relative w-full rounded-[32px] border border-slate-200 bg-white px-4 pt-3 pb-9 shadow-lg">
         <textarea
           ref={textareaRef}
           data-ob-chat-input
@@ -214,17 +202,16 @@ export default function ChatPanel() {
           onKeyDown={handleKeyDown}
           rows={5}
           placeholder={placeholder}
-          className="w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/35"
+          className="w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] text-base leading-relaxed text-slate-800 outline-none placeholder:text-slate-400"
           dir={lang === "ar" ? "rtl" : "ltr"}
         />
 
-        {/* Boutons bas gauche */}
+        {/* Upload + micro en bas à gauche */}
         <div className="pointer-events-auto absolute left-4 bottom-2 flex items-center gap-2">
-          {/* Upload */}
           <button
             type="button"
             onClick={handleUploadClick}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white shadow-sm"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm"
             aria-label="Upload"
           >
             <span className="text-lg" aria-hidden="true">
@@ -232,11 +219,10 @@ export default function ChatPanel() {
             </span>
           </button>
 
-          {/* Micro */}
           <button
             type="button"
             onClick={handleMicClick}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white shadow-sm transition ${
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition ${
               listening ? "ring-2 ring-sky-400" : ""
             }`}
             aria-label="Micro"
@@ -250,14 +236,12 @@ export default function ChatPanel() {
           </button>
         </div>
 
-        {/* Bouton Envoyer bas droite */}
+        {/* Envoyer en bas à droite */}
         <button
           type="submit"
           disabled={sendDisabled}
-          className={`pointer-events-auto absolute right-4 bottom-2 inline-flex h-9 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-5 text-sm font-semibold text-white shadow-md ${
-            sendDisabled
-              ? "cursor-not-allowed opacity-50"
-              : "hover:bg-[var(--panel-strong)]"
+          className={`pointer-events-auto absolute right-4 bottom-2 inline-flex h-9 items-center justify-center rounded-full border border-slate-800 bg-slate-800 px-5 text-sm font-semibold text-white shadow-md ${
+            sendDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-black"
           }`}
         >
           {sendLabel}
@@ -265,4 +249,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-    }
+      }
