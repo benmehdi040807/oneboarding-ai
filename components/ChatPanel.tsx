@@ -79,11 +79,11 @@ export default function ChatPanel() {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Micro : entièrement géré ici
+  // Micro : état local pour l’effet visuel
   const [micListening, setMicListening] = useState(false);
   const [micSupported, setMicSupported] = useState(true);
 
-  /* Langue réactive (DOM + localStorage + event global) */
+  /* Langue réactive */
   useEffect(() => {
     setLang(readLang());
 
@@ -104,7 +104,7 @@ export default function ChatPanel() {
     };
   }, []);
 
-  /* Détection native du support micro (SpeechRecognition) */
+  /* Détection très simple du support micro (pour griser le bouton si besoin) */
   useEffect(() => {
     try {
       const w = window as any;
@@ -115,7 +115,7 @@ export default function ChatPanel() {
     }
   }, []);
 
-  /* Libellés multilingues */
+  /* Libellés */
   const placeholder =
     lang === "ar"
       ? "اكتب هنا..."
@@ -151,38 +151,46 @@ export default function ChatPanel() {
     }
   };
 
-  /* Auto-resize natif du textarea */
+  /* Auto-resize du textarea, plus d’espace d’écriture */
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = "0px";
-    const next = Math.min(ta.scrollHeight, 200);
+    const next = Math.min(ta.scrollHeight, 220);
     ta.style.height = next + "px";
   };
 
-  /* Upload OCR (ouvre le tiroir côté page) */
+  /* Upload OCR */
   const handleUploadClick = () => {
     window.dispatchEvent(new Event("ob:open-ocr-picker"));
   };
 
-  /* Micro natif : on toggle l’état local + on prévient app/page.tsx */
+  /* Micro :
+     - focus textarea (pour la dictée native du clavier sur mobile)
+     - envoie l’event à app/page.tsx (WebSpeech si dispo)
+     - bascule l’état visuel (halo/pulse)
+  */
   const handleMicClick = () => {
-    if (!micSupported) return; // bouton juste grisé si pas supporté
-    setMicListening((prev) => !prev);
-    window.dispatchEvent(new Event("ob:toggle-mic"));
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+    if (micSupported) {
+      setMicListening((prev) => !prev);
+      window.dispatchEvent(new Event("ob:toggle-mic"));
+    }
   };
 
   const iconBtnBase =
-    "inline-flex items-center justify-center h-11 w-11 rounded-full border border-[var(--border)] bg-white/80 hover:bg-white shadow-sm text-[var(--fg)] transition-all duration-150";
+    "inline-flex items-center justify-center h-10 w-10 rounded-full border border-[var(--border)] bg-white/85 hover:bg-white shadow-sm text-[var(--fg)] transition-all duration-150";
 
   const sendDisabled = !text.trim();
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-end gap-2 rounded-3xl border border-[var(--border)] bg-white/80 px-3 py-2 shadow-md backdrop-blur-md">
-        {/* zone de texte */}
-        <div className="flex flex-1 flex-col">
+      <div className="flex items-center gap-2 rounded-[26px] border border-[var(--border)] bg-white/86 px-4 py-2.5 shadow-md backdrop-blur-md">
+        {/* zone de texte — plus large */}
+        <div className="flex min-h-[44px] flex-1 flex-col">
           <textarea
             ref={textareaRef}
             data-ob-chat-input
@@ -191,14 +199,14 @@ export default function ChatPanel() {
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={placeholder}
-            className="w-full resize-none border-none bg-transparent px-1 pt-1 pb-2 text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
+            className="w-full flex-1 resize-none border-none bg-transparent px-1 text-base leading-relaxed text-[var(--fg)] outline-none placeholder:text-[var(--fg)]/40"
             dir={lang === "ar" ? "rtl" : "ltr"}
           />
         </div>
 
         {/* boutons upload + micro */}
-        <div className="flex items-center gap-1 pr-1">
-          {/* Upload (ouvre le tiroir OCR) */}
+        <div className="flex items-center gap-1.5">
+          {/* Upload */}
           <button
             type="button"
             onClick={handleUploadClick}
@@ -208,16 +216,16 @@ export default function ChatPanel() {
             <PaperClipIcon className="h-5 w-5" />
           </button>
 
-          {/* Micro dictée */}
+          {/* Micro */}
           <button
             type="button"
             onClick={handleMicClick}
             disabled={!micSupported}
             className={`${iconBtnBase} ${
               !micSupported
-                ? "opacity-50 cursor-not-allowed"
+                ? "cursor-not-allowed opacity-45"
                 : micListening
-                ? "bg-[var(--panel)] text-white mic-pulse"
+                ? "bg-[var(--panel)] text-white ring-2 ring-[var(--accent)] mic-pulse"
                 : ""
             }`}
             aria-label="Dictée vocale"
@@ -230,7 +238,7 @@ export default function ChatPanel() {
         <button
           type="submit"
           disabled={sendDisabled}
-          className={`inline-flex h-11 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-5 text-sm font-semibold text-white shadow-md hover:bg-[var(--panel-strong)] ${
+          className={`inline-flex h-10 items-center justify-center rounded-full border border-[var(--panel-strong)] bg-[var(--panel)] px-4 text-sm font-semibold text-white shadow-md hover:bg-[var(--panel-strong)] ${
             sendDisabled ? "cursor-not-allowed opacity-50" : ""
           }`}
         >
@@ -242,4 +250,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-    }
+}
