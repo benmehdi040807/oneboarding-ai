@@ -7,7 +7,14 @@ import Menu from "@/components/Menu";
 import ChatPanel from "@/components/ChatPanel";
 
 // 🧠 Réponses premium (texte) — moteur universel
-import { formatResponse } from "@/lib/txtPhrases";
+import { formatResponse as formatTextResponse } from "@/lib/txtPhrases";
+
+// 🧾 Réponses premium pour lecture d’images / documents (OCR local)
+import {
+  formatResponse as formatOcrResponse,
+  type Lang as OcrLang,
+  type Confidence as OcrConfidence,
+} from "@/lib/ocrPhrases";
 
 // 🔐 Accès / quota / membres
 import { useAccessControl } from "@/lib/useAccessControl";
@@ -459,6 +466,17 @@ function assessConfidence(text: string): "high" | "medium" | "low" {
   return "low";
 }
 
+// 🧾 Tips spécifiques pour les réponses OCR (selon la langue)
+function ocrTipsFor(lang: "fr" | "en" | "ar"): string {
+  if (lang === "ar") {
+    return "إن أمكن، التقط صفحة واحدة فقط، بإطار واضح وإضاءة جيدة.";
+  }
+  if (lang === "en") {
+    return "If possible, capture a single page with clear framing and good lighting.";
+  }
+  return "Si possible, capturez une page bien cadrée et lumineuse.";
+}
+
 function readLangLS(): "fr" | "en" | "ar" {
   try {
     return (
@@ -812,16 +830,32 @@ export default function Page() {
           const modelTextRaw: string = String(data.text || "");
           const conf = assessConfidence(modelTextRaw);
 
-          const finalText = formatResponse({
-            lang: L,
-            confidence: conf,
-            summary: modelTextRaw,
-            includeCta: false,
-            seed: Date.now() % 100000,
-            joiner: "\n\n",
-          })
-            .replace(/\n{3,}/g, "\n\n")
-            .trim();
+          const isOcrMode = Boolean(ocrText);
+          let finalText: string;
+
+          if (isOcrMode) {
+            // 🔎 Lecture d’images / documents → pool OCR dédié
+            finalText = formatOcrResponse({
+              lang: L as OcrLang,
+              confidence: conf as OcrConfidence,
+              summary: modelTextRaw,
+              tips: ocrTipsFor(L),
+              seed: Date.now() % 100000,
+              joiner: " ",
+            }).trim();
+          } else {
+            // 💬 Réponse texte classique → moteur universel
+            finalText = formatTextResponse({
+              lang: L,
+              confidence: conf,
+              summary: modelTextRaw,
+              includeCta: false,
+              seed: Date.now() % 100000,
+              joiner: "\n\n",
+            })
+              .replace(/\n{3,}/g, "\n\n")
+              .trim();
+          }
 
           setHistory((h) => [
             {
@@ -1116,4 +1150,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-          }
+}
