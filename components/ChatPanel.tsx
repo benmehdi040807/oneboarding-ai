@@ -369,7 +369,7 @@ export default function ChatPanel() {
           onKeyDown={handleKeyDown}
           rows={5}
           placeholder={placeholder}
-          className={`w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[64px] text-base leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 ${
+          className={`w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[14px] text-base leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 ${
             lang === "ar" ? "text-right" : "text-left"
           }`}
           dir={lang === "ar" ? "rtl" : "ltr"}
