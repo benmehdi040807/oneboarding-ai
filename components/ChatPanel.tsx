@@ -26,7 +26,7 @@ type AttachedFile = {
   sizeLabel: string;
 };
 
-const MAX_FILES = 10;
+const MAX_FILES = 3;                        // ← 3 fichiers max
 const MAX_SIZE = 15 * 1024 * 1024; // 15 Mo
 
 function humanSize(bytes: number): string {
@@ -265,9 +265,9 @@ export default function ChatPanel() {
         className="
           relative w-full
           rounded-[32px]
-          border border-white/70
-          bg-[#fff8f0]/85
-          shadow-[0_18px_40px_rgba(15,23,42,0.18)]
+          border border-white/75
+          bg-white/85
+          shadow-[0_18px_40px_rgba(15,23,42,0.16)]
           backdrop-blur-md
           px-4 pt-3 pb-10
         "
@@ -374,4 +374,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-                 }
+}
