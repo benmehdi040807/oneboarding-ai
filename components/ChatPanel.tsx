@@ -24,9 +24,11 @@ type AttachedFile = {
   file: File;
   name: string;
   sizeLabel: string;
+  isImage: boolean;
+  previewUrl?: string | null;
 };
 
-const MAX_FILES = 3;                        // ← 3 fichiers max
+const MAX_FILES = 3; // ← 3 fichiers max
 const MAX_SIZE = 15 * 1024 * 1024; // 15 Mo
 
 function humanSize(bytes: number): string {
@@ -143,11 +145,14 @@ export default function ChatPanel() {
     if (!list.length) return;
 
     setFiles((prev) => {
-      const current = [...prev];
+      const current: AttachedFile[] = [...prev];
 
       for (const f of list) {
         if (current.length >= MAX_FILES) break;
         if (f.size > MAX_SIZE) continue;
+
+        const isImage = f.type.startsWith("image/");
+        const previewUrl = isImage ? URL.createObjectURL(f) : null;
 
         current.push({
           id: `${Date.now()}-${f.name}-${Math.random()
@@ -156,6 +161,8 @@ export default function ChatPanel() {
           file: f,
           name: f.name,
           sizeLabel: humanSize(f.size),
+          isImage,
+          previewUrl,
         });
       }
 
@@ -167,11 +174,29 @@ export default function ChatPanel() {
   };
 
   const handleRemoveFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
+    setFiles((prev) => {
+      const next = prev.filter((f) => f.id !== id);
+      const removed = prev.find((f) => f.id === id);
+      if (removed?.previewUrl) {
+        try {
+          URL.revokeObjectURL(removed.previewUrl);
+        } catch {}
+      }
+      return next;
+    });
   };
 
   const handleClearFiles = () => {
-    setFiles([]);
+    setFiles((prev) => {
+      for (const f of prev) {
+        if (f.previewUrl) {
+          try {
+            URL.revokeObjectURL(f.previewUrl);
+          } catch {}
+        }
+      }
+      return [];
+    });
   };
 
   // Notifier le reste de l'app qu'il y a des fichiers sélectionnés
@@ -297,12 +322,31 @@ export default function ChatPanel() {
                   key={f.id}
                   className="flex items-center justify-between rounded-xl bg-white/90 px-2 py-1 text-[11px]"
                 >
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate">{f.name}</span>
-                    <span className="text-[10px] text-slate-500">
-                      {f.sizeLabel}
-                    </span>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    {/* Vignette image si disponible */}
+                    {f.isImage && f.previewUrl ? (
+                      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={f.previewUrl}
+                          alt={f.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-8 w-8 flex-shrink-0 rounded-lg border border-slate-200 bg-slate-50 text-center text-[14px] leading-8">
+                        📄
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate">{f.name}</span>
+                      <span className="text-[10px] text-slate-500">
+                        {f.sizeLabel}
+                      </span>
+                    </div>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(f.id)}
@@ -325,7 +369,7 @@ export default function ChatPanel() {
           onKeyDown={handleKeyDown}
           rows={5}
           placeholder={placeholder}
-          className={`w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[130px] text-base leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 ${
+          className={`w-full min-h-[140px] max-h-[260px] resize-none border-none bg-transparent pr-[96px] text-base leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 ${
             lang === "ar" ? "text-right" : "text-left"
           }`}
           dir={lang === "ar" ? "rtl" : "ltr"}
@@ -374,4 +418,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-}
+          }
