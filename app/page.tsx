@@ -24,6 +24,14 @@ const PENDING_PLAN_KEY_A = "oneboarding.pendingPlanKind"; // ancien nom
 const PENDING_PLAN_KEY_B = "oneboarding.planCandidate"; // autre alias
 const DEVICE_ID_KEY = "oneboarding.deviceId";
 
+/**
+ * 🌍 Pack OCR mondial (≈ 20 langues) – codes Tesseract officiels.
+ * ⚠️ Il faut que les .traineddata correspondants soient disponibles côté Tesseract.js
+ * (CDN/langPath), mais ton code n’a pas besoin de changer : tout est ici.
+ */
+const OCR_LANGS =
+  "eng+fra+ara+spa+por+ita+deu+tur+rus+hin+urd+ben+ind+vie+tha+chi_sim+chi_tra+jpn+kor+nld";
+
 /* =================== Modal confirmation générique =================== */
 function ConfirmDialog({
   open,
@@ -685,11 +693,13 @@ export default function Page() {
         // Import dynamique pour ne pas alourdir le bundle initial
         const { createWorker } = await import("tesseract.js");
 
-        const worker = await createWorker();
+        // 👉 IMPORTANT : on force le type en `any` pour éviter le conflit
+        // avec le type DOM Worker dans TypeScript.
+        const worker = (await (createWorker as any)()) as any;
 
-        // Langues à adapter selon tes besoins / tessdata dispo
-        await worker.loadLanguage("eng+fra");
-        await worker.initialize("eng+fra");
+        // 🌍 Pack de langues mondial – 20 langues supportées
+        await worker.loadLanguage(OCR_LANGS);
+        await worker.initialize(OCR_LANGS);
 
         let combined = "";
 
@@ -1106,4 +1116,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-      }
+          }
