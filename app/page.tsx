@@ -483,6 +483,10 @@ export default function Page() {
 
   const [showLegal, setShowLegal] = useState(false);
 
+  // 🧾 Texte OCR global (1–3 fichiers)
+  const [ocrText, setOcrText] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+
   /* === Langue globale (placeholder + direction) === */
   useEffect(() => {
     const onLangChanged = () => {
@@ -661,6 +665,77 @@ export default function Page() {
     }
   }
 
+  /* === OCR local : écoute des fichiers sélectionnés (ChatPanel) === */
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleFilesSelected = async (evt: Event) => {
+      const e = evt as CustomEvent<{ files?: File[] }>;
+      const files = (e.detail?.files || []).slice(0, 3);
+
+      if (!files.length) {
+        setOcrText("");
+        return;
+      }
+
+      setOcrLoading(true);
+      setOcrText("");
+
+      try {
+        // Import dynamique pour ne pas alourdir le bundle initial
+        const { createWorker } = await import("tesseract.js");
+
+        const worker = await createWorker();
+
+        // Langues à adapter selon tes besoins / tessdata dispo
+        await worker.loadLanguage("eng+fra");
+        await worker.initialize("eng+fra");
+
+        let combined = "";
+
+        for (const file of files) {
+          const url = URL.createObjectURL(file);
+          const { data } = await worker.recognize(url);
+          URL.revokeObjectURL(url);
+
+          if (cancelled) {
+            await worker.terminate();
+            return;
+          }
+
+          const txt = (data.text || "").trim();
+          if (txt) {
+            combined += `\n\n===== ${file.name} =====\n${txt}`;
+          }
+        }
+
+        await worker.terminate();
+
+        if (!cancelled) {
+          setOcrText(combined.trim());
+        }
+      } catch (err) {
+        console.error("OCR error", err);
+        if (!cancelled) setOcrText("");
+      } finally {
+        if (!cancelled) setOcrLoading(false);
+      }
+    };
+
+    window.addEventListener(
+      "ob:files-selected",
+      handleFilesSelected as EventListener
+    );
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        "ob:files-selected",
+        handleFilesSelected as EventListener
+      );
+    };
+  }, []);
+
   /* === Écoute des événements venant de ChatPanel === */
   useEffect(() => {
     const onMic = () => toggleMic();
@@ -697,11 +772,16 @@ export default function Page() {
       setHistory((h) => [{ role: "user", text, time: now }, ...h]);
       setLoading(true);
 
+      // 🧩 Composition finale du prompt : texte user + OCR (si présent)
+      const promptPayload = ocrText
+        ? `${text}\n\n[CONTENU EXTRAIT DES DOCUMENTS FOURNIS]\n${ocrText}`
+        : text;
+
       try {
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: text }),
+          body: JSON.stringify({ prompt: promptPayload }),
         });
         const data = await response.json();
         if (!response.ok || !data?.ok) {
@@ -759,7 +839,7 @@ export default function Page() {
     window.addEventListener("ob:chat-submit", onSubmit as EventListener);
     return () =>
       window.removeEventListener("ob:chat-submit", onSubmit as EventListener);
-  }, [lang, loading, checkAndConsume]);
+  }, [lang, loading, checkAndConsume, ocrText]);
 
   function clearHistory() {
     setHistory([]);
@@ -790,8 +870,7 @@ export default function Page() {
     },
     ar: {
       title: "حذف السجل؟",
-      desc:
-        "هل تريد حقاً حذف سجل المحادثة؟ هذا الإجراء لا رجوع فيه.",
+      desc: "هل تريد حقاً حذف سجل المحادثة؟ هذا الإجراء لا رجوع فيه.",
       confirm: "حذف",
       cancel: "إلغاء",
     },
@@ -1027,4 +1106,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-                   }
+      }
