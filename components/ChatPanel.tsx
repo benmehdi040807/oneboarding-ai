@@ -150,7 +150,9 @@ export default function ChatPanel() {
         if (f.size > MAX_SIZE) continue;
 
         current.push({
-          id: `${Date.now()}-${f.name}-${Math.random().toString(16).slice(2)}`,
+          id: `${Date.now()}-${f.name}-${Math.random()
+            .toString(16)
+            .slice(2)}`,
           file: f,
           name: f.name,
           sizeLabel: humanSize(f.size),
@@ -172,7 +174,7 @@ export default function ChatPanel() {
     setFiles([]);
   };
 
-  // Si tu veux que le backend soit notifié à chaque changement de fichiers :
+  // Notifier le reste de l'app qu'il y a des fichiers sélectionnés
   useEffect(() => {
     const payload = files.map((f) => f.file);
     window.dispatchEvent(
@@ -238,8 +240,8 @@ export default function ChatPanel() {
     ta.style.height = next + "px";
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter ne déclenche jamais l'envoi : uniquement retour à la ligne
+  const handleKeyDown = (_e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter = retour à la ligne uniquement (jamais d'envoi auto)
     return;
   };
 
@@ -259,7 +261,17 @@ export default function ChatPanel() {
         onChange={handleFilesChange}
       />
 
-      <div className="relative w-full rounded-[32px] border border-slate-200 bg-white/98 px-4 pt-3 pb-10 shadow-lg">
+      <div
+        className="
+          relative w-full
+          rounded-[32px]
+          border border-white/70
+          bg-[#fff8f0]/85
+          shadow-[0_18px_40px_rgba(15,23,42,0.18)]
+          backdrop-blur-md
+          px-4 pt-3 pb-10
+        "
+      >
         {/* Liste des fichiers attachés, en haut de la carte */}
         {files.length > 0 && (
           <div className="mb-2 rounded-2xl border border-sky-100 bg-sky-50/90 px-3 py-2 text-xs text-sky-900">
@@ -273,9 +285,10 @@ export default function ChatPanel() {
               <button
                 type="button"
                 onClick={handleClearFiles}
-                className="text-[11px] font-medium text-sky-700 hover:underline"
+                aria-label="Remove all"
+                className="text-lg leading-none text-slate-400 hover:text-slate-700"
               >
-                Tout retirer ✕
+                ×
               </button>
             </div>
             <div className="max-h-28 space-y-1 overflow-y-auto pr-1">
@@ -361,4 +374,4 @@ export default function ChatPanel() {
       </div>
     </form>
   );
-  }
+                 }
