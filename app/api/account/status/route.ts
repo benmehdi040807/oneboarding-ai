@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
     // 4) Abonnement le plus récent du user
     const sub = await prisma.subscription.findFirst({
       where: { userId: user.id },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     const plan = sub?.plan ?? null;
