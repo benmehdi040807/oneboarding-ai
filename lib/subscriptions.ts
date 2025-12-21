@@ -165,7 +165,7 @@ export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
     where: {
       user: { phoneE164 },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "desc" },
     select: {
       plan: true,
       status: true,
