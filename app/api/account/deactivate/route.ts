@@ -1,6 +1,7 @@
 // app/api/account/deactivate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { STATUSES } from "@/lib/subscription-constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,10 +61,10 @@ export async function POST(req: NextRequest) {
         .update({
           where: { id: lastSub.id },
           data: {
-            status: "CANCELLED",
-            cancelledAt: now,
+            status: STATUSES.CANCELLED, // ✅ constant
+            cancelledAt: now,           // ✅ marque décision humaine
             cancelAtPeriodEnd: false,
-            currentPeriodEnd: now, // coupe l'accès immédiatement
+            currentPeriodEnd: now,      // ✅ coupe l'accès immédiatement
           },
         })
         .catch(() => {});
@@ -109,4 +110,4 @@ export async function POST(req: NextRequest) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
-        }
+}
