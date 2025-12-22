@@ -1,67 +1,24 @@
 // lib/auth.ts
 import { cookies } from "next/headers";
-import crypto from "crypto";
+import { prisma } from "@/lib/db";
 import { userHasPaidAccess } from "@/lib/subscriptions";
-import { prisma } from "@/lib/db";          // ⬅️ NEW
-import type { User } from "@prisma/client"; // ⬅️ NEW
+import type { User } from "@prisma/client";
 
-type SessionPayload = {
-  sub: string;           // phoneE164
-  plan?: "CONTINU" | "PASS1MOIS";
-  subscriptionID?: string;
-  status?: string;       // ACTIVE | CANCELLED | ...
-  iat?: number;          // seconds (Unix)
-  exp?: number;          // seconds (Unix)
+type SessionContext = {
+  sessionId: string;
+  user: User;
+  deviceId?: string | null;
+  expiresAt: Date;
 };
 
-// Secret unique pour la signature du cookie de session (HS256)
-function getSessionSecret(): string {
-  const s = process.env.SESSION_SECRET || "";
-  if (process.env.NODE_ENV === "production" && !s) {
-    // En production, on exige absolument la présence du secret
-    throw new Error("SESSION_SECRET manquant (production)");
-  }
-  // En dev, fallback pour faciliter le run local
-  return s || "dev_secret";
-}
-
-/** Décode et vérifie le cookie ob_session (HS256) */
-export function getSessionPayload(): SessionPayload | null {
-  const token = cookies().get("ob_session")?.value;
-  if (!token) return null;
-
-  const secret = getSessionSecret();
-
+export function getSessionId(): string | null {
   try {
-    const [h, b, s] = token.split(".");
-    if (!h || !b || !s) return null;
-
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(`${h}.${b}`)
-      .digest("base64url");
-
-    if (expected !== s) return null;
-
-    const payload = JSON.parse(
-      Buffer.from(b, "base64url").toString()
-    ) as SessionPayload;
-
-    // exp/iat en SECONDES (Unix)
-    if (!payload?.exp || Date.now() / 1000 > payload.exp) return null;
-
-    return payload;
+    return cookies().get("ob_session")?.value ?? null;
   } catch {
     return null;
   }
 }
 
-/** Raccourci : renvoie le phoneE164 de session ou null */
-export function getSessionPhone(): string | null {
-  return getSessionPayload()?.sub ?? null;
-}
-
-/** Supprime le cookie de session (si tu veux forcer un re-login) */
 export function clearSessionCookie() {
   cookies().set("ob_session", "", {
     httpOnly: true,
@@ -73,14 +30,54 @@ export function clearSessionCookie() {
 }
 
 /**
+ * Charge la session DB + user, et vérifie :
+ * - existe
+ * - non révoquée
+ * - non expirée
+ */
+export async function getSessionContext(): Promise<SessionContext | null> {
+  const sessionId = getSessionId();
+  if (!sessionId) return null;
+
+  const now = new Date();
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { user: true },
+    });
+
+    if (!session) return null;
+    if (session.revokedAt) return null;
+    if (!session.expiresAt || session.expiresAt <= now) return null;
+
+    return {
+      sessionId,
+      user: session.user,
+      deviceId: session.deviceId ?? null,
+      expiresAt: session.expiresAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Raccourci : renvoie le phoneE164 de session ou null */
+export async function getSessionPhone(): Promise<string | null> {
+  const ctx = await getSessionContext();
+  return ctx?.user?.phoneE164 ?? null;
+}
+
+/**
  * Vérifie l’accès payant :
  * - session valide
- * - ET abonnement actif OU annulé mais encore dans la période en cours
+ * - ET droit d’accès payé (souverain) via userHasPaidAccess
  */
 export async function assertPaidAccess(): Promise<{ ok: boolean; phone?: string }> {
-  const phone = getSessionPhone();
-  if (!phone) return { ok: false };
+  const ctx = await getSessionContext();
+  if (!ctx) return { ok: false };
 
+  const phone = ctx.user.phoneE164;
   const ok = await userHasPaidAccess(phone);
   if (!ok) return { ok: false };
 
@@ -88,19 +85,9 @@ export async function assertPaidAccess(): Promise<{ ok: boolean; phone?: string 
 }
 
 /**
- * Récupère l'utilisateur courant en base à partir de la session.
- * Utilisé par /api/consent (et réutilisable ailleurs).
+ * Récupère l'utilisateur courant à partir de la session DB.
  */
 export async function getCurrentUser(): Promise<User | null> {
-  const phone = getSessionPhone();
-  if (!phone) return null;
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { phoneE164: phone },
-    });
-    return user;
-  } catch {
-    return null;
-  }
-                      }
+  const ctx = await getSessionContext();
+  return ctx?.user ?? null;
+}
