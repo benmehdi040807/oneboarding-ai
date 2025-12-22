@@ -2,7 +2,7 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // ex: postgresql://user:pass@host:5432/dbname?sslmode=require
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -14,7 +14,6 @@ generator client {
 // =========================
 // phoneE164 = identifiant contractuel unique (E.164)
 // consentAt = horodatage du "Lu et approuvé" (consentement numérique souverain)
-// -> conforme au Protocole Benmehdi : consentement traçable et opposable
 model User {
   id         String    @id @default(cuid())
   phoneE164  String    @unique
@@ -22,26 +21,29 @@ model User {
   createdAt  DateTime  @default(now()) @db.Timestamptz
   updatedAt  DateTime  @updatedAt @db.Timestamptz
 
-  profile        Profile?
-  subscriptions  Subscription[]
-  histories      History[]
-  devices        Device[]
-  sessions       Session[]
-  deviceIntents  DeviceOrderIntent[]   // DEPRECATED (conservé pour audit)
-  pairingChallenges DevicePairingChallenge[]
+  profile            Profile?
+  subscriptions      Subscription[]
+  histories          History[]
+  devices            Device[]
+  sessions           Session[]
+  pairingChallenges  DevicePairingChallenge[]
 
   @@index([createdAt])
 }
 
 // =========================
-//    Abonnements (PayPal)
+//    Accès payé (PayPal Orders v2)
 // =========================
+// paypalId = orderId (v2/checkout/orders/{id}) — unique
+// plan = "ONE_DAY" | "ONE_MONTH" | "ONE_YEAR" | "ONE_LIFE"
+// status = "CREATED" | "APPROVED" | "COMPLETED" | "CAPTURED" | "DENIED" | "REFUNDED" | ...
+// currentPeriodEnd = fin souveraine du droit d’accès payé
 model Subscription {
   id                String    @id @default(cuid())
   userId            String
-  paypalId          String    @unique
-  plan              String    @default("CONTINU")    // "CONTINU" | "PASS1MOIS"
-  status            String    @default("ACTIVE")     // "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "SUSPENDED" | "CANCELLED" | "EXPIRED"
+  paypalId          String    @unique   // orderId (Orders v2)
+  plan              String    @default("ONE_MONTH")
+  status            String    @default("CREATED")
   currentPeriodEnd  DateTime? @db.Timestamptz
   cancelAtPeriodEnd Boolean   @default(false)
   cancelledAt       DateTime? @db.Timestamptz
@@ -137,12 +139,12 @@ model Device {
 //    Sessions opaques (DB)
 // =========================
 model Session {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   deviceId   String?
-  createdAt  DateTime @default(now()) @db.Timestamptz
-  updatedAt  DateTime @updatedAt @db.Timestamptz
-  expiresAt  DateTime @db.Timestamptz
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @db.Timestamptz
+  expiresAt  DateTime  @db.Timestamptz
   revokedAt  DateTime? @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -186,30 +188,4 @@ model DevicePairingChallenge {
   @@index([userId])
   @@index([status, expiresAt])
   @@index([userId, newDeviceId])
-}
-
-// =========================
-//    Intent de paiement "1€" (device) — DEPRECATED
-// =========================
-// Conservé pour auditabilité/archives. À supprimer lors d’une V majeure.
-model DeviceOrderIntent {
-  id          String   @id @default(cuid())
-  userId      String
-  deviceId    String
-  orderId     String   @unique
-  amount      String   @default("1.00")
-  currency    String   @default("EUR")
-  status      String   @default("CREATED")
-  payload     String?
-  createdAt   DateTime @default(now()) @db.Timestamptz
-  updatedAt   DateTime @updatedAt @db.Timestamptz
-  completedAt DateTime? @db.Timestamptz
-  cancelledAt DateTime? @db.Timestamptz
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([deviceId])
-  @@index([status])
-  @@index([createdAt])
 }
