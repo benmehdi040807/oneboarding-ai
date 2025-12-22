@@ -2,22 +2,14 @@
 
 import { prisma } from "@/lib/db";
 import { ppAccessToken, PP_BASE } from "@/lib/paypal";
-
-export type Plan = "ONE_DAY" | "ONE_MONTH" | "ONE_YEAR" | "ONE_LIFE";
-
-export type PayStatus =
-  | "APPROVED"
-  | "COMPLETED"
-  | "CAPTURED"
-  | "DENIED"
-  | "REFUNDED"
-  | "UNKNOWN";
+import { PLANS, STATUSES, type Plan, type PayStatus } from "@/lib/subscription-constants";
 
 function addDays(base: Date, days: number): Date {
   const d = new Date(base.getTime());
   d.setDate(d.getDate() + days);
   return d;
 }
+
 function addYears(base: Date, years: number): Date {
   const d = new Date(base.getTime());
   d.setFullYear(d.getFullYear() + years);
@@ -31,28 +23,27 @@ function isE164(p?: string): p is string {
 function planFromKind(kind?: string): Plan {
   switch ((kind || "").toLowerCase()) {
     case "one-day":
-      return "ONE_DAY";
+      return PLANS.ONE_DAY;
     case "one-month":
-      return "ONE_MONTH";
+      return PLANS.ONE_MONTH;
     case "one-year":
-      return "ONE_YEAR";
+      return PLANS.ONE_YEAR;
     case "one-life":
-      return "ONE_LIFE";
+      return PLANS.ONE_LIFE;
     default:
-      return "ONE_MONTH"; // fallback “safe”
+      return PLANS.ONE_MONTH; // fallback “safe”
   }
 }
 
 function periodEndFor(plan: Plan, now = new Date()): Date {
   switch (plan) {
-    case "ONE_DAY":
+    case PLANS.ONE_DAY:
       return addDays(now, 1);
-    case "ONE_MONTH":
+    case PLANS.ONE_MONTH:
       return addDays(now, 30);
-    case "ONE_YEAR":
+    case PLANS.ONE_YEAR:
       return addYears(now, 1);
-    case "ONE_LIFE":
-      // “Life” = très long droit d’accès souverain
+    case PLANS.ONE_LIFE:
       return addYears(now, 200);
   }
 }
@@ -110,22 +101,17 @@ function parseCustomId(rawCustom?: string): {
  * - event_type: CHECKOUT.ORDER.* or PAYMENT.CAPTURE.*
  * - resource: event resource
  */
-export async function applyWebhookChange(evt: {
-  event_type: string;
-  resource: any;
-}): Promise<void> {
+export async function applyWebhookChange(evt: { event_type: string; resource: any }): Promise<void> {
   const type = evt?.event_type || "";
   const res = evt?.resource;
 
   // 1) Determine orderId
   let orderId: string | undefined;
 
-  // Order events
   if (type.startsWith("CHECKOUT.ORDER.")) {
     orderId = res?.id;
   }
 
-  // Capture events
   if (!orderId && type.startsWith("PAYMENT.CAPTURE.")) {
     orderId = res?.supplementary_data?.related_ids?.order_id || undefined;
   }
@@ -143,12 +129,13 @@ export async function applyWebhookChange(evt: {
   if (!isE164(phone)) return;
 
   // 3) Map status
-  let status: PayStatus = "UNKNOWN";
-  if (type === "CHECKOUT.ORDER.APPROVED") status = "APPROVED";
-  else if (type === "CHECKOUT.ORDER.COMPLETED") status = "COMPLETED";
-  else if (type === "PAYMENT.CAPTURE.COMPLETED") status = "CAPTURED";
-  else if (type === "PAYMENT.CAPTURE.DENIED") status = "DENIED";
-  else if (type === "PAYMENT.CAPTURE.REFUNDED") status = "REFUNDED";
+  let status: PayStatus = STATUSES.UNKNOWN;
+
+  if (type === "CHECKOUT.ORDER.APPROVED") status = STATUSES.APPROVED;
+  else if (type === "CHECKOUT.ORDER.COMPLETED") status = STATUSES.COMPLETED;
+  else if (type === "PAYMENT.CAPTURE.COMPLETED") status = STATUSES.CAPTURED;
+  else if (type === "PAYMENT.CAPTURE.DENIED") status = STATUSES.DENIED;
+  else if (type === "PAYMENT.CAPTURE.REFUNDED") status = STATUSES.REFUNDED;
 
   const now = new Date();
   const plan = planFromKind(kind);
@@ -171,12 +158,14 @@ export async function applyWebhookChange(evt: {
 
   // 5) Upsert “Subscription” = accès payé (paypalId = orderId)
   // Règle souveraine :
-  // - CAPTURED / COMPLETED => donne droit d'accès
-  // - REFUNDED / DENIED => coupe immédiate (marque cancelledAt)
-  const shouldCut = status === "REFUNDED" || status === "DENIED";
+  // - CAPTURED / COMPLETED => donne droit d'accès (sauf si user a désactivé: cancelledAt posé)
+  // - REFUNDED / DENIED => coupe immédiate
+  const shouldCut = status === STATUSES.REFUNDED || status === STATUSES.DENIED;
 
-  // On ne renouvelle l'échéance que si évènement “positif” (paiement réellement confirmé)
-  const isPositive = status === "CAPTURED" || status === "COMPLETED";
+  // Échéance : uniquement si événement positif
+  const isPositive =
+    status === STATUSES.CAPTURED || status === STATUSES.COMPLETED || status === STATUSES.APPROVED;
+
   const paidEnd = isPositive ? periodEndFor(plan, now) : now;
 
   await prisma.subscription.upsert({
@@ -220,25 +209,56 @@ export async function applyWebhookChange(evt: {
         authorized: true,
         revokedAt: null,
         lastSeenAt: now,
-        // ne touche pas isFounder
       },
     });
   }
 }
 
 /**
- * Accès payé : TRUE si currentPeriodEnd > now
- * et non coupé par REFUNDED/DENIED
+ * Évalue l’accès à partir d’une subscription (pure function)
+ * Règle:
+ * - denied/refunded => non
+ * - cancelledAt posé => non (désactivation humaine immédiate)
+ * - currentPeriodEnd > now => oui
  */
-export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
-  const sub = await prisma.subscription.findFirst({
-    where: { user: { phoneE164 } },
-    orderBy: { createdAt: "desc" },
-    select: { status: true, currentPeriodEnd: true },
-  });
-
+export function hasPaidAccessFromSub(sub: {
+  status?: string | null;
+  currentPeriodEnd?: Date | null;
+  cancelledAt?: Date | null;
+} | null): boolean {
   if (!sub?.currentPeriodEnd) return false;
-  if (sub.status === "REFUNDED" || sub.status === "DENIED") return false;
+
+  const st = String(sub.status || "").toUpperCase();
+  if (st === STATUSES.REFUNDED || st === STATUSES.DENIED) return false;
+
+  // Désactivation volontaire => coupe immédiate (même si date future)
+  if (sub.cancelledAt) return false;
 
   return sub.currentPeriodEnd > new Date();
 }
+
+/**
+ * Accès payé : TRUE si currentPeriodEnd > now
+ * et non coupé par REFUNDED/DENIED/CANCELLED (cancelledAt)
+ *
+ * Micro-optimisation:
+ * - si tu as déjà chargé la dernière subscription (route status), passe-la ici -> 0 requête DB.
+ */
+export async function userHasPaidAccess(
+  phoneE164: string,
+  preloadedSub?: { status: string | null; currentPeriodEnd: Date | null; cancelledAt: Date | null } | null
+): Promise<boolean> {
+  if (!isE164(phoneE164)) return false;
+
+  if (preloadedSub) {
+    return hasPaidAccessFromSub(preloadedSub);
+  }
+
+  const sub = await prisma.subscription.findFirst({
+    where: { user: { phoneE164 } },
+    orderBy: { createdAt: "desc" },
+    select: { status: true, currentPeriodEnd: true, cancelledAt: true },
+  });
+
+  return hasPaidAccessFromSub(sub);
+  }
