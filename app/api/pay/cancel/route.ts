@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function baseUrl() {
+function baseUrl(): string {
   const b = process.env.NEXT_PUBLIC_BASE_URL || "https://oneboardingai.com";
   return b.endsWith("/") ? b.slice(0, -1) : b;
 }
