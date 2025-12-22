@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { applyWebhookChange } from "@/lib/subscriptions";
 
-export const runtime = "nodejs";          // Node needed for Buffer & PayPal calls
+export const runtime = "nodejs"; // Node needed for Buffer & PayPal calls
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -15,17 +15,19 @@ const BASE = PP_LIVE ? "https://api.paypal.com" : "https://api.sandbox.paypal.co
 
 /* --- Helpers --- */
 async function getAccessToken() {
-  const res = await fetch(`${BASE}/v1/oauth2/token`, {
+  const resp = await fetch(`${BASE}/v1/oauth2/token`, {
     method: "POST",
     headers: {
-      Authorization: "Basic " + Buffer.from(`${PP_CLIENT_ID}:${PP_SECRET}`).toString("base64"),
+      Authorization:
+        "Basic " + Buffer.from(`${PP_CLIENT_ID}:${PP_SECRET}`).toString("base64"),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
     cache: "no-store",
   });
-  if (!res.ok) throw new Error("PAYPAL_TOKEN_FAIL");
-  const j = await res.json();
+
+  if (!resp.ok) throw new Error("PAYPAL_TOKEN_FAIL");
+  const j = await resp.json();
   return j.access_token as string;
 }
 
@@ -40,10 +42,16 @@ async function verifySignature(rawBody: string, headers: Headers) {
     return false;
   }
 
-  const token = await getAccessToken();
-  const bodyJson = JSON.parse(rawBody);
+  let bodyJson: any;
+  try {
+    bodyJson = JSON.parse(rawBody);
+  } catch {
+    return false;
+  }
 
-  const res = await fetch(`${BASE}/v1/notifications/verify-webhook-signature`, {
+  const token = await getAccessToken();
+
+  const resp = await fetch(`${BASE}/v1/notifications/verify-webhook-signature`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -61,9 +69,17 @@ async function verifySignature(rawBody: string, headers: Headers) {
     cache: "no-store",
   });
 
-  if (!res.ok) return false;
-  const j = await res.json();
+  if (!resp.ok) return false;
+  const j = await resp.json();
   return j.verification_status === "SUCCESS";
+}
+
+function safeJsonParse(raw: string) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(req: Request) {
@@ -80,37 +96,35 @@ export async function POST(req: Request) {
     }
 
     // 3) Parse event
-    const evt = JSON.parse(raw);
-    const type = evt?.event_type as string | undefined;
-    const res = evt?.resource;
+    const evt = safeJsonParse(raw);
+    if (!evt) {
+      console.warn("[PP WEBHOOK] invalid JSON body");
+      return new NextResponse("OK", { status: 200 });
+    }
 
-    if (!type || !res) {
+    const eventType = evt?.event_type as string | undefined;
+    const resource = evt?.resource;
+
+    if (!eventType || !resource) {
       console.warn("[PP WEBHOOK] missing event_type/resource", evt);
       return new NextResponse("OK", { status: 200 });
     }
 
-    // 4) Dispatch to domain handler
-    switch (type) {
-      // ===== Subscriptions (v1) =====
-      case "BILLING.SUBSCRIPTION.ACTIVATED":
-      case "BILLING.SUBSCRIPTION.SUSPENDED":
-      case "BILLING.SUBSCRIPTION.CANCELLED":
-      case "BILLING.SUBSCRIPTION.EXPIRED":
-      case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
-      // (Some accounts may still emit) sale completed
-      case "PAYMENT.SALE.COMPLETED":
-
-      // ===== Checkout Orders v2 (1€ device auth) =====
-      // User clicked approve (resource.id = orderId)
+    // 4) Dispatch (Orders v2 + Captures)
+    switch (eventType) {
+      // User approved the order (resource.id = orderId)
       case "CHECKOUT.ORDER.APPROVED":
-      // Money captured (resource.supplementary_data.related_ids.order_id = orderId)
+      // Some flows may also send ORDER.COMPLETED
+      case "CHECKOUT.ORDER.COMPLETED":
+      // Money captured (resource is capture; orderId is usually in supplementary_data.related_ids.order_id)
       case "PAYMENT.CAPTURE.COMPLETED":
-        await applyWebhookChange({ event_type: type, resource: res });
+      case "PAYMENT.CAPTURE.DENIED":
+      case "PAYMENT.CAPTURE.REFUNDED":
+        await applyWebhookChange({ event_type: eventType, resource });
         break;
 
       default:
-        // ignore other events quietly
-        // console.log("[PP WEBHOOK] ignored event:", type);
+        // ignore quietly
         break;
     }
 
@@ -121,4 +135,4 @@ export async function POST(req: Request) {
     // Return 200 to avoid infinite retries if a temporary bug happens; logs will tell us.
     return new NextResponse("OK", { status: 200 });
   }
-}
+    }
