@@ -1,55 +1,78 @@
 // lib/subscriptions.ts
-
 import { prisma } from "@/lib/db";
-import { ppGetSubscription, extractPeriodEndFromPP } from "@/lib/paypal";
 
-// Types TS (au lieu des enums Prisma)
-export type PlanType = "CONTINU" | "PASS1MOIS";
+/**
+ * Orders-only (PayPal Checkout Orders v2)
+ * - On stocke l'orderId PayPal dans subscription.paypalId
+ * - Le droit d'accès est basé sur currentPeriodEnd (date de fin)
+ *
+ * IMPORTANT:
+ * - APPROVED ≠ forcément payé (selon ton flow).
+ * - L'accès "payé" est accordé quand CAPTURED (PAYMENT.CAPTURE.COMPLETED),
+ *   ou si toi tu captures dans /pay/return et tu mets déjà CAPTURED.
+ */
+
+/* -------------------------------------------------------------------------- */
+/*                                    Types                                   */
+/* -------------------------------------------------------------------------- */
+export type PlanType = "one-day" | "one-month" | "one-year" | "one-life";
+
 export type SubStatus =
-  | "APPROVAL_PENDING"
-  | "APPROVED"
-  | "ACTIVE"
-  | "SUSPENDED"
-  | "CANCELLED"
-  | "EXPIRED";
+  | "APPROVAL_PENDING" // created locally, waiting user approval
+  | "APPROVED" // checkout approved by user
+  | "CAPTURED" // payment captured
+  | "DENIED" // capture denied
+  | "REFUNDED"; // refunded later (dispute/refund)
 
-// Petit util pour les durées "logiques" (Pass 1 mois, etc.)
+/* -------------------------------------------------------------------------- */
+/*                               Durations helper                             */
+/* -------------------------------------------------------------------------- */
 function addDays(base: Date, days: number): Date {
   const d = new Date(base.getTime());
   d.setDate(d.getDate() + days);
   return d;
 }
 
+function computePeriodEnd(plan: PlanType, from: Date): Date {
+  switch (plan) {
+    case "one-day":
+      return addDays(from, 1);
+    case "one-month":
+      return addDays(from, 30);
+    case "one-year":
+      return addDays(from, 365);
+    case "one-life":
+      // "Life" = accès quasi-perpétuel : 100 ans (suffisant en pratique)
+      return addDays(from, 365 * 100);
+    default:
+      return addDays(from, 30);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Order ↔ User linking (Return)                       */
+/* -------------------------------------------------------------------------- */
 /**
- * Upsert lors du retour d’approval (post-paiement) :
- * - garantit l’existence de l’utilisateur (par phone)
- * - attache/actualise la souscription PayPal (status + échéance)
- *
- * NB : on applique un fallback pour PASS1MOIS si PayPal
- * ne fournit aucune échéance claire.
+ * À appeler dans /api/pay/return (ou dès que tu as orderId + phone + plan)
+ * Objectif:
+ * - garantir l’existence du user (phoneE164)
+ * - upsert subscription (paypalId=orderId)
+ * - poser une échéance "souveraine" (currentPeriodEnd) basée sur le plan
  */
-export async function linkSubscriptionToUser(opts: {
+export async function linkOrderToUser(opts: {
   phoneE164: string;
   plan: PlanType;
-  paypalSubId: string;
-}): Promise<{ userId: string; status: SubStatus; currentPeriodEnd: Date | null }> {
-  const { phoneE164, plan, paypalSubId } = opts;
+  paypalOrderId: string;
+  // si tu captures immédiatement dans /pay/return, tu peux passer CAPTURED
+  status?: SubStatus;
+}): Promise<{ userId: string; status: SubStatus; currentPeriodEnd: Date }> {
+  const { phoneE164, plan, paypalOrderId } = opts;
 
-  // 1) Lecture PayPal → status + échéance
-  const ppSub = await ppGetSubscription(paypalSubId).catch(
-    () => undefined as any
-  );
-  const status = ((ppSub?.status as string) || "ACTIVE") as SubStatus;
+  const now = new Date();
+  const status: SubStatus = opts.status ?? "APPROVED";
+  const currentPeriodEnd = computePeriodEnd(plan, now);
 
-  let currentPeriodEnd = extractPeriodEndFromPP(ppSub, plan) ?? null;
-
-  // Fallback pour PASS1MOIS : si PayPal ne fournit pas d'échéance claire,
-  // on considère "date d'aujourd'hui + 30 jours"
-  if (!currentPeriodEnd && plan === "PASS1MOIS") {
-    currentPeriodEnd = addDays(new Date(), 30);
-  }
-
-  // 2) User upsert
+  // 1) User upsert
   const user = await prisma.user.upsert({
     where: { phoneE164 },
     update: {},
@@ -57,169 +80,134 @@ export async function linkSubscriptionToUser(opts: {
     select: { id: true },
   });
 
-  // 3) Subscription upsert (idempotent par paypalId)
+  // 2) Subscription upsert (idempotent by paypalId = orderId)
   await prisma.subscription.upsert({
-    where: { paypalId: paypalSubId },
+    where: { paypalId: paypalOrderId },
     update: {
       userId: user.id,
       plan,
       status,
       currentPeriodEnd,
-      cancelAtPeriodEnd: status === "CANCELLED" ? true : undefined,
+      // one-shot access => pas de "cancelAtPeriodEnd"
+      cancelAtPeriodEnd: false,
     },
     create: {
-      paypalId: paypalSubId,
+      paypalId: paypalOrderId,
       userId: user.id,
       plan,
       status,
       currentPeriodEnd,
-      cancelAtPeriodEnd: status === "CANCELLED",
+      cancelAtPeriodEnd: false,
     },
   });
 
   return { userId: user.id, status, currentPeriodEnd };
 }
 
+/* -------------------------------------------------------------------------- */
+/*                            Webhook (Orders/Captures)                        */
+/* -------------------------------------------------------------------------- */
+function extractOrderIdFromWebhook(type: string, resource: any): string | undefined {
+  if (!type || !resource) return undefined;
+
+  // Orders events: resource.id = orderId
+  if (type.startsWith("CHECKOUT.ORDER.")) {
+    return resource?.id;
+  }
+
+  // Capture events: orderId usually in supplementary_data.related_ids.order_id
+  if (type.startsWith("PAYMENT.CAPTURE.")) {
+    return (
+      resource?.supplementary_data?.related_ids?.order_id ||
+      resource?.supplementary_data?.related_ids?.orderId ||
+      undefined
+    );
+  }
+
+  return undefined;
+}
+
+function mapWebhookTypeToStatus(type: string): SubStatus | undefined {
+  switch (type) {
+    case "CHECKOUT.ORDER.APPROVED":
+      return "APPROVED";
+    case "CHECKOUT.ORDER.COMPLETED":
+      // Selon config, ça peut arriver sans capture exploitable.
+      // On le traite comme APPROVED (le vrai "paid" reste CAPTURED).
+      return "APPROVED";
+    case "PAYMENT.CAPTURE.COMPLETED":
+      return "CAPTURED";
+    case "PAYMENT.CAPTURE.DENIED":
+      return "DENIED";
+    case "PAYMENT.CAPTURE.REFUNDED":
+      return "REFUNDED";
+    default:
+      return undefined;
+  }
+}
+
 /**
- * Applique un changement d’état reçu via webhook PayPal (idempotent).
- * On refetch la souscription chez PayPal pour se baser sur la vérité source.
- *
- * NB : ici on **n’applique pas** le fallback 30 jours.
- * On laisse le currentPeriodEnd déjà posé par /pay/return,
- * et on ne le modifie que si PayPal fournit une info plus précise.
+ * Webhook handler appelé depuis /api/paypal/webhook
+ * Ici, on ne "devine" pas le plan.
+ * On update uniquement si on retrouve une ligne via paypalId=orderId.
  */
 export async function applyWebhookChange(evt: {
   event_type: string;
   resource: any;
 }): Promise<void> {
   const type = evt?.event_type;
-  const res = evt?.resource;
-  const subId: string | undefined = res?.id || res?.subscription_id;
-  if (!type || !subId) return;
+  const resource = evt?.resource;
+  if (!type || !resource) return;
 
-  // Refetch fiable (source of truth)
-  const pp = await ppGetSubscription(subId).catch(() => undefined as any);
-  const status = (pp?.status as SubStatus | undefined) ?? undefined;
+  const orderId = extractOrderIdFromWebhook(type, resource);
+  if (!orderId) return;
 
-  // Heuristique plan (CONTINU vs PASS1MOIS) si on n’a pas l’info locale
-  const planGuess: PlanType =
-    pp?.plan_id && typeof pp.plan_id === "string" && pp.plan_id.includes("PASS")
-      ? "PASS1MOIS"
-      : "CONTINU";
+  const nextStatus = mapWebhookTypeToStatus(type);
+  if (!nextStatus) return;
 
-  // Échéance issue DIRECTEMENT de PayPal (si fournie)
-  const periodEnd = extractPeriodEndFromPP(pp, planGuess) ?? undefined;
-
-  let cancelAtPeriodEnd: boolean | undefined;
-
-  switch (type) {
-    case "BILLING.SUBSCRIPTION.ACTIVATED":
-      cancelAtPeriodEnd = false;
-      break;
-
-    case "BILLING.SUBSCRIPTION.SUSPENDED":
-      // Accès coupé immédiat par prudence
-      cancelAtPeriodEnd = true;
-      break;
-
-    case "BILLING.SUBSCRIPTION.CANCELLED":
-      // On honore jusqu’à échéance si connue
-      cancelAtPeriodEnd = true;
-      break;
-
-    case "BILLING.SUBSCRIPTION.EXPIRED":
-      // Profil terminé côté PayPal, mais on laisse l’échéance jouer
-      cancelAtPeriodEnd = true;
-      break;
-
-    case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
-      // Échec de paiement : on marque que la souscription
-      // ne sera plus prolongée automatiquement
-      cancelAtPeriodEnd = true;
-      break;
-
-    // Autres types possibles : on laisse le status PayPal trancher
-    default:
-      break;
-  }
+  // Pour CAPTURED: on laisse currentPeriodEnd tel quel (déjà fixé au moment du return)
+  // Pour REFUNDED: on coupe l’accès immédiatement (currentPeriodEnd = now)
+  const now = new Date();
 
   await prisma.subscription.updateMany({
-    where: { paypalId: subId },
+    where: { paypalId: orderId },
     data: {
-      status: status ?? undefined,
-      currentPeriodEnd: periodEnd,
-      cancelAtPeriodEnd,
+      status: nextStatus,
+      ...(nextStatus === "REFUNDED" ? { currentPeriodEnd: now } : {}),
+      cancelAtPeriodEnd: false,
     },
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/*                               Access entitlement                            */
+/* -------------------------------------------------------------------------- */
 /**
- * Droit d’accès : TRUE si
- * - plan CONTINU avec status cohérent
- * - ou PASS1MOIS (même EXPIRED) mais période d’un mois non échue.
+ * TRUE si:
+ * - subscription.status === CAPTURED
+ * - ET currentPeriodEnd > now
  *
- * currentPeriodEnd = "date souveraine de fin du dernier droit d’accès payé".
+ * (On ne donne PAS accès sur APPROVED par défaut.
+ *  Si tu veux donner accès dès APPROVED, dis-le et je te change la règle.)
  */
 export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   const sub = await prisma.subscription.findFirst({
-    where: {
-      user: { phoneE164 },
-    },
+    where: { user: { phoneE164 } },
     orderBy: { createdAt: "desc" },
     select: {
-      plan: true,
       status: true,
       currentPeriodEnd: true,
+      plan: true,
       createdAt: true,
-      cancelAtPeriodEnd: true,
     },
   });
 
   if (!sub) return false;
+
   const now = new Date();
+  const end = sub.currentPeriodEnd ?? sub.createdAt; // sécurité
+  if (end <= now) return false;
 
-  // ---------- Plan CONTINU ----------
-  if (sub.plan === "CONTINU") {
-    // Abonnement actif : status ACTIVE **et** période courante non échue
-    if (
-      sub.status === "ACTIVE" &&
-      sub.currentPeriodEnd &&
-      sub.currentPeriodEnd > now
-    ) {
-      return true;
-    }
-
-    // CANCELLED / EXPIRED mais avec période encore en cours
-    if (
-      (sub.status === "CANCELLED" || sub.status === "EXPIRED") &&
-      sub.currentPeriodEnd &&
-      sub.currentPeriodEnd > now
-    ) {
-      return true;
-    }
-
-    return false;
-  }
-
-  // ---------- Plan PASS1MOIS ----------
-  // Échéance logique = currentPeriodEnd, sinon createdAt + 30 jours
-  const logicalEnd =
-    sub.currentPeriodEnd ?? addDays(sub.createdAt, 30);
-
-  if (!logicalEnd || logicalEnd <= now) {
-    // Période terminée
-    return false;
-  }
-
-  // Pendant cette période, on considère que ces status donnent accès :
-  switch (sub.status) {
-    case "ACTIVE":
-    case "APPROVED":
-    case "APPROVAL_PENDING":
-    case "CANCELLED":
-    case "EXPIRED":
-      return true;
-    default:
-      return false;
-  }
+  // accès payé: uniquement si CAPTURED
+  return sub.status === "CAPTURED";
 }
