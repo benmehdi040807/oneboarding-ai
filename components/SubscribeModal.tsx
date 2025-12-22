@@ -32,14 +32,14 @@ const OFFERS: Record<Plan, { labelEn: string; tierEn: string; priceEUR: number }
 };
 
 function fmtEUR(n: number) {
-  // simple & stable, avoids i18n locale surprises
+  // stable formatting: 31 000 €
   const s = n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return `${s} €`;
 }
 
-function offerTitle(plan: Plan) {
-  const o = OFFERS[plan];
-  return `${o.labelEn} — ${fmtEUR(o.priceEUR)}`;
+function priceNode(n: number) {
+  // Force LTR island even in Arabic UI (prevents "€ One Day — 11" reordering)
+  return <bdi dir="ltr">{fmtEUR(n)}</bdi>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -57,12 +57,17 @@ const I18N: Record<Lang, any> = {
     INVALID_PHONE: "Vérifiez votre numéro et réessayez.",
     DEVICE_ID_ERROR:
       "Impossible d’identifier cet appareil. Vérifiez les paramètres de votre navigateur et réessayez.",
+
+    // NOTE: prix intégrés + valorisation
     CHOICES_NOTE:
-      "Vous choisirez ensuite votre formule :\n— One Day (Standard)\n— One Month (Plus)\n— One Year (Gold)\n— One Life (Signature)",
+      "Vous choisirez ensuite votre formule :\n— One Day — 11 € (Standard)\n— One Month — 31 € (Plus)\n— One Year — 300 € (Gold)\n— One Life — 31 000 € (Signature)",
+
     PLAN_DAY_DESC: "Active l’accès pour 24 heures.",
-    PLAN_MONTH_DESC: "Active l’accès pour un mois complet.",
-    PLAN_YEAR_DESC: "Active l’accès pour une année complète.",
+    PLAN_MONTH_DESC: "Active l’accès pour 1 mois.",
+    PLAN_YEAR_DESC: "Active l’accès pour 1 an.",
     PLAN_LIFE_DESC: "Active l’accès à vie.",
+
+    ACCESS_LABEL: "Accès",
   },
   en: {
     TITLE_PHONE: "Create / activate my space",
@@ -73,14 +78,17 @@ const I18N: Record<Lang, any> = {
     BACK: "Back",
     CLOSE: "Close",
     INVALID_PHONE: "Check your number and try again.",
-    DEVICE_ID_ERROR:
-      "Unable to identify this device. Check your browser settings and try again.",
+    DEVICE_ID_ERROR: "Unable to identify this device. Check your browser settings and try again.",
+
     CHOICES_NOTE:
-      "You will then choose your plan:\n— One Day (Standard)\n— One Month (Plus)\n— One Year (Gold)\n— One Life (Signature)",
+      "You will then choose your plan:\n— One Day — 11 € (Standard)\n— One Month — 31 € (Plus)\n— One Year — 300 € (Gold)\n— One Life — 31 000 € (Signature)",
+
     PLAN_DAY_DESC: "Activates access for 24 hours.",
-    PLAN_MONTH_DESC: "Activates access for a full month.",
-    PLAN_YEAR_DESC: "Activates access for a full year.",
+    PLAN_MONTH_DESC: "Activates access for 1 month.",
+    PLAN_YEAR_DESC: "Activates access for 1 year.",
     PLAN_LIFE_DESC: "Activates lifetime access.",
+
+    ACCESS_LABEL: "Access",
   },
   ar: {
     TITLE_PHONE: "إنشاء / تفعيل مساحتي",
@@ -92,14 +100,37 @@ const I18N: Record<Lang, any> = {
     CLOSE: "إغلاق",
     INVALID_PHONE: "تحقّق من رقمك وحاول مرة أخرى.",
     DEVICE_ID_ERROR: "تعذّر تحديد هذا الجهاز. تحقّق من إعدادات المتصفح وحاول مرة أخرى.",
+
     CHOICES_NOTE:
-      "ستختار خطتك لاحقًا:\n— One Day (Standard)\n— One Month (Plus)\n— One Year (Gold)\n— One Life (Signature)",
+      "ستختار خطتك لاحقًا:\n— One Day — 11 € (Standard)\n— One Month — 31 € (Plus)\n— One Year — 300 € (Gold)\n— One Life — 31 000 € (Signature)",
+
     PLAN_DAY_DESC: "يُفعّل الوصول لمدة 24 ساعة.",
-    PLAN_MONTH_DESC: "يُفعّل الوصول لمدة شهر كامل.",
-    PLAN_YEAR_DESC: "يُفعّل الوصول لمدة سنة كاملة.",
+    PLAN_MONTH_DESC: "يُفعّل الوصول لمدة شهر.",
+    PLAN_YEAR_DESC: "يُفعّل الوصول لمدة سنة.",
     PLAN_LIFE_DESC: "يُفعّل الوصول مدى الحياة.",
+
+    ACCESS_LABEL: "وصول",
   },
 };
+
+function planTitle(plan: Plan, lang: Lang) {
+  const o = OFFERS[plan];
+  const accessLabel = I18N[lang]?.ACCESS_LABEL || "Accès";
+  // One Day — 11 € [Accès Standard]
+  // Keep brand tiers in English; Access word localized (FR/EN/AR)
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span>{o.labelEn}</span>
+      <span className="text-black/40">—</span>
+      <span className="font-semibold">{priceNode(o.priceEUR)}</span>
+      <span className="text-black/40">[</span>
+      <span>
+        {accessLabel} {o.tierEn}
+      </span>
+      <span className="text-black/40">]</span>
+    </span>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /*                          LocalStorage helpers (safe)                       */
@@ -371,7 +402,7 @@ export default function SubscribeModal(props: ControlledProps) {
                 disabled={loading}
                 className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
-                <div className="font-semibold">{offerTitle("one-day")}</div>
+                <div className="font-semibold">{planTitle("one-day", lang)}</div>
                 <div className="text-sm text-black/60">{t.PLAN_DAY_DESC}</div>
               </button>
 
@@ -381,7 +412,7 @@ export default function SubscribeModal(props: ControlledProps) {
                 disabled={loading}
                 className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
-                <div className="font-semibold">{offerTitle("one-month")}</div>
+                <div className="font-semibold">{planTitle("one-month", lang)}</div>
                 <div className="text-sm text-black/60">{t.PLAN_MONTH_DESC}</div>
               </button>
 
@@ -391,7 +422,7 @@ export default function SubscribeModal(props: ControlledProps) {
                 disabled={loading}
                 className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
-                <div className="font-semibold">{offerTitle("one-year")}</div>
+                <div className="font-semibold">{planTitle("one-year", lang)}</div>
                 <div className="text-sm text-black/60">{t.PLAN_YEAR_DESC}</div>
               </button>
 
@@ -401,7 +432,7 @@ export default function SubscribeModal(props: ControlledProps) {
                 disabled={loading}
                 className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-black/[0.03] disabled:opacity-60"
               >
-                <div className="font-semibold">{offerTitle("one-life")}</div>
+                <div className="font-semibold">{planTitle("one-life", lang)}</div>
                 <div className="text-sm text-black/60">{t.PLAN_LIFE_DESC}</div>
               </button>
 
@@ -433,4 +464,4 @@ export default function SubscribeModal(props: ControlledProps) {
       </dialog>
     </>
   );
-              }
+    }
