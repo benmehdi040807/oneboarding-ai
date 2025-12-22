@@ -3,11 +3,7 @@
 import { prisma } from "@/lib/db";
 import { ppAccessToken, PP_BASE } from "@/lib/paypal";
 
-export type Plan =
-  | "ONE_DAY"
-  | "ONE_MONTH"
-  | "ONE_YEAR"
-  | "ONE_LIFE";
+export type Plan = "ONE_DAY" | "ONE_MONTH" | "ONE_YEAR" | "ONE_LIFE";
 
 export type PayStatus =
   | "APPROVED"
@@ -56,7 +52,6 @@ function periodEndFor(plan: Plan, now = new Date()): Date {
     case "ONE_YEAR":
       return addYears(now, 1);
     case "ONE_LIFE":
-      // “Life” = très long droit d’accès souverain
       return addYears(now, 200);
   }
 }
@@ -69,6 +64,45 @@ async function ppGetOrder(orderId: string): Promise<any> {
   });
   if (!r.ok) throw new Error("PP_ORDER_FETCH");
   return r.json();
+}
+
+function trimDeviceId(v: any): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  return s.length >= 8 ? s : undefined;
+}
+
+function parseCustomId(rawCustom?: string): {
+  phone?: string;
+  deviceId?: string;
+  kind?: string;
+  consent?: boolean;
+} {
+  if (!rawCustom || typeof rawCustom !== "string") return {};
+
+  try {
+    const parsed = JSON.parse(rawCustom);
+
+    // NEW compact format: p/d/k/c
+    const p = parsed?.p;
+    const d = parsed?.d;
+    const k = parsed?.k;
+    const c = parsed?.c;
+
+    // legacy verbose format: phone/deviceId/kind/consent
+    const phone = (typeof p === "string" ? p : parsed?.phone) as string | undefined;
+    const deviceId = trimDeviceId(typeof d === "string" ? d : parsed?.deviceId);
+    const kind = (typeof k === "string" ? k : parsed?.kind) as string | undefined;
+
+    const consent =
+      typeof c === "boolean" ? c : parsed?.consent === true;
+
+    return { phone, deviceId, kind, consent };
+  } catch {
+    // ultra-legacy: phone in clear
+    if (isE164(rawCustom)) return { phone: rawCustom };
+    return {};
+  }
 }
 
 /**
@@ -95,7 +129,6 @@ export async function applyWebhookChange(evt: {
   if (!orderId && type.startsWith("PAYMENT.CAPTURE.")) {
     orderId =
       res?.supplementary_data?.related_ids?.order_id ||
-      res?.supplementary_data?.related_ids?.authorization_id ||
       undefined;
   }
 
@@ -108,24 +141,7 @@ export async function applyWebhookChange(evt: {
   const pu0 = Array.isArray(order?.purchase_units) ? order.purchase_units[0] : undefined;
   const rawCustom: string | undefined = pu0?.custom_id;
 
-  let phone: string | undefined;
-  let deviceId: string | undefined;
-  let kind: string | undefined;
-  let consent: boolean | undefined;
-
-  if (rawCustom) {
-    try {
-      const parsed = JSON.parse(rawCustom);
-      phone = parsed?.phone;
-      deviceId = typeof parsed?.deviceId === "string" ? parsed.deviceId.trim() : undefined;
-      kind = parsed?.kind;
-      consent = parsed?.consent === true;
-    } catch {
-      // legacy (si un jour tu as mis le phone en clair)
-      if (isE164(rawCustom)) phone = rawCustom;
-    }
-  }
-
+  const { phone, deviceId, kind, consent } = parseCustomId(rawCustom);
   if (!isE164(phone)) return;
 
   // 3) Map status
@@ -138,7 +154,6 @@ export async function applyWebhookChange(evt: {
 
   const now = new Date();
   const plan = planFromKind(kind);
-  const paidEnd = periodEndFor(plan, now);
 
   // 4) Upsert user (consentAt seulement si user nouveau + consent true)
   const existing = await prisma.user.findUnique({
@@ -157,9 +172,14 @@ export async function applyWebhookChange(evt: {
       });
 
   // 5) Upsert “Subscription” = accès payé (paypalId = orderId)
-  // - Sur CAPTURED : on pose/renouvelle currentPeriodEnd
-  // - Sur REFUNDED/DENIED : on met cancelAtPeriodEnd=true et on peut couper l’accès (currentPeriodEnd=now)
+  // Règle souveraine :
+  // - CAPTURED / COMPLETED => donne droit d'accès
+  // - REFUNDED / DENIED => coupe immédiate
   const shouldCut = status === "REFUNDED" || status === "DENIED";
+
+  // On ne renouvelle l'échéance que si c'est un événement “positif”
+  const isPositive = status === "CAPTURED" || status === "COMPLETED" || status === "APPROVED";
+  const paidEnd = isPositive ? periodEndFor(plan, now) : now;
 
   await prisma.subscription.upsert({
     where: { paypalId: orderId },
@@ -182,8 +202,8 @@ export async function applyWebhookChange(evt: {
     },
   });
 
-  // 6) Device authorize (si deviceId présent)
-  if (deviceId && deviceId.length >= 8 && !shouldCut) {
+  // 6) Device authorize (si deviceId présent) — seulement si pas de cut
+  if (deviceId && !shouldCut) {
     const existingCount = await prisma.device.count({ where: { userId: user.id } });
     const isFounder = existingCount === 0;
 
@@ -206,14 +226,14 @@ export async function applyWebhookChange(evt: {
       },
     });
 
-    // OPTION : tu peux créer une session DB ici si tu veux “secours webhook”.
-    // Je te laisse ça désactivé car ton /api/pay/return le fait déjà avec cookie httpOnly.
+    // OPTION : session DB ici si tu veux “secours webhook”
+    // (mais ton /api/pay/return va gérer cookie httpOnly proprement)
   }
 }
 
 /**
  * Accès payé : TRUE si currentPeriodEnd > now
- * (quel que soit le status, sauf si tu veux couper sur REFUNDED/DENIED explicitement)
+ * et non coupé par REFUNDED/DENIED
  */
 export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   const sub = await prisma.subscription.findFirst({
@@ -221,10 +241,9 @@ export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
     orderBy: { createdAt: "desc" },
     select: { status: true, currentPeriodEnd: true },
   });
-  if (!sub?.currentPeriodEnd) return false;
 
-  // coupe immédiate si refunded/denied
+  if (!sub?.currentPeriodEnd) return false;
   if (sub.status === "REFUNDED" || sub.status === "DENIED") return false;
 
   return sub.currentPeriodEnd > new Date();
-    }
+      }
