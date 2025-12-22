@@ -104,6 +104,14 @@ export async function POST(req: NextRequest) {
           user_action: "PAY_NOW",
           return_url: returnUrl,
           cancel_url: cancelUrl,
+
+          // UX PayPal (réduit la friction, favorise le checkout direct carte)
+          landing_page: "BILLING",
+          shipping_preference: "NO_SHIPPING",
+          payment_method: {
+            payer_selected: "PAYPAL",
+            payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED",
+          },
         },
       }),
       cache: "no-store",
@@ -125,11 +133,14 @@ export async function POST(req: NextRequest) {
     const approvalUrl = links.find((l) => l?.rel === "approve")?.href;
 
     if (!approvalUrl) {
-      return NextResponse.json<Err>({ ok: false, error: "NO_APPROVAL_URL", raw: data, debugId }, { status: 500 });
+      return NextResponse.json<Err>(
+        { ok: false, error: "NO_APPROVAL_URL", raw: data, debugId },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json<Ok>({ ok: true, approvalUrl });
   } catch (e: any) {
     return NextResponse.json<Err>({ ok: false, error: e?.message || "SERVER_ERROR" }, { status: 500 });
   }
-  }
+}
