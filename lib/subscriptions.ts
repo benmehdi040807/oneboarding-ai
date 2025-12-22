@@ -52,6 +52,7 @@ function periodEndFor(plan: Plan, now = new Date()): Date {
     case "ONE_YEAR":
       return addYears(now, 1);
     case "ONE_LIFE":
+      // “Life” = très long droit d’accès souverain
       return addYears(now, 200);
   }
 }
@@ -94,8 +95,7 @@ function parseCustomId(rawCustom?: string): {
     const deviceId = trimDeviceId(typeof d === "string" ? d : parsed?.deviceId);
     const kind = (typeof k === "string" ? k : parsed?.kind) as string | undefined;
 
-    const consent =
-      typeof c === "boolean" ? c : parsed?.consent === true;
+    const consent = typeof c === "boolean" ? c : parsed?.consent === true;
 
     return { phone, deviceId, kind, consent };
   } catch {
@@ -127,9 +127,7 @@ export async function applyWebhookChange(evt: {
 
   // Capture events
   if (!orderId && type.startsWith("PAYMENT.CAPTURE.")) {
-    orderId =
-      res?.supplementary_data?.related_ids?.order_id ||
-      undefined;
+    orderId = res?.supplementary_data?.related_ids?.order_id || undefined;
   }
 
   if (!orderId || typeof orderId !== "string") return;
@@ -174,11 +172,11 @@ export async function applyWebhookChange(evt: {
   // 5) Upsert “Subscription” = accès payé (paypalId = orderId)
   // Règle souveraine :
   // - CAPTURED / COMPLETED => donne droit d'accès
-  // - REFUNDED / DENIED => coupe immédiate
+  // - REFUNDED / DENIED => coupe immédiate (marque cancelledAt)
   const shouldCut = status === "REFUNDED" || status === "DENIED";
 
-  // On ne renouvelle l'échéance que si c'est un événement “positif”
-  const isPositive = status === "CAPTURED" || status === "COMPLETED" || status === "APPROVED";
+  // On ne renouvelle l'échéance que si évènement “positif” (paiement réellement confirmé)
+  const isPositive = status === "CAPTURED" || status === "COMPLETED";
   const paidEnd = isPositive ? periodEndFor(plan, now) : now;
 
   await prisma.subscription.upsert({
@@ -225,9 +223,6 @@ export async function applyWebhookChange(evt: {
         // ne touche pas isFounder
       },
     });
-
-    // OPTION : session DB ici si tu veux “secours webhook”
-    // (mais ton /api/pay/return va gérer cookie httpOnly proprement)
   }
 }
 
@@ -246,4 +241,4 @@ export async function userHasPaidAccess(phoneE164: string): Promise<boolean> {
   if (sub.status === "REFUNDED" || sub.status === "DENIED") return false;
 
   return sub.currentPeriodEnd > new Date();
-      }
+}
