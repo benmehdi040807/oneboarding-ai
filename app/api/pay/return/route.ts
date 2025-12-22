@@ -2,13 +2,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ppAccessToken, PP_BASE } from "@/lib/paypal";
 import { prisma } from "@/lib/db";
+import { PLANS, STATUSES } from "@/lib/subscription-constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type PlanType = "one-day" | "one-month" | "one-year" | "one-life";
-type SubStatus = "APPROVED" | "CAPTURED" | "DENIED" | "REFUNDED" | "UNKNOWN";
+// Kinds transportés dans custom_id (front -> backend)
+type PlanKind = "one-day" | "one-month" | "one-year" | "one-life";
+
+// Status PayPal / système (normalisés)
+type SubStatus =
+  | typeof STATUSES.APPROVED
+  | typeof STATUSES.CAPTURED
+  | typeof STATUSES.DENIED
+  | typeof STATUSES.REFUNDED
+  | typeof STATUSES.UNKNOWN;
 
 function addDays(base: Date, days: number): Date {
   const d = new Date(base.getTime());
@@ -29,19 +38,35 @@ function isDeviceId(d?: string): d is string {
   return typeof d === "string" && d.trim().length >= 8;
 }
 
-function isPlanKind(k?: string): k is PlanType {
+function isPlanKind(k?: string): k is PlanKind {
   return k === "one-day" || k === "one-month" || k === "one-year" || k === "one-life";
 }
 
-function computePeriodEnd(plan: PlanType, from: Date): Date {
-  switch (plan) {
+function planFromKind(kind?: string): string {
+  const k = isPlanKind(kind) ? kind : "one-month";
+  switch (k) {
     case "one-day":
-      return addDays(from, 1);
+      return PLANS.ONE_DAY;
     case "one-month":
-      return addDays(from, 30);
+      return PLANS.ONE_MONTH;
     case "one-year":
-      return addDays(from, 365);
+      return PLANS.ONE_YEAR;
     case "one-life":
+      return PLANS.ONE_LIFE;
+    default:
+      return PLANS.ONE_MONTH;
+  }
+}
+
+function computePeriodEnd(plan: string, from: Date): Date {
+  switch (plan) {
+    case PLANS.ONE_DAY:
+      return addDays(from, 1);
+    case PLANS.ONE_MONTH:
+      return addDays(from, 30);
+    case PLANS.ONE_YEAR:
+      return addDays(from, 365);
+    case PLANS.ONE_LIFE:
       return addDays(from, 365 * 100);
     default:
       return addDays(from, 30);
@@ -156,26 +181,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${B}/?paid_error=NO_PHONE`, 302);
     }
 
-    const plan: PlanType = isPlanKind(kind) ? kind : "one-month";
+    // ✅ plan normalisé DB (PLANS.*)
+    const plan = planFromKind(kind);
 
     // 2) CAPTURE
     // - si déjà capturé / déjà complété => on accepte si order.status === COMPLETED
-    let finalStatus: SubStatus = "APPROVED";
+    let finalStatus: SubStatus = STATUSES.APPROVED;
 
     const cap = await ppCaptureOrder(orderId);
 
     if (cap.ok) {
-      finalStatus = "CAPTURED";
+      finalStatus = STATUSES.CAPTURED;
     } else {
       const st0 = String(ord.data?.status || "");
-
       if (st0 === "COMPLETED") {
-        finalStatus = "CAPTURED";
+        finalStatus = STATUSES.CAPTURED;
       } else if (cap.status === 409 || cap.status === 422) {
         const ord2 = await ppGetOrder(orderId);
         const st2 = String(ord2.data?.status || "");
         if (st2 === "COMPLETED") {
-          finalStatus = "CAPTURED";
+          finalStatus = STATUSES.CAPTURED;
         } else {
           return NextResponse.redirect(`${B}/?paid_error=PP_CAPTURE_${cap.status}`, 302);
         }
@@ -210,8 +235,8 @@ export async function GET(req: NextRequest) {
       create: {
         userId,
         paypalId: orderId,
-        plan,
-        status: finalStatus,
+        plan, // ✅ PLANS.*
+        status: finalStatus, // ✅ STATUSES.*
         currentPeriodEnd,
         cancelAtPeriodEnd: false,
       },
@@ -253,7 +278,6 @@ export async function GET(req: NextRequest) {
           revokedAt: null,
           lastSeenAt: now,
           userAgent: ua,
-          // ne touche pas isFounder
         },
         select: { deviceId: true },
       });
@@ -292,4 +316,4 @@ export async function GET(req: NextRequest) {
     const msg = e?.message || "PAY_RETURN_ERROR";
     return NextResponse.redirect(`${baseUrl()}/?paid_error=${encodeURIComponent(msg)}`, 302);
   }
-      }
+  }
