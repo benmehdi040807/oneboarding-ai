@@ -102,8 +102,7 @@ function parseCustomId(rawCustom?: string): {
     const deviceIdRaw = typeof parsed?.d === "string" ? parsed.d : parsed?.deviceId;
     const kind = (typeof parsed?.k === "string" ? parsed.k : parsed?.kind) as string | undefined;
 
-    const consent =
-      typeof parsed?.c === "boolean" ? parsed.c : parsed?.consent === true;
+    const consent = typeof parsed?.c === "boolean" ? parsed.c : parsed?.consent === true;
 
     const deviceId =
       typeof deviceIdRaw === "string" && deviceIdRaw.trim().length >= 8
@@ -168,7 +167,6 @@ export async function GET(req: NextRequest) {
     if (cap.ok) {
       finalStatus = "CAPTURED";
     } else {
-      // Si PayPal refuse parce que déjà capturé / conflit, on re-check
       const st0 = String(ord.data?.status || "");
 
       if (st0 === "COMPLETED") {
@@ -223,7 +221,6 @@ export async function GET(req: NextRequest) {
         status: finalStatus,
         currentPeriodEnd,
         cancelAtPeriodEnd: false,
-        ...(finalStatus === "CAPTURED" ? { cancelledAt: null } : {}),
       },
     });
 
@@ -295,4 +292,4 @@ export async function GET(req: NextRequest) {
     const msg = e?.message || "PAY_RETURN_ERROR";
     return NextResponse.redirect(`${baseUrl()}/?paid_error=${encodeURIComponent(msg)}`, 302);
   }
-        }
+      }
