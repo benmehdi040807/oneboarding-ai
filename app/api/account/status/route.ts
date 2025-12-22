@@ -144,8 +144,18 @@ export async function GET(req: NextRequest) {
     const rawStatus = sub?.status ?? null;
     const currentPeriodEnd = sub?.currentPeriodEnd ?? null;
 
-    // 6) Droit d’accès effectif (par user)
-    const planActive = await userHasPaidAccess(user.phoneE164);
+    // 6) Droit d’accès effectif (par user) — micro-optimisé (0 requête en plus)
+    const planActive = await userHasPaidAccess(
+      user.phoneE164,
+      sub
+        ? {
+            status: sub.status ?? null,
+            currentPeriodEnd: sub.currentPeriodEnd ?? null,
+            cancelledAt: sub.cancelledAt ?? null,
+          }
+        : null
+    );
+
     const spaceActive = planActive;
 
     const effectiveStatus = computeEffectiveStatus({
@@ -186,4 +196,4 @@ export async function GET(req: NextRequest) {
     console.error("[/api/account/status] error:", e);
     return NextResponse.json(baseResponse(), { status: 200 });
   }
-}
+        }
