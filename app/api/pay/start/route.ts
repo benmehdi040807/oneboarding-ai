@@ -68,14 +68,13 @@ export async function POST(req: NextRequest) {
 
     const { value, label } = amountFor(kind);
 
-    // Payload souverain (contrat)
-    // NOTE: PayPal custom_id max ~127 chars -> garder compact.
-    // Ici on fait compact mais clair. (Si tu veux plus long -> on passe en base64url.)
+    // Payload souverain (contrat) — compact (custom_id limite ~127 chars)
+    // p=phone, d=deviceId, k=kind, c=consent
     const customPayload = JSON.stringify({
-      phone,
-      deviceId,
-      kind,
-      consent: consent === true,
+      p: phone,
+      d: deviceId,
+      k: kind,
+      c: consent === true,
     });
 
     const ppBase = PP_BASE.replace(/\/$/, "");
@@ -133,4 +132,4 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     return NextResponse.json<Err>({ ok: false, error: e?.message || "SERVER_ERROR" }, { status: 500 });
   }
-}
+  }
