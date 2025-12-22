@@ -10,7 +10,7 @@ import PhoneField from "./PhoneField";
 /* -------------------------------------------------------------------------- */
 type ControlledProps = { open?: boolean; onClose?: () => void };
 type Step = "phone" | "plan";
-type Plan = "subscription" | "one-month";
+type Plan = "one-day" | "one-month" | "one-year" | "one-life";
 type Lang = "fr" | "en" | "ar";
 
 type SubscriptionActiveDetail = {
