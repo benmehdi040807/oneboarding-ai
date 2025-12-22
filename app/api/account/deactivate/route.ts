@@ -1,17 +1,12 @@
 // app/api/account/deactivate/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { cancelSubscriptionInPaypal } from "@/lib/paypal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type Ok = {
-  ok: true;
-  message: string;
-};
+type Ok = { ok: true; message: string };
 type Err = { ok: false; error: string };
 
 // ---- lecture du cookie ob_session (session active côté client)
@@ -28,7 +23,7 @@ function readSessionCookie(req: NextRequest): string | null {
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Identifier la session appelante
+    // 1) Identifier la session appelante
     const sessionId = readSessionCookie(req);
     if (!sessionId) {
       return NextResponse.json<Err>(
@@ -37,15 +32,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Charger la session et l'user
+    // 2) Charger la session et l'user
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      select: {
-        id: true,
-        userId: true,
-        revokedAt: true,
-        expiresAt: true,
-      },
+      select: { id: true, userId: true, revokedAt: true, expiresAt: true },
     });
 
     if (!session) {
@@ -58,94 +48,50 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const userId = session.userId;
 
-    // 3. Récupérer la dernière souscription connue de cet user
+    // 3) Dernier accès payé (Orders v2) => désactivation immédiate souveraine
     const lastSub = await prisma.subscription.findFirst({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        paypalId: true,
-        plan: true,   // "CONTINU" | "PASS1MOIS" | ...
-        status: true, // "ACTIVE" | "CANCELLED" | "EXPIRED" | ...
-      },
+      select: { id: true },
     });
 
     if (lastSub) {
-      const isContinu = lastSub.plan === "CONTINU";
-      const isPass1Mois = lastSub.plan === "PASS1MOIS";
-      const isActive = lastSub.status === "ACTIVE";
-
-      // Si plan CONTINU encore actif → on tente d'arrêter le billing PayPal
-      if (isContinu && isActive && lastSub.paypalId) {
-        await cancelSubscriptionInPaypal(lastSub.paypalId).catch(() => {
-          // On ne bloque pas la volonté de l'utilisateur si PayPal ne répond pas.
-        });
-      }
-
-      // On fige l'état contractuel ex nunc :
-      // - CONTINU    → status = "CANCELLED" + currentPeriodEnd = now
-      // - PASS1MOIS  → status = "CANCELLED" + currentPeriodEnd = now
-      //   (désactivation volontaire = décision humaine, jamais "EXPIRED")
-      const data: any = { currentPeriodEnd: now };
-
-      if (isContinu || isPass1Mois) {
-        data.status = "CANCELLED";
-      }
-
       await prisma.subscription
         .update({
           where: { id: lastSub.id },
-          data,
+          data: {
+            status: "CANCELLED",
+            cancelledAt: now,
+            cancelAtPeriodEnd: false,
+            currentPeriodEnd: now, // coupe l'accès immédiatement
+          },
         })
-        .catch(() => {
-          // Même si ça échoue ponctuellement, on poursuit.
-        });
+        .catch(() => {});
     }
 
-    // 4. Révoquer tous les devices actifs de cet utilisateur
+    // 4) Révoquer tous les devices actifs
     await prisma.device
       .updateMany({
-        where: {
-          userId,
-          authorized: true,
-          revokedAt: null,
-        },
-        data: {
-          authorized: false,
-          revokedAt: now,
-        },
+        where: { userId, authorized: true, revokedAt: null },
+        data: { authorized: false, revokedAt: now },
       })
       .catch(() => {});
 
-    // 5. Révoquer toutes les sessions de cet utilisateur
+    // 5) Révoquer toutes les sessions
     await prisma.session
       .updateMany({
-        where: {
-          userId,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: now,
-        },
+        where: { userId, revokedAt: null },
+        data: { revokedAt: now },
       })
       .catch(() => {});
 
-    // NOTE :
-    // - On ne supprime pas l'utilisateur.
-    // - On ne supprime pas l'historique.
-    // - On ne touche pas aux preuves (consentAt, etc.).
-
-    // 6. Réponse + suppression du cookie ob_session côté navigateur
+    // 6) Réponse + suppression du cookie ob_session
     const res = NextResponse.json<Ok>(
       {
         ok: true,
-        message:
-          "Espace désactivé. Votre abonnement a pris fin et tous les appareils ont été révoqués.",
+        message: "Espace désactivé. L’accès a été coupé et tous les appareils ont été révoqués.",
       },
-      {
-        status: 200,
-        headers: { "Cache-Control": "no-store" },
-      }
+      { status: 200, headers: { "Cache-Control": "no-store" } }
     );
 
     res.cookies.set("ob_session", "", {
@@ -163,4 +109,4 @@ export async function POST(req: NextRequest) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
-}
+        }
