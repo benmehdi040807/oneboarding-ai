@@ -10,17 +10,23 @@ export type PaidContext = {
   deviceId: string | null;
 };
 
-export async function requirePaid(req: NextRequest): Promise<
-  { ok: true; ctx: PaidContext } | { ok: false; res: NextResponse }
-> {
+export type PaidOptionalResult =
+  | { ok: true; paid: true; ctx: PaidContext }
+  | { ok: true; paid: false; ctx: null }
+  | { ok: false; res: NextResponse };
+
+/**
+ * ✅ getPaidOptional(req)
+ * - Ne bloque jamais le free.
+ * - Si session invalide/inexistante -> paid=false.
+ * - Si session valide + sub payante active -> paid=true + ctx.
+ */
+export async function getPaidOptional(req: NextRequest): Promise<PaidOptionalResult> {
   const now = new Date();
 
   const sessionId = req.cookies.get("ob_session")?.value ?? null;
   if (!sessionId) {
-    return {
-      ok: false,
-      res: NextResponse.json({ ok: false, error: "NO_SESSION" }, { status: 401 }),
-    };
+    return { ok: true, paid: false, ctx: null };
   }
 
   const session = await prisma.session.findUnique({
@@ -28,14 +34,17 @@ export async function requirePaid(req: NextRequest): Promise<
     include: { user: true },
   });
 
-  if (!session || session.revokedAt || !session.expiresAt || session.expiresAt <= now) {
-    return {
-      ok: false,
-      res: NextResponse.json({ ok: false, error: "SESSION_INVALID" }, { status: 401 }),
-    };
+  if (
+    !session ||
+    session.revokedAt ||
+    !session.expiresAt ||
+    session.expiresAt <= now ||
+    !session.user
+  ) {
+    return { ok: true, paid: false, ctx: null };
   }
 
-  // Dernière subscription (pour check sans double logique)
+  // Dernière subscription (un seul point de vérité)
   const sub = await prisma.subscription.findFirst({
     where: { userId: session.userId },
     orderBy: { createdAt: "desc" },
@@ -43,15 +52,11 @@ export async function requirePaid(req: NextRequest): Promise<
   });
 
   const paid = hasPaidAccessFromSub(sub);
-  if (!paid) {
-    return {
-      ok: false,
-      res: NextResponse.json({ ok: false, error: "PAID_REQUIRED" }, { status: 403 }),
-    };
-  }
+  if (!paid) return { ok: true, paid: false, ctx: null };
 
   return {
     ok: true,
+    paid: true,
     ctx: {
       userId: session.userId,
       phoneE164: session.user.phoneE164,
@@ -59,4 +64,4 @@ export async function requirePaid(req: NextRequest): Promise<
       deviceId: session.deviceId ?? null,
     },
   };
-      }
+}
