@@ -238,25 +238,43 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "Classe de Nice 42",
                     "Classe de Nice 45",
                   ],
+
+                  // ✅ OFFERS (nouvelle grille 11 -> 31 000)
                   offers: [
                     {
                       "@type": "Offer",
-                      name: "Abonnement OneBoarding AI – accès continu",
-                      price: "5.00",
+                      name: "OneBoarding AI — One Day",
+                      price: "11.00",
                       priceCurrency: "EUR",
-                      category: "Subscription",
-                      description:
-                        "Abonnement mensuel donnant accès continu et illimité à OneBoarding AI.",
+                      category: "Access",
+                      description: "Accès pendant 24 heures à OneBoarding AI.",
                       availability: "https://schema.org/InStock",
                     },
                     {
                       "@type": "Offer",
-                      name: "Accès libre OneBoarding AI – 1 mois",
-                      price: "5.00",
+                      name: "OneBoarding AI — One Month",
+                      price: "31.00",
                       priceCurrency: "EUR",
                       category: "Access",
-                      description:
-                        "Accès illimité pendant un mois, sans engagement, à OneBoarding AI.",
+                      description: "Accès pendant 30 jours à OneBoarding AI.",
+                      availability: "https://schema.org/InStock",
+                    },
+                    {
+                      "@type": "Offer",
+                      name: "OneBoarding AI — One Year",
+                      price: "300.00",
+                      priceCurrency: "EUR",
+                      category: "Access",
+                      description: "Accès pendant 12 mois à OneBoarding AI.",
+                      availability: "https://schema.org/InStock",
+                    },
+                    {
+                      "@type": "Offer",
+                      name: "OneBoarding AI — One Life",
+                      price: "31000.00",
+                      priceCurrency: "EUR",
+                      category: "Access",
+                      description: "Accès long terme à OneBoarding AI.",
                       availability: "https://schema.org/InStock",
                     },
                   ],
@@ -315,10 +333,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     var cancel = url.searchParams.get("cancel")==="1";
 
     if(paid){
-      var plan = "subscription";
+      // ✅ fallback = standard payant = one-day
+      var plan = "one-day";
       try{
         var cand = localStorage.getItem("oneboarding.planCandidate");
-        if(cand==="one-month"||cand==="subscription") plan=cand;
+        if(cand==="one-day"||cand==="one-month"||cand==="one-year"||cand==="one-life") plan=cand;
       }catch(_){}
       try{ localStorage.setItem("ob_connected","1"); }catch(_){}
       try{
@@ -354,4 +373,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
-                    }
+}
