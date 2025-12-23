@@ -1,29 +1,71 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { getPaidOptional } from "@/lib/require-paid";
 import {
   isCreatorQuestion,
   creatorAutoAnswer,
-  SYSTEM_PROMPT,
   SYSTEM_PROMPT_WITH_CREATOR_RULES,
   shouldMentionCreator,
   detectLocaleFromText,
   CREATOR_SENTENCE,
 } from "@/lib/creator-policy";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // ====== Réglages Groq ======
 const GROQ_BASE = "https://api.groq.com/openai/v1";
 const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
-// Petit helper JSON (uniformise les retours)
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
 
+// ====== Quota free (cookie) ======
+type QuotaState = { d: string; n: number }; // d=YYYY-MM-DD, n=remaining
+const QUOTA_COOKIE = "ob_quota_v1";
+const FREE_PER_DAY = 3;
+
+function todayKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function readQuota(req: NextRequest): QuotaState {
+  const raw = req.cookies.get(QUOTA_COOKIE)?.value;
+  const t = todayKey();
+  if (!raw) return { d: t, n: FREE_PER_DAY };
+
+  try {
+    const v = JSON.parse(raw) as Partial<QuotaState>;
+    if (v?.d !== t) return { d: t, n: FREE_PER_DAY };
+    const n = typeof v.n === "number" ? v.n : FREE_PER_DAY;
+    return { d: t, n: Math.max(0, Math.min(FREE_PER_DAY, n)) };
+  } catch {
+    return { d: t, n: FREE_PER_DAY };
+  }
+}
+
+function consumeOne(req: NextRequest) {
+  const q = readQuota(req);
+  if (q.n <= 0) return { ok: false as const, next: q };
+  return { ok: true as const, next: { ...q, n: q.n - 1 } };
+}
+
+function setQuotaCookie(res: NextResponse, q: QuotaState) {
+  res.cookies.set(QUOTA_COOKIE, JSON.stringify(q), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7j
+  });
+}
+
 // ====== GET ======
 // /api/generate            -> ping (clé détectée ?)
-// /api/generate?test=1     -> test IA réel (retourne une courte phrase)
+// /api/generate?test=1     -> test IA réel
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const doTest = url.searchParams.get("test") === "1";
@@ -84,55 +126,89 @@ export async function GET(req: NextRequest) {
 }
 
 // ====== POST ======
-// Appel normal depuis l’UI (barre unique)
+// PAID -> illimité
+// FREE -> quota cookie 3/jour
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return json({ ok: false, error: "GROQ_API_KEY is not set" }, 500);
+
+  // 1) Check PAID (ne bloque jamais le free)
+  const paidCheck = await getPaidOptional(req);
+  if (!paidCheck.ok) return paidCheck.res;
+
+  const isPaid = paidCheck.paid;
+
+  // 2) Si pas payé -> consommer quota AVANT appel Groq
+  let quotaNext: QuotaState | null = null;
+  if (!isPaid) {
+    const c = consumeOne(req);
+    quotaNext = c.next;
+
+    if (!c.ok) {
+      const res = json(
+        { ok: false, error: "FREE_DAILY_LIMIT", remaining: quotaNext.n },
+        429
+      );
+      setQuotaCookie(res, quotaNext);
+      return res;
+    }
+  }
 
   try {
     const { prompt, mode }: { prompt?: string; mode?: "short" } = await req.json();
     const raw = typeof prompt === "string" ? prompt.trim() : "";
     if (!raw) return json({ ok: false, error: "Missing prompt" }, 400);
 
-    // 0) Optionnel : renvoi "short" immédiat (badge/infobulle)
+    // 0) Optionnel : renvoi "short" immédiat
     if (mode === "short") {
       const text = creatorAutoAnswer(raw, "short");
-      return json({ ok: true, text, provider: "LOCAL_POLICY", model: "n/a" });
+      const res = json({
+        ok: true,
+        text,
+        provider: "LOCAL_POLICY",
+        model: "n/a",
+        paid: isPaid,
+        remaining: isPaid ? null : quotaNext?.n ?? null,
+      });
+      if (quotaNext && !isPaid) setQuotaCookie(res, quotaNext);
+      return res;
     }
 
-    // 1) Court-circuit — questions sur le créateur → bio complète (FR/EN/AR)
+    // 1) Court-circuit — questions sur le créateur
     if (isCreatorQuestion(raw)) {
       const text = creatorAutoAnswer(raw, "full");
-      return json({ ok: true, text, provider: "LOCAL_POLICY", model: "n/a" });
+      const res = json({
+        ok: true,
+        text,
+        provider: "LOCAL_POLICY",
+        model: "n/a",
+        paid: isPaid,
+        remaining: isPaid ? null : quotaNext?.n ?? null,
+      });
+      if (quotaNext && !isPaid) setQuotaCookie(res, quotaNext);
+      return res;
     }
 
-    // 2) Décision si on peut mentionner le créateur (audit + logique centrale)
-    //    On passe route="api/generate" pour indiquer contexte serveur
+    // 2) Décision mention créateur
     const mentionDecision = shouldMentionCreator(raw, {
       route: "api/generate",
       explicitNameMentioned: undefined,
       explicitRequestForBio: undefined,
     });
 
-    // Détecte la locale pour choisir éventuellement la phrase canonique
     const locale = detectLocaleFromText(raw);
 
-    // 3) Prépare le prompt système : on utilise SYSTEM_PROMPT_WITH_CREATOR_RULES
-    //    Ce prompt contient les règles opérationnelles (ne pas append automatiquement, etc.)
-    //    Si la décision autorise la mention du créateur, on demande explicitement au modèle
-    //    d'inclure la phrase canonique (dans la langue détectée) — sinon on ne l'ajoute pas.
+    // 3) Prompt système
     let systemContent = SYSTEM_PROMPT_WITH_CREATOR_RULES;
 
     if (mentionDecision.allow) {
-      // si autorisé, demander explicitement d'inclure la phrase canonique (locale)
       const canonical = (CREATOR_SENTENCE as any)[locale] ?? CREATOR_SENTENCE.fr;
       systemContent += `\n\n// RUNTIME: include canonical creator sentence (reason=${mentionDecision.reason})\nINCLUDE_CANONICAL_SENTENCE: ${canonical}`;
     } else {
-      // explicite : rappeler au modèle de ne pas append une signature créateur automatiquement
       systemContent += `\n\n// RUNTIME: do NOT append creator signature automatically (reason=${mentionDecision.reason})`;
     }
 
-    // 4) Appel LLM normal avec prompt système harmonisé
+    // 4) Appel LLM
     const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
       method: "POST",
       headers: {
@@ -164,24 +240,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5) Sortie ouverte (aucune censure, langage noble encouragé)
     const text: string =
       (data as any)?.choices?.[0]?.message?.content?.trim() ||
       "Désolé, je n’ai pas le droit de vous fournir plus d’informations à ce sujet.";
 
-    // 6) Retourne également la décision concernant la mention du créateur (pour UI / logs)
-    return json({
+    const res = json({
       ok: true,
       text,
       provider: "GROQ",
       model: MODEL,
+      paid: isPaid,
+      remaining: isPaid ? null : quotaNext?.n ?? null,
       creatorMention: {
         allowed: mentionDecision.allow,
         reason: mentionDecision.reason,
         locale,
       },
     });
+
+    if (quotaNext && !isPaid) setQuotaCookie(res, quotaNext);
+    return res;
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-  }
+}
