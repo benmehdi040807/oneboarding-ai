@@ -1,6 +1,6 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getPaidOptional } from "@/lib/require-paid";
+import { getPaidOptional } from "@/lib/paid-check";
 import {
   isCreatorQuestion,
   creatorAutoAnswer,
