@@ -12,7 +12,7 @@ import ConnectModal from "./ConnectModal";
 import SubscribeModal from "./SubscribeModal";
 
 /** ===================== Types ===================== */
-type Plan = "subscription" | "one-month" | null;
+type Plan = "one-day" | "one-month" | "one-year" | "one-life" | null;
 type Lang = "fr" | "en" | "ar";
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
@@ -28,6 +28,9 @@ const CONSENT_KEY = "oneboarding.legalConsent.v1";
 const CONSENT_AT_KEY = "oneboarding.legalConsentAt";
 const CONSENT_SYNC_KEY = "oneboarding.legalConsentSynced.v1";
 const DEVICE_ID_KEY = "oneboarding.deviceId";
+
+const SPACE_UNTIL_KEY = "oneboarding.spaceUntil";
+const SPACE_SINCE_KEY = "oneboarding.spaceSince";
 
 const POLL_INTERVAL_MS = 12000; // ~12s
 const POLL_MAX_TICKS = 5; // ~1 min
@@ -115,6 +118,77 @@ function consentErrorMessage(lang: Lang): string {
   return "Impossible d’enregistrer votre consentement en ligne. Veuillez réessayer.";
 }
 
+function planTitleEN(plan: Plan): string {
+  return plan === "one-day"
+    ? "One Day"
+    : plan === "one-month"
+    ? "One Month"
+    : plan === "one-year"
+    ? "One Year"
+    : plan === "one-life"
+    ? "One Life"
+    : "—";
+}
+
+function planDesc(plan: Plan, lang: Lang): string {
+  // ✅ Description localisée (les TITRES restent en EN)
+  const d = {
+    fr: {
+      "one-day": "Accès 24h",
+      "one-month": "Accès 30 jours",
+      "one-year": "Accès annuel",
+      "one-life": "Accès à vie",
+    },
+    en: {
+      "one-day": "24h access",
+      "one-month": "30-day access",
+      "one-year": "Annual access",
+      "one-life": "Lifetime access",
+    },
+    ar: {
+      "one-day": "وصول لمدة 24 ساعة",
+      "one-month": "وصول لمدة 30 يوماً",
+      "one-year": "وصول سنوي",
+      "one-life": "وصول مدى الحياة",
+    },
+  } as const;
+
+  if (!plan) return "—";
+  return (d[lang] as any)[plan] ?? "—";
+}
+
+function localeFor(lang: Lang): string {
+  return lang === "ar" ? "ar-MA" : lang === "en" ? "en-GB" : "fr-FR";
+}
+
+function formatDateOnly(iso: string, lang: Lang): string {
+  try {
+    return new Date(iso).toLocaleDateString(localeFor(lang));
+  } catch {
+    return iso;
+  }
+}
+
+function planFromServer(p: any): Plan {
+  // Nouveau contrat JSON (backend)
+  if (p === "ONE_DAY" || p === "one-day") return "one-day";
+  if (p === "ONE_MONTH" || p === "one-month") return "one-month";
+  if (p === "ONE_YEAR" || p === "one-year") return "one-year";
+  if (p === "ONE_LIFE" || p === "one-life") return "one-life";
+  return null;
+}
+
+function readPlanLS(): Plan {
+  try {
+    const p = localStorage.getItem("oneboarding.plan");
+    return p === "one-day" || p === "one-month" || p === "one-year" || p === "one-life"
+      ? (p as Plan)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** ===================== i18n ===================== */
 const I18N: Record<Lang, any> = {
   fr: {
@@ -139,9 +213,9 @@ const I18N: Record<Lang, any> = {
       INACTIVE: "inactif",
       ONLINE: "en ligne",
       OFFLINE: "hors ligne",
-      SUB: "abonnement",
-      ONEOFF: "accès libre",
       NONE: "—",
+      UNTIL: "jusqu’au",
+      SINCE: "depuis le",
       DETECTED_BANNER: "Nouvel appareil détecté",
       VIEW: "Consulter",
       PENDING_TITLE: "Un nouvel appareil demande l’accès à votre espace.",
@@ -210,9 +284,9 @@ const I18N: Record<Lang, any> = {
       INACTIVE: "inactive",
       ONLINE: "online",
       OFFLINE: "offline",
-      SUB: "subscription",
-      ONEOFF: "one-month",
       NONE: "—",
+      UNTIL: "until",
+      SINCE: "since",
       DETECTED_BANNER: "New device detected",
       VIEW: "View",
       PENDING_TITLE: "A new device is requesting access to your space.",
@@ -281,9 +355,9 @@ const I18N: Record<Lang, any> = {
       INACTIVE: "غير نشط",
       ONLINE: "متصل",
       OFFLINE: "غير متصل",
-      SUB: "اشتراك",
-      ONEOFF: "وصول لشهر",
       NONE: "—",
+      UNTIL: "حتى",
+      SINCE: "منذ",
       DETECTED_BANNER: "تم الكشف عن جهاز جديد",
       VIEW: "عرض",
       PENDING_TITLE: "يوجد جهاز جديد يطلب الوصول إلى مساحتك.",
@@ -324,8 +398,7 @@ const I18N: Record<Lang, any> = {
       ACCEPT: "قُرِئ وتمت الموافقة",
       LATER: "لاحقاً",
       TITLE: "معلومات قانونية",
-      CONSENT_NOTE:
-        "إن استعمال هذه الخدمة يُعد قبولاً لشروطنا.",
+      CONSENT_NOTE: "إن استعمال هذه الخدمة يُعد قبولاً لشروطنا.",
       CONSENTED: "تم تسجيل الموافقة.",
     },
   },
@@ -341,6 +414,10 @@ export default function Menu() {
   const [spaceActive, setSpaceActive] = useState(false);
   const [messages, setMessages] = useState<Item[]>([]);
   const [plan, setPlan] = useState<Plan>(null);
+
+  // Dates d’espace (ISO) — affichage “actif jusqu’au …” / “inactif depuis …”
+  const [spaceUntil, setSpaceUntil] = useState<string | null>(null);
+  const [spaceSince, setSpaceSince] = useState<string | null>(null);
 
   // sections
   const [showAcc, setShowAcc] = useState(false);
@@ -412,69 +489,100 @@ export default function Menu() {
   }
 
   // ===================== Sync backend -> état local =====================
+  // ✅ Source de vérité : /api/auth/check
 
   async function refreshAccountStatusFromServer() {
     try {
-      const res = await fetch("/api/account/status", {
+      const deviceId = getOrCreateDeviceId();
+
+      const res = await fetch("/api/auth/check", {
         method: "GET",
         credentials: "include",
+        headers: { "x-ob-device-id": deviceId },
       });
+
       const data: any = await res.json().catch(() => ({}));
 
-      // 1) connexion
-      const newConnected = !!data?.loggedIn;
+      // Pas de session → pas connecté
+      if (!res.ok || !data?.ok) {
+        setConnected(false);
+        setSpaceActive(false);
+        setPlan(null);
+        setSpaceUntil(null);
+        setSpaceSince(null);
 
-      // 2) RÈGLE UNIQUE : l'espace actif reflète directement le plan actif
-      const newPlanActive = !!data?.planActive;
-      const newSpaceActive = newPlanActive;
+        try {
+          localStorage.setItem("ob_connected", "0");
+          localStorage.setItem("oneboarding.spaceActive", "0");
+          localStorage.removeItem("oneboarding.plan");
+          localStorage.removeItem(SPACE_UNTIL_KEY);
+          localStorage.removeItem(SPACE_SINCE_KEY);
+        } catch {}
 
-      // 3) plan : on tolère CONTINU / PASS1MOIS ou déjà normalisé
-      const rawPlan = data?.plan as
-        | "CONTINU"
-        | "PASS1MOIS"
-        | "subscription"
-        | "one-month"
-        | null
-        | undefined;
+        return;
+      }
 
-      let newPlan: Plan = null;
-      if (rawPlan === "CONTINU" || rawPlan === "subscription") {
-        newPlan = "subscription";
-      } else if (rawPlan === "PASS1MOIS" || rawPlan === "one-month") {
-        newPlan = "one-month";
+      // ✅ Session valide
+      const newConnected = true;
+
+      // ✅ Accès payant
+      const newSpaceActive = !!data?.spaceActive;
+
+      // ✅ Plan (nouveau contrat)
+      const newPlan: Plan = planFromServer(data?.plan);
+
+      // ✅ Date de fin (si dispo) — on tolère plusieurs chemins
+      const cpeISO: string | null =
+        data?.lastSubscription?.currentPeriodEnd ??
+        data?.currentPeriodEnd ??
+        data?.subscription?.currentPeriodEnd ??
+        null;
+
+      const cpe = cpeISO ? new Date(cpeISO) : null;
+      const now = new Date();
+
+      let until: string | null = null;
+      let since: string | null = null;
+
+      if (cpe && !isNaN(cpe.getTime())) {
+        if (cpe.getTime() > now.getTime()) {
+          // actif jusqu'au...
+          until = cpe.toISOString();
+        } else {
+          // inactif depuis...
+          since = cpe.toISOString();
+        }
       }
 
       setConnected(newConnected);
       setSpaceActive(newSpaceActive);
       setPlan(newPlan);
+      setSpaceUntil(until);
+      setSpaceSince(since);
 
-      // 4) Sync douce vers localStorage (utile pour WelcomeLimitDialog & co)
+      // ✅ Sync douce LS (utile pour le reste de l’UI)
       try {
         localStorage.setItem("ob_connected", newConnected ? "1" : "0");
-        localStorage.setItem(
-          "oneboarding.spaceActive",
-          newSpaceActive ? "1" : "0"
-        );
-        if (newPlan) {
-          localStorage.setItem("oneboarding.plan", newPlan);
-        } else {
-          localStorage.removeItem("oneboarding.plan");
-        }
-        if (data?.phoneE164) {
-          localStorage.setItem(
-            "oneboarding.phoneE164",
-            data.phoneE164 as string
-          );
-        }
-      } catch {
-        // best-effort
-      }
+        localStorage.setItem("oneboarding.spaceActive", newSpaceActive ? "1" : "0");
+        if (newPlan) localStorage.setItem("oneboarding.plan", newPlan);
+        else localStorage.removeItem("oneboarding.plan");
+
+        if (until) localStorage.setItem(SPACE_UNTIL_KEY, until);
+        else localStorage.removeItem(SPACE_UNTIL_KEY);
+
+        if (since) localStorage.setItem(SPACE_SINCE_KEY, since);
+        else localStorage.removeItem(SPACE_SINCE_KEY);
+
+        // phone (tolérance)
+        const phone = data?.phoneE164 ?? data?.phone ?? data?.user?.phoneE164 ?? null;
+        if (phone) localStorage.setItem("oneboarding.phoneE164", phone);
+      } catch {}
     } catch {
-      // en cas d’erreur réseau, on garde l’état local
+      // réseau KO => on ne casse pas l’UI
     }
   }
 
-  // init lecture locale (avec normalisation du plan)
+  // init lecture locale (avec normalisation du plan + dates)
   useEffect(() => {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
@@ -484,8 +592,12 @@ export default function Menu() {
       const act = localStorage.getItem("oneboarding.spaceActive");
       setSpaceActive(act === "1" || act === "true");
 
-      const p = localStorage.getItem("oneboarding.plan");
-      setPlan(p === "subscription" || p === "one-month" ? p : null);
+      setPlan(readPlanLS());
+
+      const u = localStorage.getItem(SPACE_UNTIL_KEY);
+      const s = localStorage.getItem(SPACE_SINCE_KEY);
+      setSpaceUntil(u || null);
+      setSpaceSince(s || null);
 
       setMessages(readJSON<Item[]>("oneboarding.history", []));
       setConsented(localStorage.getItem(CONSENT_KEY) === "1");
@@ -501,9 +613,7 @@ export default function Menu() {
 
       // On ne tente la synchro que pour un vrai membre (présent en DB)
       const isMember =
-        connected ||
-        spaceActive ||
-        !!localStorage.getItem("oneboarding.phoneE164");
+        connected || spaceActive || !!localStorage.getItem("oneboarding.phoneE164");
 
       if (!isMember) return;
 
@@ -512,10 +622,7 @@ export default function Menu() {
         if (consentAt) {
           try {
             localStorage.setItem(CONSENT_SYNC_KEY, "1");
-            localStorage.setItem(
-              CONSENT_AT_KEY,
-              String(new Date(consentAt).getTime())
-            );
+            localStorage.setItem(CONSENT_AT_KEY, String(new Date(consentAt).getTime()));
           } catch {}
         }
       })();
@@ -537,8 +644,7 @@ export default function Menu() {
 
   // écoute cross-composants (venant des modales dédiées)
   useEffect(() => {
-    const onAuthChanged = () =>
-      setConnected(localStorage.getItem("ob_connected") === "1");
+    const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
 
     const onSetConnected = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
@@ -552,40 +658,42 @@ export default function Menu() {
 
     const onSpaceActivated = () => {
       setSpaceActive(true);
-      const p = localStorage.getItem("oneboarding.plan");
-      setPlan(p === "subscription" || p === "one-month" ? p : null);
+      setPlan(readPlanLS());
+      // dates inconnues côté retour paiement → se rempliront au prochain /auth/check
+      setSpaceUntil(null);
+      setSpaceSince(null);
     };
 
     const onPlanChanged = () => {
-      const p = localStorage.getItem("oneboarding.plan");
-      setPlan(p === "subscription" || p === "one-month" ? p : null);
+      setPlan(readPlanLS());
     };
 
     const onHistoryCleared = () => setMessages([]);
-    const onConsentUpdated = () =>
-      setConsented(localStorage.getItem(CONSENT_KEY) === "1");
+    const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
 
     const onSubscriptionActive = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
+      const p = d?.plan;
       const newPlan: Plan =
-        d?.plan === "one-month" ? "one-month" : "subscription";
+        p === "one-day" || p === "one-month" || p === "one-year" || p === "one-life"
+          ? p
+          : "one-day"; // fallback standard
 
       try {
         localStorage.setItem("ob_connected", "1");
         localStorage.setItem("oneboarding.spaceActive", "1");
-        if (newPlan) {
-          localStorage.setItem("oneboarding.plan", newPlan);
-        } else {
-          localStorage.removeItem("oneboarding.plan");
-        }
-        if (d?.phoneE164) {
-          localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
-        }
+        localStorage.setItem("oneboarding.plan", newPlan);
+        if (d?.phoneE164) localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
+        localStorage.removeItem(SPACE_UNTIL_KEY);
+        localStorage.removeItem(SPACE_SINCE_KEY);
       } catch {}
 
       setConnected(true);
       setSpaceActive(true);
       setPlan(newPlan);
+
+      setSpaceUntil(null);
+      setSpaceSince(null);
     };
 
     const onDeviceAuthorized = () => {
@@ -600,34 +708,19 @@ export default function Menu() {
     window.addEventListener("ob:history-cleared", onHistoryCleared);
     window.addEventListener("ob:consent-updated", onConsentUpdated);
 
-    window.addEventListener(
-      "ob:subscription-active",
-      onSubscriptionActive as EventListener
-    );
-    window.addEventListener(
-      "ob:device-authorized",
-      onDeviceAuthorized as EventListener
-    );
+    window.addEventListener("ob:subscription-active", onSubscriptionActive as EventListener);
+    window.addEventListener("ob:device-authorized", onDeviceAuthorized as EventListener);
 
     return () => {
       window.removeEventListener("ob:connected-changed", onAuthChanged);
-      window.removeEventListener(
-        "ob:set-connected",
-        onSetConnected as EventListener
-      );
+      window.removeEventListener("ob:set-connected", onSetConnected as EventListener);
       window.removeEventListener("ob:space-activated", onSpaceActivated);
       window.removeEventListener("ob:plan-changed", onPlanChanged);
       window.removeEventListener("ob:history-cleared", onHistoryCleared);
       window.removeEventListener("ob:consent-updated", onConsentUpdated);
 
-      window.removeEventListener(
-        "ob:subscription-active",
-        onSubscriptionActive as EventListener
-      );
-      window.removeEventListener(
-        "ob:device-authorized",
-        onDeviceAuthorized as EventListener
-      );
+      window.removeEventListener("ob:subscription-active", onSubscriptionActive as EventListener);
+      window.removeEventListener("ob:device-authorized", onDeviceAuthorized as EventListener);
     };
   }, []);
 
@@ -746,15 +839,7 @@ export default function Menu() {
       clearPolling();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    open,
-    connected,
-    revealCode,
-    pendingBanner,
-    showPendingCard,
-    t.ACC.DONE_NEUTRAL,
-    t.ACC.EXPIRED,
-  ]);
+  }, [open, connected, revealCode, pendingBanner, showPendingCard, t.ACC.DONE_NEUTRAL, t.ACC.EXPIRED]);
 
   // Countdown local (1 Hz) quand le code est révélé
   useEffect(() => {
@@ -817,11 +902,15 @@ export default function Menu() {
         localStorage.setItem("oneboarding.spaceActive", "0");
         localStorage.removeItem("oneboarding.plan");
         localStorage.removeItem("oneboarding.phoneE164");
+        localStorage.removeItem(SPACE_UNTIL_KEY);
+        localStorage.setItem(SPACE_SINCE_KEY, new Date().toISOString()); // inactif depuis maintenant
       } catch {}
 
       setConnected(false);
       setSpaceActive(false);
       setPlan(null);
+      setSpaceUntil(null);
+      setSpaceSince(new Date().toISOString());
 
       emit("ob:connected-changed");
       emit("ob:space-deactivated");
@@ -864,10 +953,7 @@ export default function Menu() {
       })
       .join("\n\n— — —\n\n");
 
-    const footer =
-      `\n\n— — —\n` +
-      `OneBoarding AI® —\n` +
-      `https://oneboardingai.com`;
+    const footer = `\n\n— — —\n` + `OneBoarding AI® —\n` + `https://oneboardingai.com`;
 
     return `${body}${footer}`;
   }
@@ -902,9 +988,7 @@ export default function Menu() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `oneboarding-history-${new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")}.txt`;
+    a.download = `oneboarding-history-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -950,10 +1034,7 @@ export default function Menu() {
     } catch {}
 
     // 2) Déterminer si on est face à un vrai membre (présent en DB)
-    const isMember =
-      connected ||
-      spaceActive ||
-      !!localStorage.getItem("oneboarding.phoneE164");
+    const isMember = connected || spaceActive || !!localStorage.getItem("oneboarding.phoneE164");
 
     let consentAt: string | null = null;
 
@@ -966,10 +1047,7 @@ export default function Menu() {
       }
       try {
         localStorage.setItem(CONSENT_SYNC_KEY, "1");
-        localStorage.setItem(
-          CONSENT_AT_KEY,
-          String(new Date(consentAt).getTime())
-        );
+        localStorage.setItem(CONSENT_AT_KEY, String(new Date(consentAt).getTime()));
       } catch {}
     }
 
@@ -982,8 +1060,7 @@ export default function Menu() {
 
   /** ============ Navigation native (history) ============ */
   function pushHistoryFor(kind: "menu" | "legal") {
-    const href =
-      typeof window !== "undefined" ? window.location.href : undefined;
+    const href = typeof window !== "undefined" ? window.location.href : undefined;
     if (kind === "menu" && !menuPushedRef.current) {
       window.history.pushState({ obPane: "menu" }, "", href);
       menuPushedRef.current = true;
@@ -1053,15 +1130,8 @@ export default function Menu() {
 
       {/* Panneau Menu */}
       {open && (
-        <div
-          className="fixed inset-0 z-[80] grid place-items-center"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-            onClick={closeMenu}
-          />
+        <div className="fixed inset-0 z-[80] grid place-items-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeMenu} />
           <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-3">
@@ -1076,11 +1146,7 @@ export default function Menu() {
             </div>
 
             {/* Sections */}
-            <Accordion
-              title={t.SECTIONS.ACC}
-              open={showAcc}
-              onToggle={() => setShowAcc((v) => !v)}
-            >
+            <Accordion title={t.SECTIONS.ACC} open={showAcc} onToggle={() => setShowAcc((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!connected ? (
                   <Btn onClick={handleConnect}>{t.ACC.CONNECT}</Btn>
@@ -1096,32 +1162,40 @@ export default function Menu() {
                     {t.ACC.DEACTIVATE}
                   </Btn>
                 )}
-                <Btn
-                  className="sm:col-span-2"
-                  onClick={() => setShowStatus((v) => !v)}
-                >
+
+                <Btn className="sm:col-span-2" onClick={() => setShowStatus((v) => !v)}>
                   {t.ACC.STATUS_BTN} {showStatus ? "—" : "+"}
                 </Btn>
+
                 {showStatus && (
                   <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
                     <p className="text-sm font-medium mb-1">{t.ACC.STATUS}</p>
                     <div className="text-xs opacity-90 leading-6">
                       <div>
-                        {t.ACC.SPACE}:{" "}
-                        <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
+                        {t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
+                        {spaceActive && spaceUntil ? (
+                          <span className="opacity-90">
+                            {" "}
+                            — <b>{t.ACC.ACTIVE}</b> {t.ACC.UNTIL}{" "}
+                            <b>{formatDateOnly(spaceUntil, lang)}</b>
+                          </span>
+                        ) : !spaceActive && spaceSince ? (
+                          <span className="opacity-90">
+                            {" "}
+                            — <b>{t.ACC.INACTIVE}</b> {t.ACC.SINCE}{" "}
+                            <b>{formatDateOnly(spaceSince, lang)}</b>
+                          </span>
+                        ) : null}
                       </div>
+
                       <div>
-                        {t.ACC.CONN}:{" "}
-                          <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
+                        {t.ACC.CONN}: <b>{connected ? t.ACC.ONLINE : t.ACC.OFFLINE}</b>
                       </div>
+
                       <div>
                         {t.ACC.PLAN}:{" "}
                         <b>
-                          {plan === "subscription"
-                            ? t.ACC.SUB
-                            : plan === "one-month"
-                            ? t.ACC.ONEOFF
-                            : t.ACC.NONE}
+                          {plan ? `${planTitleEN(plan)} — ${planDesc(plan, lang)}` : t.ACC.NONE}
                         </b>
                       </div>
                     </div>
@@ -1149,9 +1223,7 @@ export default function Menu() {
                   <div className="sm:col-span-2 rounded-xl border border-white/12 bg-white/5 p-3">
                     {!revealCode ? (
                       <>
-                        <p className="text-sm opacity-90">
-                          {t.ACC.PENDING_TITLE}
-                        </p>
+                        <p className="text-sm opacity-90">{t.ACC.PENDING_TITLE}</p>
                         <div className="mt-3 flex items-center justify-end gap-2">
                           <button
                             onClick={() => {
@@ -1174,27 +1246,19 @@ export default function Menu() {
                     ) : (
                       <>
                         <p className="text-sm opacity-90">
-                          <span className="font-medium">
-                            {t.ACC.CODE_LIVE}
-                          </span>
+                          <span className="font-medium">{t.ACC.CODE_LIVE}</span>
                           {": "}
-                          <span className="font-mono tracking-wider text-base">
-                            {pending?.code || "••••••"}
-                          </span>
+                          <span className="font-mono tracking-wider text-base">{pending?.code || "••••••"}</span>
                           {" — "}
                           <span className="opacity-85">
                             {t.ACC.EXPIRES_AT}{" "}
                             {pending
-                              ? new Date(
-                                  pending.expiresAt
-                                ).toLocaleTimeString([], {
+                              ? new Date(pending.expiresAt).toLocaleTimeString([], {
                                   hour: "2-digit",
                                   minute: "2-digit",
                                 })
                               : "--:--"}
-                            {remainingMs > 0
-                              ? `  ( ${formatCountdown(remainingMs)} )`
-                              : ""}
+                            {remainingMs > 0 ? `  ( ${formatCountdown(remainingMs)} )` : ""}
                           </span>
                         </p>
                         <div className="mt-3 flex items-center justify-end">
@@ -1215,62 +1279,35 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion
-              title={t.SECTIONS.HIST}
-              open={showHist}
-              onToggle={() => setShowHist((v) => !v)}
-            >
+            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
                 <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
-                <Btn
-                  danger
-                  onClick={() => setConfirmOpen(true)}
-                  className="sm:col-span-2"
-                >
+                <Btn danger onClick={() => setConfirmOpen(true)} className="sm:col-span-2">
                   {t.HIST.CLEAR}
                 </Btn>
               </div>
             </Accordion>
 
-            <Accordion
-              title={t.SECTIONS.LANG}
-              open={showLang}
-              onToggle={() => setShowLang((v) => !v)}
-            >
+            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
               <div className="grid grid-cols-3 gap-2">
-                <Toggle
-                  active={lang === "fr"}
-                  onClick={() => setLangAndPersist("fr")}
-                >
+                <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>
                   {I18N.fr.LANG.FR}
                 </Toggle>
-                <Toggle
-                  active={lang === "en"}
-                  onClick={() => setLangAndPersist("en")}
-                >
+                <Toggle active={lang === "en"} onClick={() => setLangAndPersist("en")}>
                   {I18N.en.LANG.EN}
                 </Toggle>
-                <Toggle
-                  active={lang === "ar"}
-                  onClick={() => setLangAndPersist("ar")}
-                >
+                <Toggle active={lang === "ar"} onClick={() => setLangAndPersist("ar")}>
                   {I18N.ar.LANG.AR}
                 </Toggle>
               </div>
             </Accordion>
 
-            <Accordion
-              title={t.SECTIONS.LEGAL}
-              open={showLegal}
-              onToggle={() => setShowLegal((v) => !v)}
-            >
+            <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
-              <p className="text-xs opacity-80 mt-3">
-                {t.LEGAL.CONSENT_NOTE}
-              </p>
+              <p className="text-xs opacity-80 mt-3">{t.LEGAL.CONSENT_NOTE}</p>
             </Accordion>
           </div>
         </div>
@@ -1278,22 +1315,13 @@ export default function Menu() {
 
       {/* Modal de confirmation (historique) */}
       {confirmOpen && (
-        <div
-          className="fixed inset-0 z-[100] grid place-items-center"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-            onClick={() => setConfirmOpen(false)}
-          />
+        <div className="fixed inset-0 z-[100] grid place-items-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setConfirmOpen(false)} />
           <div
             ref={confirmRef}
             className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
           >
-            <h2 className="text-lg font-semibold mb-2">
-              {t.HIST.CONFIRM_TITLE}
-            </h2>
+            <h2 className="text-lg font-semibold mb-2">{t.HIST.CONFIRM_TITLE}</h2>
             <p className="text-sm opacity-90 mb-4">{t.HIST.CONFIRM_MSG}</p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -1315,11 +1343,7 @@ export default function Menu() {
 
       {/* Modal de désactivation espace (double confirmation) */}
       {deactivateOpen && (
-        <div
-          className="fixed inset-0 z-[105] grid place-items-center"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="fixed inset-0 z-[105] grid place-items-center" role="dialog" aria-modal="true">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
             onClick={() => {
@@ -1329,14 +1353,10 @@ export default function Menu() {
           />
           <div className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white">
             <h2 className="text-lg font-semibold mb-2">
-              {deactivateStep === 1
-                ? t.ACC.DEACT_STEP1_TITLE
-                : t.ACC.DEACT_STEP2_TITLE}
+              {deactivateStep === 1 ? t.ACC.DEACT_STEP1_TITLE : t.ACC.DEACT_STEP2_TITLE}
             </h2>
             <p className="text-sm whitespace-pre-line opacity-90 mb-4">
-              {deactivateStep === 1
-                ? t.ACC.DEACT_STEP1_MSG
-                : t.ACC.DEACT_STEP2_MSG}
+              {deactivateStep === 1 ? t.ACC.DEACT_STEP1_MSG : t.ACC.DEACT_STEP2_MSG}
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -1367,15 +1387,8 @@ export default function Menu() {
 
       {/* TOS/Privacy (inline) */}
       {legalOpen && (
-        <div
-          className="fixed inset-0 z-[110] grid place-items-center"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-            onClick={closeLegalModal}
-          />
+        <div className="fixed inset-0 z-[110] grid place-items-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeLegalModal} />
           <div className="relative mx-4 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-2xl text-black">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold">{t.LEGAL.TITLE}</h2>
@@ -1388,21 +1401,12 @@ export default function Menu() {
               </button>
             </div>
 
-            <div
-              className="rounded-lg overflow-auto border border-black/10"
-              style={{ maxHeight: "70vh" }}
-            >
+            <div className="rounded-lg overflow-auto border border-black/10" style={{ maxHeight: "70vh" }}>
               <LegalDoc lang={lang as LegalLang} />
             </div>
 
-            <p className="text-xs opacity-70 mt-3">
-              {t.LEGAL.CONSENT_NOTE}
-            </p>
-            {consented && (
-              <p className="text-xs opacity-70 mt-1">
-                {t.LEGAL.CONSENTED}
-              </p>
-            )}
+            <p className="text-xs opacity-70 mt-3">{t.LEGAL.CONSENT_NOTE}</p>
+            {consented && <p className="text-xs opacity-70 mt-1">{t.LEGAL.CONSENTED}</p>}
 
             <div className="mt-3 flex items-center justify-end gap-2">
               {!consented && (
@@ -1466,8 +1470,7 @@ function Btn({
   accent?: boolean;
   danger?: boolean;
 }) {
-  const base =
-    "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
+  const base = "px-4 py-2 rounded-xl border transition text-sm font-medium text-white";
   const tone = danger
     ? "border-red-400/30 bg-red-500/15 hover:bg-red-500/22"
     : accent
@@ -1560,32 +1563,15 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
     <main className="p-4">
       <h1 className="text-xl font-semibold mb-3">{t.title}</h1>
 
-      <article
-        dir={lang === "ar" ? "rtl" : "ltr"}
-        className="space-y-4 leading-6"
-      >
+      <article dir={lang === "ar" ? "rtl" : "ltr"} className="space-y-4 leading-6">
         {t.sections.map((s: LegalSection, i: number) => {
-          if (s.kind === "hr") {
-            return <hr key={i} className="border-black/10 my-3" />;
-          }
-          if (s.kind === "h2") {
-            return (
-              <h2 key={i} className="text-lg font-semibold mt-3">
-                {s.text}
-              </h2>
-            );
-          }
+          if (s.kind === "hr") return <hr key={i} className="border-black/10 my-3" />;
+          if (s.kind === "h2") return <h2 key={i} className="text-lg font-semibold mt-3">{s.text}</h2>;
           if (s.kind === "p") {
             return (s as any).html ? (
-              <p
-                key={i}
-                className="opacity-90"
-                dangerouslySetInnerHTML={{ __html: (s as any).text }}
-              />
+              <p key={i} className="opacity-90" dangerouslySetInnerHTML={{ __html: (s as any).text }} />
             ) : (
-              <p key={i} className="opacity-90">
-                {s.text}
-              </p>
+              <p key={i} className="opacity-90">{s.text}</p>
             );
           }
           if (s.kind === "ul") {
@@ -1605,34 +1591,22 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
           <p className="mb-2">{linksTitle}</p>
           <ul className="list-none pl-0 space-y-1">
             <li>
-              <a
-                href={links.deleteHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.deleteHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/delete
               </a>
             </li>
             <li>
-              <a
-                href={links.termsHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.termsHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/terms
               </a>
             </li>
             <li>
-              <a
-                href={links.protocolHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.protocolHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/protocol
               </a>
             </li>
             <li>
-              <a
-                href={links.trademarkHref}
-                className="underline text-blue-700 hover:text-blue-900"
-              >
+              <a href={links.trademarkHref} className="underline text-blue-700 hover:text-blue-900">
                 oneboardingai.com/trademark
               </a>
             </li>
