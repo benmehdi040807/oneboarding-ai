@@ -11,12 +11,25 @@ export const revalidate = 0;
 // Petit utilitaire pour savoir combien d'appareils max on autorise
 //
 function getMaxDevices(): number {
-  const v =
-    process.env.MAX_DEVICES ??
-    process.env.NEXT_PUBLIC_MAX_DEVICES ??
-    "3";
+  const v = process.env.MAX_DEVICES ?? process.env.NEXT_PUBLIC_MAX_DEVICES ?? "3";
   const n = parseInt(String(v), 10);
   return Number.isFinite(n) && n > 0 ? n : 3;
+}
+
+type PlanCode = "ONE_DAY" | "ONE_MONTH" | "ONE_YEAR" | "ONE_LIFE";
+
+function normalizePlan(planRaw: string | null | undefined): PlanCode {
+  const p = String(planRaw || "").trim();
+
+  // ✅ Nouveau pricing (recommandé)
+  if (p === "ONE_DAY" || p === "one-day" || p === "DAY" || p === "day") return "ONE_DAY";
+  if (p === "ONE_MONTH" || p === "one-month" || p === "MONTH" || p === "month") return "ONE_MONTH";
+  if (p === "ONE_YEAR" || p === "one-year" || p === "YEAR" || p === "year") return "ONE_YEAR";
+  if (p === "ONE_LIFE" || p === "one-life" || p === "LIFE" || p === "life") return "ONE_LIFE";
+
+  // Fallback safe (si sub.plan est absent/inconnu mais que sub est ACTIVE + date future)
+  // → on préfère ONE_DAY comme "standard"
+  return "ONE_DAY";
 }
 
 //
@@ -36,14 +49,11 @@ function evalPaidAccess(
     | null
 ): {
   spaceActive: boolean;
-  plan: "CONTINU" | "PASS1MOIS" | null;
+  plan: PlanCode | null;
 } {
-  if (!sub) {
-    return { spaceActive: false, plan: null };
-  }
+  if (!sub) return { spaceActive: false, plan: null };
 
-  const plan: "CONTINU" | "PASS1MOIS" =
-    sub.plan === "PASS1MOIS" ? "PASS1MOIS" : "CONTINU";
+  const plan = normalizePlan(sub.plan);
 
   // Seules les souscriptions marquées ACTIVE peuvent ouvrir l'espace
   if (sub.status !== "ACTIVE") {
@@ -70,7 +80,7 @@ type Ok = {
   phone: string;
   consentAt: string | null; // ISO string ou null
   spaceActive: boolean;
-  plan: "CONTINU" | "PASS1MOIS" | null;
+  plan: PlanCode | null;
 
   devices: {
     deviceCount: number; // combien d'appareils autorisés actifs
@@ -101,24 +111,16 @@ export async function GET(req: NextRequest) {
     if (!obSessionMatch) {
       return NextResponse.json<Err>(
         { ok: false, error: "NO_SESSION" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    const obSession = decodeURIComponent(
-      obSessionMatch.split("=").slice(1).join("=")
-    ).trim();
+    const obSession = decodeURIComponent(obSessionMatch.split("=").slice(1).join("=")).trim();
 
     if (!obSession) {
       return NextResponse.json<Err>(
         { ok: false, error: "EMPTY_SESSION" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -137,10 +139,7 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json<Err>(
         { ok: false, error: "SESSION_NOT_FOUND" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -148,10 +147,7 @@ export async function GET(req: NextRequest) {
     if (session.revokedAt) {
       return NextResponse.json<Err>(
         { ok: false, error: "SESSION_REVOKED" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -160,32 +156,24 @@ export async function GET(req: NextRequest) {
     if (session.expiresAt.getTime() <= now.getTime()) {
       return NextResponse.json<Err>(
         { ok: false, error: "SESSION_EXPIRED" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // 3. Charger l'utilisateur et son état juridique
+    // 3. Charger l'utilisateur
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
       select: {
         id: true,
         phoneE164: true,
-        // NOTE : si tu ajoutes consentAt plus tard dans Prisma,
-        // n'oublie pas de l'inclure ici :
-        // consentAt: true,
+        // consentAt: true, // quand tu ajoutes la colonne, tu l'actives ici
       },
     });
 
     if (!user) {
       return NextResponse.json<Err>(
         { ok: false, error: "USER_NOT_FOUND" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -212,7 +200,6 @@ export async function GET(req: NextRequest) {
     );
 
     // 5. Gérer les devices actifs
-    // On regarde tous les devices autorisés pour ce user
     const authedDevices = await prisma.device.findMany({
       where: {
         userId: user.id,
@@ -223,21 +210,13 @@ export async function GET(req: NextRequest) {
     });
 
     const maxDevices = getMaxDevices();
-
     const deviceCount = authedDevices.length;
 
-    // L'app appelante peut nous envoyer son ID matériel en header x-ob-device-id.
-    // (Tu fais ça automatiquement côté client. L'utilisateur final n'a rien à taper.)
     const callerDeviceId = req.headers.get("x-ob-device-id") || "";
     const deviceKnown =
-      !!callerDeviceId &&
-      authedDevices.some((d) => d.deviceId === callerDeviceId);
+      !!callerDeviceId && authedDevices.some((d) => d.deviceId === callerDeviceId);
 
-    // 6. consentAt
-    // Pour l’instant tu ne l’as pas encore en DB.
-    // On renvoie null => l’UI montrera "Lire et approuver".
-    // Quand tu ajoutes la colonne `consentAt` dans Prisma.User,
-    // tu remplaces ici par `user.consentAt?.toISOString() ?? null`.
+    // 6. consentAt (pas encore en DB)
     const consentAtISO: string | null = null;
 
     // 7. Construire la réponse pour l'UI
@@ -270,10 +249,7 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     return NextResponse.json<Err>(
       { ok: false, error: e?.message || "SERVER_ERROR" },
-      {
-        status: 500,
-        headers: { "Cache-Control": "no-store" },
-      }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
-          }
+}
