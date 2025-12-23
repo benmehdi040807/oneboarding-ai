@@ -185,7 +185,6 @@ export async function GET(req: NextRequest) {
     const plan = planFromKind(kind);
 
     // 2) CAPTURE
-    // - si déjà capturé / déjà complété => on accepte si order.status === COMPLETED
     let finalStatus: SubStatus = STATUSES.APPROVED;
 
     const cap = await ppCaptureOrder(orderId);
@@ -230,15 +229,18 @@ export async function GET(req: NextRequest) {
     // 4) SUBSCRIPTION : upsert (paypalId = orderId)
     const currentPeriodEnd = computePeriodEnd(plan, now);
 
+    const shouldClearCancellation = finalStatus === STATUSES.CAPTURED;
+
     await prisma.subscription.upsert({
       where: { paypalId: orderId },
       create: {
         userId,
         paypalId: orderId,
-        plan, // ✅ PLANS.*
-        status: finalStatus, // ✅ STATUSES.*
+        plan,
+        status: finalStatus,
         currentPeriodEnd,
         cancelAtPeriodEnd: false,
+        ...(shouldClearCancellation ? { cancelledAt: null } : {}),
       },
       update: {
         userId,
@@ -246,6 +248,7 @@ export async function GET(req: NextRequest) {
         status: finalStatus,
         currentPeriodEnd,
         cancelAtPeriodEnd: false,
+        ...(shouldClearCancellation ? { cancelledAt: null } : {}),
       },
     });
 
@@ -316,4 +319,4 @@ export async function GET(req: NextRequest) {
     const msg = e?.message || "PAY_RETURN_ERROR";
     return NextResponse.redirect(`${baseUrl()}/?paid_error=${encodeURIComponent(msg)}`, 302);
   }
-  }
+}
