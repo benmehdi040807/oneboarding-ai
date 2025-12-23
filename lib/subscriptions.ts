@@ -158,15 +158,17 @@ export async function applyWebhookChange(evt: { event_type: string; resource: an
 
   // 5) Upsert “Subscription” = accès payé (paypalId = orderId)
   // Règle souveraine :
-  // - CAPTURED / COMPLETED => donne droit d'accès (sauf si user a désactivé: cancelledAt posé)
+  // - CAPTURED / COMPLETED => donne droit d'accès
   // - REFUNDED / DENIED => coupe immédiate
   const shouldCut = status === STATUSES.REFUNDED || status === STATUSES.DENIED;
 
-  // Échéance : uniquement si événement positif
   const isPositive =
     status === STATUSES.CAPTURED || status === STATUSES.COMPLETED || status === STATUSES.APPROVED;
 
   const paidEnd = isPositive ? periodEndFor(plan, now) : now;
+
+  // ✅ Patch : si événement positif => on “réactive” et on nettoie cancelledAt
+  const shouldClearCancellation = isPositive && !shouldCut;
 
   await prisma.subscription.upsert({
     where: { paypalId: orderId },
@@ -178,6 +180,7 @@ export async function applyWebhookChange(evt: { event_type: string; resource: an
       currentPeriodEnd: shouldCut ? now : paidEnd,
       cancelAtPeriodEnd: shouldCut ? true : false,
       ...(shouldCut ? { cancelledAt: now } : {}),
+      ...(shouldClearCancellation ? { cancelledAt: null } : {}),
     },
     update: {
       userId: user.id,
@@ -186,6 +189,7 @@ export async function applyWebhookChange(evt: { event_type: string; resource: an
       currentPeriodEnd: shouldCut ? now : paidEnd,
       cancelAtPeriodEnd: shouldCut ? true : false,
       ...(shouldCut ? { cancelledAt: now } : {}),
+      ...(shouldClearCancellation ? { cancelledAt: null } : {}),
     },
   });
 
@@ -221,11 +225,15 @@ export async function applyWebhookChange(evt: { event_type: string; resource: an
  * - cancelledAt posé => non (désactivation humaine immédiate)
  * - currentPeriodEnd > now => oui
  */
-export function hasPaidAccessFromSub(sub: {
-  status?: string | null;
-  currentPeriodEnd?: Date | null;
-  cancelledAt?: Date | null;
-} | null): boolean {
+export function hasPaidAccessFromSub(
+  sub:
+    | {
+        status?: string | null;
+        currentPeriodEnd?: Date | null;
+        cancelledAt?: Date | null;
+      }
+    | null
+): boolean {
   if (!sub?.currentPeriodEnd) return false;
 
   const st = String(sub.status || "").toUpperCase();
