@@ -13,6 +13,7 @@ import SubscribeModal from "./SubscribeModal";
 
 /** ===================== Types ===================== */
 type Plan = "one-day" | "one-month" | "one-year" | "one-life" | null;
+type PlanNonNull = Exclude<Plan, null>;
 type Lang = "fr" | "en" | "ar";
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
 
@@ -35,6 +36,14 @@ const SPACE_SINCE_KEY = "oneboarding.spaceSince";
 const POLL_INTERVAL_MS = 12000; // ~12s
 const POLL_MAX_TICKS = 5; // ~1 min
 
+// Titres de plans : EN partout, “verrouillés”
+const PLAN_TITLES_EN: Record<PlanNonNull, string> = {
+  "one-day": "One Day",
+  "one-month": "One Month",
+  "one-year": "One Year",
+  "one-life": "One Life",
+};
+
 /** ===================== Utils ===================== */
 async function copy(text: string) {
   try {
@@ -56,6 +65,7 @@ async function copy(text: string) {
     }
   }
 }
+
 function readJSON<T>(key: string, fallback: T): T {
   try {
     const s = localStorage.getItem(key);
@@ -64,11 +74,13 @@ function readJSON<T>(key: string, fallback: T): T {
     return fallback;
   }
 }
+
 function writeJSON(key: string, v: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(v));
   } catch {}
 }
+
 function toast(msg: string) {
   const el = document.createElement("div");
   el.textContent = msg;
@@ -80,6 +92,7 @@ function toast(msg: string) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1700);
 }
+
 function uuid4() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -87,6 +100,7 @@ function uuid4() {
     return v.toString(16);
   });
 }
+
 function getOrCreateDeviceId(): string {
   try {
     const cur = localStorage.getItem(DEVICE_ID_KEY);
@@ -98,9 +112,11 @@ function getOrCreateDeviceId(): string {
     return "device-fallback";
   }
 }
+
 function two(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
+
 function formatCountdown(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const mm = Math.floor(total / 60);
@@ -109,25 +125,9 @@ function formatCountdown(ms: number) {
 }
 
 function consentErrorMessage(lang: Lang): string {
-  if (lang === "en") {
-    return "Unable to record your consent online. Please try again.";
-  }
-  if (lang === "ar") {
-    return "تعذّر تسجيل الموافقة عبر الخادم. يُرجى المحاولة مرة أخرى.";
-  }
+  if (lang === "en") return "Unable to record your consent online. Please try again.";
+  if (lang === "ar") return "تعذّر تسجيل الموافقة عبر الخادم. يُرجى المحاولة مرة أخرى.";
   return "Impossible d’enregistrer votre consentement en ligne. Veuillez réessayer.";
-}
-
-function planTitleEN(plan: Plan): string {
-  return plan === "one-day"
-    ? "One Day"
-    : plan === "one-month"
-    ? "One Month"
-    : plan === "one-year"
-    ? "One Year"
-    : plan === "one-life"
-    ? "One Life"
-    : "—";
 }
 
 function planDesc(plan: Plan, lang: Lang): string {
@@ -169,8 +169,25 @@ function formatDateOnly(iso: string, lang: Lang): string {
   }
 }
 
+// ✅ Ligne “Espace” ultra clean (sans répétition)
+function spaceLine(
+  spaceActive: boolean,
+  spaceUntil: string | null,
+  spaceSince: string | null,
+  lang: Lang,
+  t: any
+): string {
+  // Actif : idéalement on a toujours currentPeriodEnd, mais on tolère un état transitoire “actif”
+  if (spaceActive) {
+    if (spaceUntil) return `${t.ACC.ACTIVE} ${t.ACC.UNTIL} ${formatDateOnly(spaceUntil, lang)}`;
+    return t.ACC.ACTIVE;
+  }
+  // Inactif : date optionnelle
+  if (spaceSince) return `${t.ACC.INACTIVE} ${t.ACC.SINCE} ${formatDateOnly(spaceSince, lang)}`;
+  return t.ACC.INACTIVE;
+}
+
 function planFromServer(p: any): Plan {
-  // Nouveau contrat JSON (backend)
   if (p === "ONE_DAY" || p === "one-day") return "one-day";
   if (p === "ONE_MONTH" || p === "one-month") return "one-month";
   if (p === "ONE_YEAR" || p === "one-year") return "one-year";
@@ -193,12 +210,7 @@ function readPlanLS(): Plan {
 const I18N: Record<Lang, any> = {
   fr: {
     MENU: "Menu",
-    SECTIONS: {
-      ACC: "Mon compte",
-      HIST: "Mon historique",
-      LANG: "Ma langue",
-      LEGAL: "CGU / Privacy",
-    },
+    SECTIONS: { ACC: "Mon compte", HIST: "Mon historique", LANG: "Ma langue", LEGAL: "CGU / Privacy" },
     ACC: {
       CONNECT: "Se connecter",
       DISCONNECT: "Se déconnecter",
@@ -226,13 +238,10 @@ const I18N: Record<Lang, any> = {
       CLOSE: "Fermer",
       EXPIRED: "Code expiré. Relancez depuis le nouvel appareil.",
       DONE_NEUTRAL: "Demande terminée. Merci de vérifier le nouvel appareil.",
-      // Désactivation (double confirmation)
       DEACT_STEP1_TITLE: "Désactiver mon espace ?",
-      DEACT_STEP1_MSG:
-        "Souhaitez-vous vraiment désactiver votre espace ?\nMerci de confirmer.",
+      DEACT_STEP1_MSG: "Souhaitez-vous vraiment désactiver votre espace ?\nMerci de confirmer.",
       DEACT_STEP2_TITLE: "Fin de l’espace actif",
-      DEACT_STEP2_MSG:
-        "En désactivant votre espace, votre abonnement prendra fin\net vos accès seront restreints.",
+      DEACT_STEP2_MSG: "En désactivant votre espace, votre abonnement prendra fin\net vos accès seront restreints.",
       DEACT_CANCEL: "Annuler",
       DEACT_CONFIRM: "Confirmer",
       DEACT_DONE: "Espace désactivé.",
@@ -264,12 +273,7 @@ const I18N: Record<Lang, any> = {
   },
   en: {
     MENU: "Menu",
-    SECTIONS: {
-      ACC: "My account",
-      HIST: "My history",
-      LANG: "My language",
-      LEGAL: "TOS / Privacy",
-    },
+    SECTIONS: { ACC: "My account", HIST: "My history", LANG: "My language", LEGAL: "TOS / Privacy" },
     ACC: {
       CONNECT: "Sign in",
       DISCONNECT: "Sign out",
@@ -297,13 +301,10 @@ const I18N: Record<Lang, any> = {
       CLOSE: "Close",
       EXPIRED: "Code expired. Please restart from the new device.",
       DONE_NEUTRAL: "Request finished. Please check the new device.",
-      // Deactivation (double confirm)
       DEACT_STEP1_TITLE: "Deactivate my space?",
-      DEACT_STEP1_MSG:
-        "Do you really want to deactivate your space?\nPlease confirm.",
+      DEACT_STEP1_MSG: "Do you really want to deactivate your space?\nPlease confirm.",
       DEACT_STEP2_TITLE: "End of active space",
-      DEACT_STEP2_MSG:
-        "By deactivating your space, your subscription will end\nand your access will be restricted.",
+      DEACT_STEP2_MSG: "By deactivating your space, your subscription will end\nand your access will be restricted.",
       DEACT_CANCEL: "Cancel",
       DEACT_CONFIRM: "Confirm",
       DEACT_DONE: "Space deactivated.",
@@ -335,12 +336,7 @@ const I18N: Record<Lang, any> = {
   },
   ar: {
     MENU: "القائمة",
-    SECTIONS: {
-      ACC: "حسابي",
-      HIST: "سِجِلّي",
-      LANG: "لغتي",
-      LEGAL: "الشروط / الخصوصية",
-    },
+    SECTIONS: { ACC: "حسابي", HIST: "سِجِلّي", LANG: "لغتي", LEGAL: "الشروط / الخصوصية" },
     ACC: {
       CONNECT: "تسجيل الدخول",
       DISCONNECT: "تسجيل الخروج",
@@ -368,12 +364,10 @@ const I18N: Record<Lang, any> = {
       CLOSE: "إغلاق",
       EXPIRED: "انتهت صلاحية الرمز. يُرجى إعادة البدء من الجهاز الجديد.",
       DONE_NEUTRAL: "انتهى الطلب. يُرجى التحقق من الجهاز الجديد.",
-      // Deactivation (double confirm)
       DEACT_STEP1_TITLE: "إيقاف مساحتي؟",
       DEACT_STEP1_MSG: "هل ترغب حقاً في إيقاف مساحتك؟\nيُرجى التأكيد.",
       DEACT_STEP2_TITLE: "نهاية المساحة النشطة",
-      DEACT_STEP2_MSG:
-        "بإيقاف مساحتك، سينتهي اشتراكك\nوسيتم تقييد وصولك.",
+      DEACT_STEP2_MSG: "بإيقاف مساحتك، سينتهي اشتراكك\nوسيتم تقييد وصولك.",
       DEACT_CANCEL: "إلغاء",
       DEACT_CONFIRM: "تأكيد",
       DEACT_DONE: "تم إيقاف المساحة.",
@@ -453,7 +447,6 @@ export default function Menu() {
   const t = useMemo(() => I18N[lang], [lang]);
 
   // ===================== Helper : POST /api/consent =====================
-
   async function sendConsentToServer(silent = false): Promise<string | null> {
     try {
       const deviceId = getOrCreateDeviceId();
@@ -468,29 +461,21 @@ export default function Menu() {
       });
 
       if (!res.ok) {
-        if (!silent) {
-          toast(consentErrorMessage(lang));
-        }
+        if (!silent) toast(consentErrorMessage(lang));
         return null;
       }
 
       const data: any = await res.json().catch(() => null);
-      // On tolère plusieurs formes de payload
-      const consentAt: string | null =
-        data?.user?.consentAt ?? data?.consentAt ?? null;
-
+      const consentAt: string | null = data?.user?.consentAt ?? data?.consentAt ?? null;
       return consentAt ?? new Date().toISOString();
     } catch {
-      if (!silent) {
-        toast(consentErrorMessage(lang));
-      }
+      if (!silent) toast(consentErrorMessage(lang));
       return null;
     }
   }
 
   // ===================== Sync backend -> état local =====================
   // ✅ Source de vérité : /api/auth/check
-
   async function refreshAccountStatusFromServer() {
     try {
       const deviceId = getOrCreateDeviceId();
@@ -503,7 +488,6 @@ export default function Menu() {
 
       const data: any = await res.json().catch(() => ({}));
 
-      // Pas de session → pas connecté
       if (!res.ok || !data?.ok) {
         setConnected(false);
         setSpaceActive(false);
@@ -522,16 +506,10 @@ export default function Menu() {
         return;
       }
 
-      // ✅ Session valide
       const newConnected = true;
-
-      // ✅ Accès payant
       const newSpaceActive = !!data?.spaceActive;
-
-      // ✅ Plan (nouveau contrat)
       const newPlan: Plan = planFromServer(data?.plan);
 
-      // ✅ Date de fin (si dispo) — on tolère plusieurs chemins
       const cpeISO: string | null =
         data?.lastSubscription?.currentPeriodEnd ??
         data?.currentPeriodEnd ??
@@ -545,13 +523,8 @@ export default function Menu() {
       let since: string | null = null;
 
       if (cpe && !isNaN(cpe.getTime())) {
-        if (cpe.getTime() > now.getTime()) {
-          // actif jusqu'au...
-          until = cpe.toISOString();
-        } else {
-          // inactif depuis...
-          since = cpe.toISOString();
-        }
+        if (cpe.getTime() > now.getTime()) until = cpe.toISOString();
+        else since = cpe.toISOString();
       }
 
       setConnected(newConnected);
@@ -560,10 +533,10 @@ export default function Menu() {
       setSpaceUntil(until);
       setSpaceSince(since);
 
-      // ✅ Sync douce LS (utile pour le reste de l’UI)
       try {
         localStorage.setItem("ob_connected", newConnected ? "1" : "0");
         localStorage.setItem("oneboarding.spaceActive", newSpaceActive ? "1" : "0");
+
         if (newPlan) localStorage.setItem("oneboarding.plan", newPlan);
         else localStorage.removeItem("oneboarding.plan");
 
@@ -573,7 +546,6 @@ export default function Menu() {
         if (since) localStorage.setItem(SPACE_SINCE_KEY, since);
         else localStorage.removeItem(SPACE_SINCE_KEY);
 
-        // phone (tolérance)
         const phone = data?.phoneE164 ?? data?.phone ?? data?.user?.phoneE164 ?? null;
         if (phone) localStorage.setItem("oneboarding.phoneE164", phone);
       } catch {}
@@ -582,7 +554,7 @@ export default function Menu() {
     }
   }
 
-  // init lecture locale (avec normalisation du plan + dates)
+  // init lecture locale
   useEffect(() => {
     try {
       const L = (localStorage.getItem("oneboarding.lang") as Lang) || "fr";
@@ -604,17 +576,14 @@ export default function Menu() {
     } catch {}
   }, []);
 
-  // Rattrapage silencieux : si consentement local mais pas encore synchronisé DB
+  // Rattrapage silencieux : consentement local non sync DB
   useEffect(() => {
     try {
       const hasConsentLocal = localStorage.getItem(CONSENT_KEY) === "1";
       const synced = localStorage.getItem(CONSENT_SYNC_KEY) === "1";
       if (!hasConsentLocal || synced) return;
 
-      // On ne tente la synchro que pour un vrai membre (présent en DB)
-      const isMember =
-        connected || spaceActive || !!localStorage.getItem("oneboarding.phoneE164");
-
+      const isMember = connected || spaceActive || !!localStorage.getItem("oneboarding.phoneE164");
       if (!isMember) return;
 
       void (async () => {
@@ -626,23 +595,19 @@ export default function Menu() {
           } catch {}
         }
       })();
-    } catch {
-      // silencieux
-    }
+    } catch {}
   }, [connected, spaceActive]);
 
-  // Au montage, on essaie déjà de resynchroniser avec le backend
   useEffect(() => {
     void refreshAccountStatusFromServer();
   }, []);
 
-  // Quand le menu s’ouvre, on rafraîchit aussi l’état depuis le backend
   useEffect(() => {
     if (!open) return;
     void refreshAccountStatusFromServer();
   }, [open]);
 
-  // écoute cross-composants (venant des modales dédiées)
+  // écoute cross-composants
   useEffect(() => {
     const onAuthChanged = () => setConnected(localStorage.getItem("ob_connected") === "1");
 
@@ -659,14 +624,11 @@ export default function Menu() {
     const onSpaceActivated = () => {
       setSpaceActive(true);
       setPlan(readPlanLS());
-      // dates inconnues côté retour paiement → se rempliront au prochain /auth/check
       setSpaceUntil(null);
       setSpaceSince(null);
     };
 
-    const onPlanChanged = () => {
-      setPlan(readPlanLS());
-    };
+    const onPlanChanged = () => setPlan(readPlanLS());
 
     const onHistoryCleared = () => setMessages([]);
     const onConsentUpdated = () => setConsented(localStorage.getItem(CONSENT_KEY) === "1");
@@ -674,15 +636,17 @@ export default function Menu() {
     const onSubscriptionActive = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       const p = d?.plan;
-      const newPlan: Plan =
+
+      // ✅ NON-NULL par design (TS safe)
+      const newPlan: PlanNonNull =
         p === "one-day" || p === "one-month" || p === "one-year" || p === "one-life"
           ? p
-          : "one-day"; // fallback standard
+          : "one-day";
 
       try {
         localStorage.setItem("ob_connected", "1");
         localStorage.setItem("oneboarding.spaceActive", "1");
-        localStorage.setItem("oneboarding.plan", newPlan);
+        localStorage.setItem("oneboarding.plan", newPlan); // ✅ newPlan est string garanti
         if (d?.phoneE164) localStorage.setItem("oneboarding.phoneE164", d.phoneE164);
         localStorage.removeItem(SPACE_UNTIL_KEY);
         localStorage.removeItem(SPACE_SINCE_KEY);
@@ -697,7 +661,6 @@ export default function Menu() {
     };
 
     const onDeviceAuthorized = () => {
-      // Un nouveau device vient d'être autorisé : on resynchronise l’état global
       void refreshAccountStatusFromServer();
     };
 
@@ -829,9 +792,7 @@ export default function Menu() {
         }
       }
 
-      if (pollTicksRef.current >= POLL_MAX_TICKS) {
-        clearPolling();
-      }
+      if (pollTicksRef.current >= POLL_MAX_TICKS) clearPolling();
     }, POLL_INTERVAL_MS);
 
     return () => {
@@ -867,15 +828,26 @@ export default function Menu() {
   function handleConnect() {
     window.dispatchEvent(new Event("ob:open-connect"));
   }
+
+  // ✅ Déconnexion propre (évite “reste” UI)
   function handleDisconnect() {
     try {
       localStorage.setItem("ob_connected", "0");
+      localStorage.setItem("oneboarding.spaceActive", "0");
+      localStorage.removeItem("oneboarding.plan");
+      localStorage.removeItem(SPACE_UNTIL_KEY);
+      localStorage.removeItem(SPACE_SINCE_KEY);
     } catch {}
     writeJSON("oneboarding.connected", false);
     setConnected(false);
+    setSpaceActive(false);
+    setPlan(null);
+    setSpaceUntil(null);
+    setSpaceSince(null);
     toast("Déconnecté.");
     emit("ob:connected-changed");
   }
+
   function handleActivate() {
     window.dispatchEvent(new Event("ob:open-activate"));
   }
@@ -892,18 +864,15 @@ export default function Menu() {
         credentials: "include",
       });
       const data: any = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
-        throw new Error("DEACTIVATE_FAILED");
-      }
+      if (!res.ok || !data?.ok) throw new Error("DEACTIVATE_FAILED");
 
-      // Nettoyage local cohérent avec l’état backend
       try {
         localStorage.setItem("ob_connected", "0");
         localStorage.setItem("oneboarding.spaceActive", "0");
         localStorage.removeItem("oneboarding.plan");
         localStorage.removeItem("oneboarding.phoneE164");
         localStorage.removeItem(SPACE_UNTIL_KEY);
-        localStorage.setItem(SPACE_SINCE_KEY, new Date().toISOString()); // inactif depuis maintenant
+        localStorage.setItem(SPACE_SINCE_KEY, new Date().toISOString());
       } catch {}
 
       setConnected(false);
@@ -954,7 +923,6 @@ export default function Menu() {
       .join("\n\n— — —\n\n");
 
     const footer = `\n\n— — —\n` + `OneBoarding AI® —\n` + `https://oneboardingai.com`;
-
     return `${body}${footer}`;
   }
 
@@ -1002,16 +970,10 @@ export default function Menu() {
     let currentLang: Lang = lang;
     try {
       const lsLang = localStorage.getItem("oneboarding.lang") as Lang | null;
-      if (lsLang && ["fr", "en", "ar"].includes(lsLang)) {
-        currentLang = lsLang as Lang;
-      }
+      if (lsLang && ["fr", "en", "ar"].includes(lsLang)) currentLang = lsLang as Lang;
     } catch {}
 
-    window.dispatchEvent(
-      new CustomEvent("ob:request-clear-history", {
-        detail: { lang: currentLang },
-      })
-    );
+    window.dispatchEvent(new CustomEvent("ob:request-clear-history", { detail: { lang: currentLang } }));
   }
 
   /** ============ Langue ============ */
@@ -1028,30 +990,22 @@ export default function Menu() {
   }
 
   async function acceptLegal() {
-    // 1) Toujours marquer localement le clic, pour tout le monde
     try {
       localStorage.setItem(CONSENT_KEY, "1");
     } catch {}
 
-    // 2) Déterminer si on est face à un vrai membre (présent en DB)
     const isMember = connected || spaceActive || !!localStorage.getItem("oneboarding.phoneE164");
-
     let consentAt: string | null = null;
 
-    // 3) Si membre → on synchronise tout de suite en base
     if (isMember) {
       consentAt = await sendConsentToServer(false);
-      if (!consentAt) {
-        // L'erreur (401, etc.) a déjà été signalée par toast
-        return;
-      }
+      if (!consentAt) return;
       try {
         localStorage.setItem(CONSENT_SYNC_KEY, "1");
         localStorage.setItem(CONSENT_AT_KEY, String(new Date(consentAt).getTime()));
       } catch {}
     }
 
-    // 4) Mise à jour UI (membre ou pas, le clic est bien pris en compte localement)
     setConsented(true);
     window.dispatchEvent(new Event("ob:consent-updated"));
     toast(t.LEGAL.CONSENTED);
@@ -1092,6 +1046,7 @@ export default function Menu() {
     setOpen(true);
     pushHistoryFor("menu");
   }
+
   function closeMenu() {
     if (legalOpen) closeLegalModal();
     if (menuPushedRef.current) {
@@ -1101,6 +1056,7 @@ export default function Menu() {
       setOpen(false);
     }
   }
+
   function closeLegalModal() {
     if (legalPushedRef.current) {
       legalPushedRef.current = false;
@@ -1153,6 +1109,7 @@ export default function Menu() {
                 ) : (
                   <Btn onClick={handleDisconnect}>{t.ACC.DISCONNECT}</Btn>
                 )}
+
                 {!spaceActive ? (
                   <Btn accent onClick={handleActivate}>
                     {t.ACC.ACTIVATE}
@@ -1172,20 +1129,8 @@ export default function Menu() {
                     <p className="text-sm font-medium mb-1">{t.ACC.STATUS}</p>
                     <div className="text-xs opacity-90 leading-6">
                       <div>
-                        {t.ACC.SPACE}: <b>{spaceActive ? t.ACC.ACTIVE : t.ACC.INACTIVE}</b>
-                        {spaceActive && spaceUntil ? (
-                          <span className="opacity-90">
-                            {" "}
-                            — <b>{t.ACC.ACTIVE}</b> {t.ACC.UNTIL}{" "}
-                            <b>{formatDateOnly(spaceUntil, lang)}</b>
-                          </span>
-                        ) : !spaceActive && spaceSince ? (
-                          <span className="opacity-90">
-                            {" "}
-                            — <b>{t.ACC.INACTIVE}</b> {t.ACC.SINCE}{" "}
-                            <b>{formatDateOnly(spaceSince, lang)}</b>
-                          </span>
-                        ) : null}
+                        {t.ACC.SPACE}:{" "}
+                        <b>{spaceLine(spaceActive, spaceUntil, spaceSince, lang, t)}</b>
                       </div>
 
                       <div>
@@ -1195,7 +1140,7 @@ export default function Menu() {
                       <div>
                         {t.ACC.PLAN}:{" "}
                         <b>
-                          {plan ? `${planTitleEN(plan)} — ${planDesc(plan, lang)}` : t.ACC.NONE}
+                          {plan ? `${PLAN_TITLES_EN[plan]} — ${planDesc(plan, lang)}` : t.ACC.NONE}
                         </b>
                       </div>
                     </div>
@@ -1226,17 +1171,13 @@ export default function Menu() {
                         <p className="text-sm opacity-90">{t.ACC.PENDING_TITLE}</p>
                         <div className="mt-3 flex items-center justify-end gap-2">
                           <button
-                            onClick={() => {
-                              setShowPendingCard(false);
-                            }}
+                            onClick={() => setShowPendingCard(false)}
                             className="px-3 py-2 rounded-xl border border-white/15 bg:white/10 bg-white/10 hover:bg-white/12 text-sm"
                           >
                             {t.ACC.IGNORE}
                           </button>
                           <button
-                            onClick={() => {
-                              setRevealCode(true);
-                            }}
+                            onClick={() => setRevealCode(true)}
                             className="px-4 py-2 rounded-2xl bg-black text-white font-semibold hover:bg-black/90 text-sm"
                           >
                             {t.ACC.AUTHORIZE}
@@ -1248,7 +1189,9 @@ export default function Menu() {
                         <p className="text-sm opacity-90">
                           <span className="font-medium">{t.ACC.CODE_LIVE}</span>
                           {": "}
-                          <span className="font-mono tracking-wider text-base">{pending?.code || "••••••"}</span>
+                          <span className="font-mono tracking-wider text-base">
+                            {pending?.code || "••••••"}
+                          </span>
                           {" — "}
                           <span className="opacity-85">
                             {t.ACC.EXPIRES_AT}{" "}
@@ -1279,7 +1222,11 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.HIST} open={showHist} onToggle={() => setShowHist((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.HIST}
+              open={showHist}
+              onToggle={() => setShowHist((v) => !v)}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Btn onClick={shareHistory}>{t.HIST.SHARE}</Btn>
                 <Btn onClick={saveHistory}>{t.HIST.SAVE}</Btn>
@@ -1289,7 +1236,11 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.LANG} open={showLang} onToggle={() => setShowLang((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.LANG}
+              open={showLang}
+              onToggle={() => setShowLang((v) => !v)}
+            >
               <div className="grid grid-cols-3 gap-2">
                 <Toggle active={lang === "fr"} onClick={() => setLangAndPersist("fr")}>
                   {I18N.fr.LANG.FR}
@@ -1303,7 +1254,11 @@ export default function Menu() {
               </div>
             </Accordion>
 
-            <Accordion title={t.SECTIONS.LEGAL} open={showLegal} onToggle={() => setShowLegal((v) => !v)}>
+            <Accordion
+              title={t.SECTIONS.LEGAL}
+              open={showLegal}
+              onToggle={() => setShowLegal((v) => !v)}
+            >
               <div className="grid grid-cols-1 gap-2">
                 <Btn onClick={openLegalModal}>{legalBtnLabel}</Btn>
               </div>
@@ -1316,7 +1271,10 @@ export default function Menu() {
       {/* Modal de confirmation (historique) */}
       {confirmOpen && (
         <div className="fixed inset-0 z-[100] grid place-items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setConfirmOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setConfirmOpen(false)}
+          />
           <div
             ref={confirmRef}
             className="relative mx-4 w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl text-white"
@@ -1372,9 +1330,7 @@ export default function Menu() {
                 onClick={
                   deactivateStep === 1
                     ? () => setDeactivateStep(2)
-                    : () => {
-                        void performDeactivate();
-                      }
+                    : () => void performDeactivate()
                 }
                 className="px-4 py-2 rounded-2xl bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]"
               >
@@ -1418,9 +1374,7 @@ export default function Menu() {
                 </button>
               )}
               <button
-                onClick={() => {
-                  void acceptLegal();
-                }}
+                onClick={() => void acceptLegal()}
                 className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-black/90"
               >
                 {t.LEGAL.ACCEPT}
@@ -1437,15 +1391,9 @@ export default function Menu() {
       {/* styles locaux */}
       <style jsx global>{`
         @keyframes ob-float {
-          0% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-2px);
-          }
-          100% {
-            transform: translateY(0);
-          }
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+          100% { transform: translateY(0); }
         }
         .menu-float:focus-visible {
           animation: ob-float 0.9s ease-in-out;
@@ -1551,7 +1499,6 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
     trademarkHref: `/trademark${qs}`,
   };
 
-  // Texte juridique final (intégré au document scrollable)
   const finalParagraph =
     lang === "ar"
       ? "باستخدامكم OneBoarding AI، فإنكم توافقون على شروط الاستخدام وسياسة الخصوصية. ويُعتبر استعمال الخدمة موافقة كاملة، سواء مع التأكيد الصريح أو بدونه."
@@ -1625,4 +1572,4 @@ function LegalDoc({ lang }: { lang: LegalLang }) {
       </article>
     </main>
   );
-      }
+        }
