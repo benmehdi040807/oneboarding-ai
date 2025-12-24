@@ -20,52 +20,62 @@ function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
 
-// ====== Quota free (cookie) ======
-type QuotaState = { d: string; n: number }; // d=YYYY-MM-DD, n=remaining
+// ====== Quota free (cookie) — UNIFIÉ avec /api/quota/consume ======
+const TZ = "Africa/Casablanca";
 const QUOTA_COOKIE = "ob_quota_v1";
 const FREE_PER_DAY = 3;
 
-function todayKey() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+type QuotaCookie = { stamp: string; used: number }; // ✅ même format que /api/quota/consume
+
+/** yyyy-mm-dd en Africa/Casablanca */
+function casablancaStamp(d = new Date()): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(d);
 }
 
-function readQuota(req: NextRequest): QuotaState {
+function readQuota(req: NextRequest): QuotaCookie {
+  const today = casablancaStamp();
   const raw = req.cookies.get(QUOTA_COOKIE)?.value;
-  const t = todayKey();
-  if (!raw) return { d: t, n: FREE_PER_DAY };
+
+  if (!raw) return { stamp: today, used: 0 };
 
   try {
-    const v = JSON.parse(raw) as Partial<QuotaState>;
-    if (v?.d !== t) return { d: t, n: FREE_PER_DAY };
-    const n = typeof v.n === "number" ? v.n : FREE_PER_DAY;
-    return { d: t, n: Math.max(0, Math.min(FREE_PER_DAY, n)) };
+    const v = JSON.parse(raw) as Partial<QuotaCookie>;
+    if (v?.stamp !== today) return { stamp: today, used: 0 };
+    const used = typeof v.used === "number" ? v.used : 0;
+    return { stamp: today, used: Math.max(0, Math.min(FREE_PER_DAY, used)) };
   } catch {
-    return { d: t, n: FREE_PER_DAY };
+    return { stamp: today, used: 0 };
   }
 }
 
 function consumeOne(req: NextRequest) {
   const q = readQuota(req);
-  if (q.n <= 0) return { ok: false as const, next: q };
-  return { ok: true as const, next: { ...q, n: q.n - 1 } };
+  if (q.used >= FREE_PER_DAY) {
+    return { ok: false as const, next: q, remaining: 0 };
+  }
+  const next = { ...q, used: q.used + 1 };
+  const remaining = Math.max(0, FREE_PER_DAY - next.used);
+  return { ok: true as const, next, remaining };
 }
 
-function setQuotaCookie(res: NextResponse, q: QuotaState) {
+function setQuotaCookie(res: NextResponse, q: QuotaCookie) {
+  // ⚠️ aligné avec /api/quota/consume : secure + lax + /
   res.cookies.set(QUOTA_COOKIE, JSON.stringify(q), {
     httpOnly: true,
     sameSite: "lax",
+    secure: true,
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7j
+    maxAge: 60 * 60 * 24, // 24h
   });
 }
 
 // ====== GET ======
-// /api/generate            -> ping (clé détectée ?)
-// /api/generate?test=1     -> test IA réel
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const doTest = url.searchParams.get("test") === "1";
@@ -127,7 +137,7 @@ export async function GET(req: NextRequest) {
 
 // ====== POST ======
 // PAID -> illimité
-// FREE -> quota cookie 3/jour
+// FREE -> quota cookie 3/jour (verrou serveur)
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return json({ ok: false, error: "GROQ_API_KEY is not set" }, 500);
@@ -139,14 +149,17 @@ export async function POST(req: NextRequest) {
   const isPaid = paidCheck.paid;
 
   // 2) Si pas payé -> consommer quota AVANT appel Groq
-  let quotaNext: QuotaState | null = null;
+  let quotaNext: QuotaCookie | null = null;
+  let remaining: number | null = null;
+
   if (!isPaid) {
     const c = consumeOne(req);
     quotaNext = c.next;
+    remaining = c.remaining;
 
     if (!c.ok) {
       const res = json(
-        { ok: false, error: "FREE_DAILY_LIMIT", remaining: quotaNext.n },
+        { ok: false, error: "FREE_DAILY_LIMIT", remaining: 0 },
         429
       );
       setQuotaCookie(res, quotaNext);
@@ -168,7 +181,7 @@ export async function POST(req: NextRequest) {
         provider: "LOCAL_POLICY",
         model: "n/a",
         paid: isPaid,
-        remaining: isPaid ? null : quotaNext?.n ?? null,
+        remaining: isPaid ? null : remaining,
       });
       if (quotaNext && !isPaid) setQuotaCookie(res, quotaNext);
       return res;
@@ -183,7 +196,7 @@ export async function POST(req: NextRequest) {
         provider: "LOCAL_POLICY",
         model: "n/a",
         paid: isPaid,
-        remaining: isPaid ? null : quotaNext?.n ?? null,
+        remaining: isPaid ? null : remaining,
       });
       if (quotaNext && !isPaid) setQuotaCookie(res, quotaNext);
       return res;
@@ -250,7 +263,7 @@ export async function POST(req: NextRequest) {
       provider: "GROQ",
       model: MODEL,
       paid: isPaid,
-      remaining: isPaid ? null : quotaNext?.n ?? null,
+      remaining: isPaid ? null : remaining,
       creatorMention: {
         allowed: mentionDecision.allow,
         reason: mentionDecision.reason,
@@ -263,4 +276,4 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-}
+      }
