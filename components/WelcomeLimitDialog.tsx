@@ -1,7 +1,9 @@
 // components/WelcomeLimitDialog.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
+
+type Lang = "fr" | "en" | "ar";
 
 export default function WelcomeLimitDialog({
   open,
@@ -10,7 +12,7 @@ export default function WelcomeLimitDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  lang?: "fr" | "en" | "ar";
+  lang?: Lang;
 }) {
   const ref = useRef<HTMLDialogElement | null>(null);
   const t = TEXT[lang] || TEXT.fr;
@@ -55,14 +57,28 @@ export default function WelcomeLimitDialog({
   return (
     <>
       <style>{`dialog::backdrop{background:rgba(0,0,0,.45);-webkit-backdrop-filter:saturate(120%) blur(2px);backdrop-filter:saturate(120%) blur(2px);}`}</style>
+
       <dialog
         ref={ref}
         onMouseDown={onBackdropClick}
         className="m-0 p-0 rounded-3xl border border-black/10 w-[92vw] max-w-lg"
         dir={rtl ? "rtl" : "ltr"}
       >
-        <div className="p-4 sm:p-6 bg-white text-black rounded-3xl">
-          <div className={`flex items-center justify-between mb-3 ${rtl ? "text-right" : ""}`}>
+        <div
+          className={[
+            "bg-white text-black rounded-3xl",
+            "p-4 sm:p-6",
+            rtl ? "pr-5 sm:pr-7" : "",
+          ].join(" ")}
+        >
+          {/* Header */}
+          <div
+            className={[
+              "flex items-center justify-between",
+              "mb-3",
+              rtl ? "text-right" : "",
+            ].join(" ")}
+          >
             <h2 className="text-lg sm:text-xl font-semibold">{t.title}</h2>
             <button
               type="button"
@@ -74,28 +90,55 @@ export default function WelcomeLimitDialog({
             </button>
           </div>
 
-          <div className={`space-y-3 text-[15px] leading-6 ${rtl ? "text-right" : ""}`}>
-            <p className="font-medium">{t.headline}</p>
+          {/* Body */}
+          <div
+            className={[
+              "text-[15px] leading-6",
+              "space-y-4",
+              rtl ? "text-right" : "",
+            ].join(" ")}
+          >
+            {/* Intro */}
+            <div className="space-y-1">
+              {t.intro.map((line) => (
+                <p key={line} className="font-medium">
+                  {line}
+                </p>
+              ))}
+            </div>
 
-            <p>{t.instruction}</p>
-
-            <div>
-              <p className="font-medium">{t.plansTitle}</p>
-              <ul className="opacity-90 list-none space-y-1">
-                <li>{t.planA}</li>
-                <li>{t.planB}</li>
+            {/* Plans */}
+            <div className="space-y-2">
+              <ul className="list-none p-0 m-0 space-y-2">
+                {t.plans.map((p) => (
+                  <li
+                    key={p.name}
+                    className="rounded-2xl border border-black/10 px-3 py-2"
+                  >
+                    <div className="font-semibold">{p.name}</div>
+                    <div className="opacity-90">{p.desc}</div>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            <p className="opacity-90">{t.elseReturn}</p>
-
+            {/* Power lines */}
             <div className="pt-1">
-              <p className="font-medium">{t.brandWelcome}</p>
-              <p>{t.brandBul1}<br />{t.brandBul2}</p>
+              <div className="space-y-0.5">
+                {t.power.map((line, idx) => (
+                  <p
+                    key={`${line}-${idx}`}
+                    className={idx === t.power.length - 1 ? "font-semibold" : ""}
+                  >
+                    {line}
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className={`mt-5 flex gap-3 ${rtl ? "justify-start" : "justify-end"}`}>
+          {/* Actions */}
+          <div className={["mt-5 flex gap-3", rtl ? "justify-start" : "justify-end"].join(" ")}>
             <button
               type="button"
               onClick={goSubscribe}
@@ -118,61 +161,106 @@ export default function WelcomeLimitDialog({
   );
 }
 
-const TEXT = {
-  /** FR — texte fourni par toi (intégré tel quel, avec une structuration légère) */
+const TEXT: Record<
+  Lang,
+  {
+    title: string;
+    close: string;
+    intro: string[];
+    plans: { name: string; desc: string }[];
+    power: string[];
+    subscribe: string;
+    later: string;
+  }
+> = {
   fr: {
-    title: "Bienvenue dans OneBoarding AI",
+    title: "OneBoarding AI",
     close: "Fermer",
-    headline: "✨ Vos 3 interactions offertes pour aujourd’hui sont terminées.",
-    instruction:
-      "Pour continuer votre expérience OneBoarding AI en accès illimité : activez votre espace personnel en 30 secondes (paiement inclus).",
-    plansTitle: "Choisissez librement votre forfait :",
-    planA: "🔹 Abonnement 5 €/mois — accès continu, sans interruption.",
-    planB: "🔸 Accès libre 5 € — un mois complet, sans engagement.",
-    elseReturn:
-      "Sinon : Vous pouvez aussi revenir demain pour profiter de 3 nouvelles interactions gratuites.",
-    brandWelcome: "Bienvenue dans OneBoarding AI",
-    brandBul1: "👉 Votre IA personnelle, à votre service.",
-    brandBul2: "👉 Activez votre futur dès aujourd’hui.",
-    subscribe: "Souscription",
+    intro: ["Accédez en illimité.", "Selon votre choix."],
+    plans: [
+      {
+        name: "— One Day — 11 € [Standard]",
+        desc: "Active l'accès pour 24 heures.",
+      },
+      {
+        name: "— One Month — 31 € [Plus]",
+        desc: "Active l'accès pour 30 jours.",
+      },
+      {
+        name: "— One Year — 300 € [Gold]",
+        desc: "Active l'accès pour 365 jours.",
+      },
+      {
+        name: "— One Life — 31 000 € [Signature]",
+        desc: "Active l'accès pour 365 jours à vie.",
+      },
+    ],
+    power: [
+      "200 pays.",
+      "20 langues.",
+      "Des millions de textes.",
+      "Une seule intelligence : OneBoarding AI.",
+    ],
+    subscribe: "Souscrire",
     later: "Plus tard",
   },
 
-  /** EN — traduction fidèle et premium */
   en: {
-    title: "Welcome to OneBoarding AI",
+    title: "OneBoarding AI",
     close: "Close",
-    headline: "✨ Your 3 free interactions for today are finished.",
-    instruction:
-      "To continue your OneBoarding AI experience with unlimited access, activate your personal space in 30 seconds (payment included).",
-    plansTitle: "Choose your plan:",
-    planA: "🔹 Subscription €5/month — continuous access, no interruption.",
-    planB: "🔸 One-month pass €5 — a full month, no commitment.",
-    elseReturn:
-      "Otherwise: you can come back tomorrow to enjoy 3 new free interactions.",
-    brandWelcome: "Welcome to OneBoarding AI",
-    brandBul1: "👉 Your personal AI, at your service.",
-    brandBul2: "👉 Activate your future today.",
+    intro: ["Unlimited access.", "On your terms."],
+    plans: [
+      {
+        name: "— One Day — €11 [Standard]",
+        desc: "Activates access for 24 hours.",
+      },
+      {
+        name: "— One Month — €31 [Plus]",
+        desc: "Activates access for 30 days.",
+      },
+      {
+        name: "— One Year — €300 [Gold]",
+        desc: "Activates access for 365 days.",
+      },
+      {
+        name: "— One Life — €31,000 [Signature]",
+        desc: "Activates access for 365 days, for life.",
+      },
+    ],
+    power: [
+      "200 countries.",
+      "20 languages.",
+      "Millions of texts.",
+      "One intelligence: OneBoarding AI.",
+    ],
     subscribe: "Subscribe",
     later: "Later",
   },
 
-  /** AR — ترجمة دقيقة بأسلوب مهني، مع الحفاظ على المعنى والهيكلة */
   ar: {
-    title: "مرحبًا بك في OneBoarding AI",
+    title: "OneBoarding AI",
     close: "إغلاق",
-    headline: "✨ انتهت تفاعلاتك الثلاث المجانية لليوم.",
-    instruction:
-      "للاستمرار في تجربة OneBoarding AI بوصول غير محدود: فعِّل مساحتك الشخصية خلال 30 ثانية (يشمل الدفع).",
-    plansTitle: "اختر الخطة المناسبة:",
-    planA: "🔹 اشتراك 5€ شهريًا — وصول مستمر دون انقطاع.",
-    planB: "🔸 وصول حر 5€ — شهر كامل دون التزام.",
-    elseReturn:
-      "بدلًا من ذلك: يمكنك العودة غدًا للاستفادة من 3 تفاعلات مجانية جديدة.",
-    brandWelcome: "مرحبًا بك في OneBoarding AI",
-    brandBul1: "👉 ذكاؤك الشخصي، في خدمتك.",
-    brandBul2: "👉 فعِّل مستقبلك اليوم.",
-    subscribe: "الاشتراك",
+    intro: ["وصول غير محدود.", "وفق اختيارك."],
+    plans: [
+      {
+        name: "— One Day — 11 € [Standard]",
+        desc: "تفعيل الوصول لمدة 24 ساعة.",
+      },
+      {
+        name: "— One Month — 31 € [Plus]",
+        desc: "تفعيل الوصول لمدة 30 يوماً.",
+      },
+      {
+        name: "— One Year — 300 € [Gold]",
+        desc: "تفعيل الوصول لمدة 365 يوماً.",
+      },
+      {
+        name: "— One Life — 31,000 € [Signature]",
+        desc: "تفعيل الوصول لمدة 365 يوماً، مدى الحياة.",
+      },
+    ],
+    power: ["200 دولة.", "20 لغة.", "ملايين النصوص.", "ذكاء واحد: OneBoarding AI."],
+    subscribe: "اشترك",
     later: "لاحقًا",
   },
-} as const;
+};
