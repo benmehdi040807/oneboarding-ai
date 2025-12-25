@@ -20,12 +20,12 @@ function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
 
-// ====== Quota free (cookie) — UNIFIÉ avec /api/quota/consume ======
+// ====== Quota free (cookie) — SOURCE DE VÉRITÉ SERVEUR ======
 const TZ = "Africa/Casablanca";
 const QUOTA_COOKIE = "ob_quota_v1";
 const FREE_PER_DAY = 3;
 
-type QuotaCookie = { stamp: string; used: number }; // ✅ même format que /api/quota/consume
+type QuotaCookie = { stamp: string; used: number };
 
 /** yyyy-mm-dd en Africa/Casablanca */
 function casablancaStamp(d = new Date()): string {
@@ -65,11 +65,13 @@ function consumeOne(req: NextRequest) {
 }
 
 function setQuotaCookie(res: NextResponse, q: QuotaCookie) {
-  // ⚠️ aligné avec /api/quota/consume : secure + lax + /
+  // secure uniquement en prod (évite soucis en dev http)
+  const isProd = process.env.NODE_ENV === "production";
+
   res.cookies.set(QUOTA_COOKIE, JSON.stringify(q), {
     httpOnly: true,
     sameSite: "lax",
-    secure: true,
+    secure: isProd,
     path: "/",
     maxAge: 60 * 60 * 24, // 24h
   });
@@ -168,7 +170,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { prompt, mode }: { prompt?: string; mode?: "short" } = await req.json();
+    const { prompt, mode }: { prompt?: string; mode?: "short" } =
+      await req.json();
     const raw = typeof prompt === "string" ? prompt.trim() : "";
     if (!raw) return json({ ok: false, error: "Missing prompt" }, 400);
 
@@ -215,7 +218,8 @@ export async function POST(req: NextRequest) {
     let systemContent = SYSTEM_PROMPT_WITH_CREATOR_RULES;
 
     if (mentionDecision.allow) {
-      const canonical = (CREATOR_SENTENCE as any)[locale] ?? CREATOR_SENTENCE.fr;
+      const canonical =
+        (CREATOR_SENTENCE as any)[locale] ?? CREATOR_SENTENCE.fr;
       systemContent += `\n\n// RUNTIME: include canonical creator sentence (reason=${mentionDecision.reason})\nINCLUDE_CANONICAL_SENTENCE: ${canonical}`;
     } else {
       systemContent += `\n\n// RUNTIME: do NOT append creator signature automatically (reason=${mentionDecision.reason})`;
@@ -276,4 +280,4 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return json({ ok: false, error: err?.message || "Server error" }, 500);
   }
-      }
+    }
