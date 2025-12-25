@@ -16,8 +16,7 @@ import {
   type Confidence as OcrConfidence,
 } from "@/lib/ocrPhrases";
 
-// 🔐 Accès / quota / membres
-import { useAccessControl } from "@/lib/useAccessControl";
+// 🔐 Dialogs
 import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
 import MemberLimitDialog from "@/components/MemberLimitDialog";
 
@@ -497,7 +496,6 @@ export default function Page() {
   const [, setSpeechSupported] = useState(false);
   const [, setListening] = useState(false);
 
-  const { snapshot: access, checkAndConsume } = useAccessControl();
   const [welcomeLimitOpen, setWelcomeLimitOpen] = useState(false);
   const [memberLimitOpen, setMemberLimitOpen] = useState(false);
 
@@ -708,14 +706,9 @@ export default function Page() {
       setOcrText("");
 
       try {
-        // Import dynamique pour ne pas alourdir le bundle initial
         const { createWorker } = await import("tesseract.js");
-
-        // 👉 IMPORTANT : on force le type en `any` pour éviter le conflit
-        // avec le type DOM Worker dans TypeScript.
         const worker = (await (createWorker as any)()) as any;
 
-        // 🌍 Pack de langues mondial – 20 langues supportées
         await worker.loadLanguage(OCR_LANGS);
         await worker.initialize(OCR_LANGS);
 
@@ -739,9 +732,7 @@ export default function Page() {
 
         await worker.terminate();
 
-        if (!cancelled) {
-          setOcrText(combined.trim());
-        }
+        if (!cancelled) setOcrText(combined.trim());
       } catch (err) {
         console.error("OCR error", err);
         if (!cancelled) setOcrText("");
@@ -767,15 +758,14 @@ export default function Page() {
   /* === Écoute des événements venant de ChatPanel === */
   useEffect(() => {
     const onMic = () => toggleMic();
-
     window.addEventListener("ob:toggle-mic", onMic as EventListener);
-
     return () => {
       window.removeEventListener("ob:toggle-mic", onMic as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* === SUBMIT : serveur = juge, UI = confort === */
   useEffect(() => {
     const onSubmit = async (evt: Event) => {
       const e = evt as CustomEvent<{
@@ -786,21 +776,10 @@ export default function Page() {
       const L = (e.detail?.lang as "fr" | "en" | "ar") || lang;
       if (!text || loading) return;
 
-      const res = await checkAndConsume();
-      if (!res.allowed) {
-        if (res.reason === "NEED_SUB") {
-          setWelcomeLimitOpen(true);
-        } else if (res.reason === "NEED_CONNECT") {
-          setMemberLimitOpen(true);
-        }
-        return;
-      }
-
       const now = new Date().toISOString();
       setHistory((h) => [{ role: "user", text, time: now }, ...h]);
       setLoading(true);
 
-      // 🧩 Composition finale du prompt : texte user + OCR (si présent)
       const promptPayload = ocrText
         ? `${text}\n\n[CONTENU EXTRAIT DES DOCUMENTS FOURNIS]\n${ocrText}`
         : text;
@@ -811,61 +790,64 @@ export default function Page() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: promptPayload }),
         });
-        const data = await response.json();
+
+        const data = await response.json().catch(() => ({} as any));
+
+        // ✅ Interception souveraine : quota free atteint
+        if (response.status === 429 && data?.error === "FREE_DAILY_LIMIT") {
+          setWelcomeLimitOpen(true);
+          return;
+        }
+
+        // (optionnel futur) barrière member/connect côté serveur
+        // if (response.status === 403 && data?.error === "NEED_CONNECT") { setMemberLimitOpen(true); return; }
+
         if (!response.ok || !data?.ok) {
           const raw = String(data?.error || `HTTP ${response.status}`);
           let msg = `Erreur: ${raw}`;
-          if (raw.includes("GROQ_API_KEY"))
+          if (raw.includes("GROQ_API_KEY")) {
             msg =
               "Service temporairement indisponible. (Configuration serveur requise)";
-          setHistory((h) => [
-            {
-              role: "error",
-              text: msg,
-              time: new Date().toISOString(),
-            },
-            ...h,
-          ]);
-        } else {
-          const modelTextRaw: string = String(data.text || "");
-          const conf = assessConfidence(modelTextRaw);
-
-          const isOcrMode = Boolean(ocrText);
-          let finalText: string;
-
-          if (isOcrMode) {
-            // 🔎 Lecture d’images / documents → pool OCR dédié
-            finalText = formatOcrResponse({
-              lang: L as OcrLang,
-              confidence: conf as OcrConfidence,
-              summary: modelTextRaw,
-              tips: ocrTipsFor(L),
-              seed: Date.now() % 100000,
-              joiner: " ",
-            }).trim();
-          } else {
-            // 💬 Réponse texte classique → moteur universel
-            finalText = formatTextResponse({
-              lang: L,
-              confidence: conf,
-              summary: modelTextRaw,
-              includeCta: false,
-              seed: Date.now() % 100000,
-              joiner: "\n\n",
-            })
-              .replace(/\n{3,}/g, "\n\n")
-              .trim();
           }
 
           setHistory((h) => [
-            {
-              role: "assistant",
-              text: finalText,
-              time: new Date().toISOString(),
-            },
+            { role: "error", text: msg, time: new Date().toISOString() },
             ...h,
           ]);
+          return;
         }
+
+        const modelTextRaw: string = String(data.text || "");
+        const conf = assessConfidence(modelTextRaw);
+        const isOcrMode = Boolean(ocrText);
+
+        let finalText: string;
+        if (isOcrMode) {
+          finalText = formatOcrResponse({
+            lang: L as OcrLang,
+            confidence: conf as OcrConfidence,
+            summary: modelTextRaw,
+            tips: ocrTipsFor(L),
+            seed: Date.now() % 100000,
+            joiner: " ",
+          }).trim();
+        } else {
+          finalText = formatTextResponse({
+            lang: L,
+            confidence: conf,
+            summary: modelTextRaw,
+            includeCta: false,
+            seed: Date.now() % 100000,
+            joiner: "\n\n",
+          })
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
+        }
+
+        setHistory((h) => [
+          { role: "assistant", text: finalText, time: new Date().toISOString() },
+          ...h,
+        ]);
       } catch (err: any) {
         setHistory((h) => [
           {
@@ -883,7 +865,7 @@ export default function Page() {
     window.addEventListener("ob:chat-submit", onSubmit as EventListener);
     return () =>
       window.removeEventListener("ob:chat-submit", onSubmit as EventListener);
-  }, [lang, loading, checkAndConsume, ocrText]);
+  }, [lang, loading, ocrText]);
 
   function clearHistory() {
     setHistory([]);
@@ -1010,6 +992,7 @@ export default function Page() {
         onConfirm={clearHistory}
         onCancel={() => setShowClearModal(false)}
       />
+
       <CguPrivacyModal
         open={showLegal}
         onRequestClose={() => setShowLegal(false)}
@@ -1150,4 +1133,4 @@ function StyleGlobals() {
       }
     `}</style>
   );
-}
+        }
