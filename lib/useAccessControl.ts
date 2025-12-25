@@ -8,7 +8,7 @@ export type AccessReason = "NONE" | "NEED_CONNECT" | "NEED_SUB";
 export type AccessSnapshot = {
   connected: boolean;
   planActive: boolean;
-  unlimited: boolean; // (connected && planActive) => “membre complet”
+  unlimited: boolean; // connected && planActive
 };
 
 function readBoolLS(key: string): boolean {
@@ -24,13 +24,13 @@ function readBoolLS(key: string): boolean {
  * useAccessControl()
  *
  * ✅ UI-only snapshot (aucune logique métier de barrière)
- * ✅ Aucun appel réseau (plus de /api/quota/consume)
+ * ✅ Aucun appel réseau
  *
  * Rôle :
  * - donner à l’UI un “état” : connecté ? plan actif ?
  * - permettre d’afficher des indices/menus/CTA, sans bloquer.
  *
- * La barrière “3 free / day” est désormais souveraine côté serveur (/api/generate).
+ * La barrière “3 free / day” est souveraine côté serveur (/api/generate).
  */
 export function useAccessControl() {
   const [connected, setConnected] = useState(false);
@@ -43,21 +43,21 @@ export function useAccessControl() {
 
     // listeners
     const onConnectedChanged = () => setConnected(readBoolLS("ob_connected"));
-
     const onSpaceActivated = () => setPlanActive(true);
     const onSpaceDeactivated = () => setPlanActive(false);
-
-    const onPlanChanged = () => setPlanActive(readBoolLS("oneboarding.spaceActive"));
+    const onPlanChanged = () =>
+      setPlanActive(readBoolLS("oneboarding.spaceActive"));
 
     window.addEventListener("ob:connected-changed", onConnectedChanged);
     window.addEventListener("ob:space-activated", onSpaceActivated);
     window.addEventListener("ob:space-deactivated", onSpaceDeactivated);
     window.addEventListener("ob:plan-changed", onPlanChanged);
 
-    // bonus : sync via storage (si multi-tabs)
+    // bonus : sync via storage (multi-tabs)
     const onStorage = (e: StorageEvent) => {
       if (e.key === "ob_connected") setConnected(readBoolLS("ob_connected"));
-      if (e.key === "oneboarding.spaceActive") setPlanActive(readBoolLS("oneboarding.spaceActive"));
+      if (e.key === "oneboarding.spaceActive")
+        setPlanActive(readBoolLS("oneboarding.spaceActive"));
     };
     window.addEventListener("storage", onStorage);
 
@@ -76,4 +76,4 @@ export function useAccessControl() {
   }, [connected, planActive]);
 
   return { snapshot };
-                                                                        }
+}
