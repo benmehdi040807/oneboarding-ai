@@ -104,22 +104,21 @@ const TEXT = {
   fr: {
     title: "Information sur votre espace",
     close: "Fermer",
-    headline:
-      "Vous avez utilisé vos 3 interactions quotidiennes gratuites.",
+    headline: "Vous n’êtes pas connecté à votre espace sur cet appareil.",
     body: "Pour continuer avec un accès illimité, connectez-vous à votre espace depuis le Menu (bouton « Se connecter »).",
     ok: "OK",
   },
   en: {
     title: "Information about your space",
     close: "Close",
-    headline: "You have used your 3 free daily interactions.",
+    headline: "You are not signed in to your space on this device.",
     body: 'To continue with unlimited access, sign in to your space from the Menu (the “Sign in” button).',
     ok: "OK",
   },
   ar: {
     title: "معلومة حول مساحتك",
     close: "إغلاق",
-    headline: "لقد استخدمت تفاعلاتك الثلاث المجانية لليوم.",
+    headline: "أنت غير مسجّل الدخول إلى مساحتك على هذا الجهاز.",
     body: "للاستمرار بوصول غير محدود، سجّل الدخول إلى مساحتك من القائمة (زر «تسجيل الدخول»).",
     ok: "حسناً",
   },
