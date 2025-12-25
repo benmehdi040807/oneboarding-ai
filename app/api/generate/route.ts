@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 
 // ====== Réglages Groq ======
 const GROQ_BASE = "https://api.groq.com/openai/v1";
-const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
