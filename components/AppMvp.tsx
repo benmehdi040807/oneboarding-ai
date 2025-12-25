@@ -1,7 +1,7 @@
 // components/AppMvp.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Menu from "@/components/Menu";
 import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
 
@@ -29,6 +29,9 @@ export default function AppMvp() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ Anti double-tap verrou synchrone
+  const submitLockRef = useRef(false);
 
   // Lang pour la modale Welcome (labels)
   const [lang, setLang] = useState<Lang>(getInitialLang());
@@ -65,8 +68,15 @@ export default function AppMvp() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // ✅ anti double-tap instantané
+    if (submitLockRef.current) return;
+
     const q = input.trim();
     if (!q || loading) return;
+
+    // ✅ lock dès maintenant (avant setState)
+    submitLockRef.current = true;
 
     const now = new Date().toISOString();
     setHistory((h) => [{ role: "user", text: q, time: now }, ...h]);
@@ -82,7 +92,7 @@ export default function AppMvp() {
 
       const data = await res.json().catch(() => ({} as any));
 
-      // ✅ NOUVEAU : limite free -> modale Welcome (pas de message "Erreur: FREE_DAILY_LIMIT")
+      // ✅ limite free -> modale Welcome (pas de message "Erreur: FREE_DAILY_LIMIT")
       if (res.status === 429 && data?.error === "FREE_DAILY_LIMIT") {
         setWelcomeOpen(true);
         return;
@@ -119,6 +129,8 @@ export default function AppMvp() {
       ]);
     } finally {
       setLoading(false);
+      // ✅ unlock
+      submitLockRef.current = false;
     }
   }
 
@@ -147,7 +159,7 @@ export default function AppMvp() {
           />
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !input.trim()}
             className="px-4 py-3 rounded-xl font-semibold bg-white text-black hover:bg-gray-100 active:scale-[.985] transition disabled:opacity-60"
           >
             {loading ? "…" : lang === "ar" ? "موافق" : "OK"}
@@ -207,4 +219,4 @@ export default function AppMvp() {
       </div>
     </div>
   );
-            }
+}
