@@ -3,9 +3,6 @@
 
 import { useEffect, useState } from "react";
 import Menu from "@/components/Menu";
-
-// ✅ Nouveau flux quota côté serveur + modale de bienvenue
-import { consumeOne } from "@/lib/quotaClient";
 import WelcomeLimitDialog from "@/components/WelcomeLimitDialog";
 
 type Item = { role: "user" | "assistant" | "error"; text: string; time: string };
@@ -33,7 +30,7 @@ export default function AppMvp() {
   const [history, setHistory] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Lang pour la modale Welcome (labels) — même logique que ChatPanel
+  // Lang pour la modale Welcome (labels)
   const [lang, setLang] = useState<Lang>(getInitialLang());
   useEffect(() => {
     const onLang = (e: Event) => {
@@ -46,10 +43,11 @@ export default function AppMvp() {
       setLang((["fr", "en", "ar"].includes(next) ? next : "fr") as Lang);
     };
     window.addEventListener("ob:lang-changed", onLang as EventListener);
-    return () => window.removeEventListener("ob:lang-changed", onLang as EventListener);
+    return () =>
+      window.removeEventListener("ob:lang-changed", onLang as EventListener);
   }, []);
 
-  // 🔔 Modale de bienvenue (quota)
+  // 🔔 Modale quota atteint (décision serveur)
   const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   // Charger / Sauver l'historique local
@@ -70,17 +68,6 @@ export default function AppMvp() {
     const q = input.trim();
     if (!q || loading) return;
 
-    // 🧮 Quota gratuit — via cookie côté serveur + WelcomeLimitDialog
-    const plan = localStorage.getItem("oneboarding.plan"); // null si non-membre
-    if (!plan) {
-      const res = await consumeOne();
-      if (!res.ok && res.code === "LIMIT_REACHED") {
-        setWelcomeOpen(true); // 👉 invite à activer l’espace / ou revenir plus tard
-        return;
-      }
-      // ok:true (used/remaining) ou bypass:true → on poursuit
-    }
-
     const now = new Date().toISOString();
     setHistory((h) => [{ role: "user", text: q, time: now }, ...h]);
     setInput("");
@@ -92,23 +79,42 @@ export default function AppMvp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: q }),
       });
-      const data = await res.json();
+
+      const data = await res.json().catch(() => ({} as any));
+
+      // ✅ NOUVEAU : limite free -> modale Welcome (pas de message "Erreur: FREE_DAILY_LIMIT")
+      if (res.status === 429 && data?.error === "FREE_DAILY_LIMIT") {
+        setWelcomeOpen(true);
+        return;
+      }
 
       if (!res.ok || !data?.ok) {
         const raw = String(data?.error || `HTTP ${res.status}`);
         const msg = raw.includes("GROQ_API_KEY")
           ? "Service temporairement indisponible. (Configuration serveur requise)"
           : `Erreur: ${raw}`;
-        setHistory((h) => [{ role: "error", text: msg, time: new Date().toISOString() }, ...h ]);
-      } else {
         setHistory((h) => [
-          { role: "assistant", text: String(data.text || "Réponse vide."), time: new Date().toISOString() },
+          { role: "error", text: msg, time: new Date().toISOString() },
           ...h,
         ]);
+        return;
       }
+
+      setHistory((h) => [
+        {
+          role: "assistant",
+          text: String(data.text || "Réponse vide."),
+          time: new Date().toISOString(),
+        },
+        ...h,
+      ]);
     } catch (err: any) {
       setHistory((h) => [
-        { role: "error", text: `Erreur: ${err?.message || "réseau"}`, time: new Date().toISOString() },
+        {
+          role: "error",
+          text: `Erreur: ${err?.message || "réseau"}`,
+          time: new Date().toISOString(),
+        },
         ...h,
       ]);
     } finally {
@@ -119,18 +125,22 @@ export default function AppMvp() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-screen-sm px-4 py-6 flex flex-col items-center">
-        {/* Menu (pilote auth/activation/paiement en natif) */}
         <div className="w-full mb-4">
           <Menu />
         </div>
 
         <h1 className="text-2xl font-bold mb-4 text-center">OneBoarding AI ✨</h1>
 
-        {/* Champ + bouton — mobile-first */}
         <form onSubmit={handleSubmit} className="w-full flex gap-2 mb-3">
           <input
             type="text"
-            placeholder={lang === "ar" ? "اكتب احتياجك…" : lang === "en" ? "Describe your need…" : "Décrivez votre besoin…"}
+            placeholder={
+              lang === "ar"
+                ? "اكتب احتياجك…"
+                : lang === "en"
+                ? "Describe your need…"
+                : "Décrivez votre besoin…"
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="flex-1 rounded-xl px-4 py-3 text-black"
@@ -140,18 +150,19 @@ export default function AppMvp() {
             disabled={loading}
             className="px-4 py-3 rounded-xl font-semibold bg-white text-black hover:bg-gray-100 active:scale-[.985] transition disabled:opacity-60"
           >
-            {loading ? (lang === "ar" ? "…" : lang === "en" ? "…" : "…") : (lang === "ar" ? "موافق" : lang === "en" ? "OK" : "OK")}
+            {loading ? "…" : lang === "ar" ? "موافق" : "OK"}
           </button>
         </form>
 
-        {/* Historique */}
         <div className="w-full space-y-3">
           {loading && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <p className="opacity-90">
                 <span className="inline-block animate-pulse">•••</span>
               </p>
-              <p className="text-xs opacity-60 mt-2">IA • {new Date().toLocaleString()}</p>
+              <p className="text-xs opacity-60 mt-2">
+                IA • {new Date().toLocaleString()}
+              </p>
             </div>
           )}
 
@@ -168,15 +179,26 @@ export default function AppMvp() {
             >
               <p className="whitespace-pre-wrap">{item.text}</p>
               <p className="text-xs text-white/60 mt-2">
-                {item.role === "user" ? (lang === "ar" ? "أنت" : lang === "en" ? "You" : "Vous")
-                  : item.role === "assistant" ? "IA" : (lang === "ar" ? "خطأ" : lang === "en" ? "Error" : "Erreur")}
-                {" • "}{new Date(item.time).toLocaleString()}
+                {item.role === "user"
+                  ? lang === "ar"
+                    ? "أنت"
+                    : lang === "en"
+                    ? "You"
+                    : "Vous"
+                  : item.role === "assistant"
+                  ? "IA"
+                  : lang === "ar"
+                  ? "خطأ"
+                  : lang === "en"
+                  ? "Error"
+                  : "Erreur"}
+                {" • "}
+                {new Date(item.time).toLocaleString()}
               </p>
             </div>
           ))}
         </div>
 
-        {/* Modale de bienvenue (quota atteint) */}
         <WelcomeLimitDialog
           open={welcomeOpen}
           onClose={() => setWelcomeOpen(false)}
@@ -185,4 +207,4 @@ export default function AppMvp() {
       </div>
     </div>
   );
-    }
+            }
